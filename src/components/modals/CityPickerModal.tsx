@@ -8,6 +8,7 @@ import { CityAutocompleteInput } from "../ui/inputs/CityAutocompleteInput";
 interface CitySuggestion {
   google_place_id: string;
   display_name: string;
+  is_primary?: boolean;
 }
 
 interface CityPickerModalProps {

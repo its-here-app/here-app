@@ -44,8 +44,11 @@ export default function EditProfileModal({
   const [initialUsername, setInitialUsername] = useState("");
   const [usernameStatus, setUsernameStatus] = useState<UsernameStatus>("idle");
   const [bio, setBio] = useState("");
-  const [cityDisplay, setCityDisplay] = useState("");
-  const [cityPlaceId, setCityPlaceId] = useState("");
+  const [selectedCity, setSelectedCity] = useState<{
+    google_place_id: string;
+    display_name: string;
+    is_primary?: boolean;
+  } | null>(null);
   const [profilePhoto, setProfilePhoto] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string>("");
   const [currentPhotoUrl, setCurrentPhotoUrl] = useState<string>("");
@@ -129,17 +132,19 @@ export default function EditProfileModal({
         setPhotoPreview(profile.avatar_url || "");
 
         if (profile.city_id) {
-          // Fetch city display name
           const { createClient } = await import("@/lib/supabase/client");
           const supabase = createClient();
           const { data: city } = await supabase
             .from("cities")
-            .select("google_place_id, display_name")
+            .select("google_place_id, display_name, is_primary")
             .eq("id", profile.city_id)
             .single();
           if (city) {
-            setCityDisplay(city.display_name);
-            setCityPlaceId(city.google_place_id);
+            setSelectedCity({
+              google_place_id: city.google_place_id,
+              display_name: city.display_name,
+              is_primary: city.is_primary ?? undefined,
+            });
           }
         }
       }
@@ -178,10 +183,11 @@ export default function EditProfileModal({
       }
 
       let cityId: string | null = null;
-      if (cityPlaceId && cityDisplay) {
+      if (selectedCity) {
         cityId = await upsertCityAction({
-          google_place_id: cityPlaceId,
-          display_name: cityDisplay,
+          google_place_id: selectedCity.google_place_id,
+          display_name: selectedCity.display_name,
+          is_primary: selectedCity.is_primary,
         });
       }
 
@@ -324,15 +330,10 @@ export default function EditProfileModal({
       <CityAutocompleteInput
         focusBrand
         label="City"
-        value={cityDisplay}
+        value={selectedCity?.display_name ?? ""}
         placeholder="Your city"
-        onSelect={(city) => {
-          setCityDisplay(city.display_name);
-          setCityPlaceId(city.google_place_id);
-        }}
-        onChange={() => {
-          setCityPlaceId("");
-        }}
+        onSelect={(city) => setSelectedCity(city)}
+        onChange={() => setSelectedCity(null)}
       />
 
       {/* Delete account */}

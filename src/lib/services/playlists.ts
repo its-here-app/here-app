@@ -1,6 +1,7 @@
 import { createClient } from "../supabase/client";
 import { track } from "../analytics";
 import { getDefaultCover } from "../playlist-covers";
+import { formatCityDisplay } from "../cityDisplay";
 import { toSlug } from "../playlistUrl";
 import type { SearchResult, TodaysPick, Spot } from "@/types";
 
@@ -16,7 +17,7 @@ export async function getRecentFollowingPlaylists(
   if (!followingIds.length) return [];
   const { data, error } = await supabase
     .from("playlists")
-    .select("*, profiles(username, avatar_url)")
+    .select("*, profiles(username, avatar_url), cities!playlists_city_id_fkey(display_name, is_primary)")
     .in("user_id", followingIds)
     .eq("is_public", true)
     .order("created_at", { ascending: false })
@@ -24,8 +25,12 @@ export async function getRecentFollowingPlaylists(
   if (error) return [];
   return data.map((p: any) => ({
     ...p,
+    city: p.cities?.display_name
+      ? formatCityDisplay(p.cities.display_name, p.cities.is_primary)
+      : p.city,
     username: p.profiles?.username ?? "",
     avatar_url: p.profiles?.avatar_url ?? null,
+    cities: undefined,
     profiles: undefined,
   }));
 }
@@ -34,12 +39,16 @@ export async function getPlaylistsByUser(userId: string): Promise<import("@/type
   const supabase = createClient();
   const { data, error } = await supabase
     .from("playlists")
-    .select("*, playlist_spots(count)")
+    .select("*, playlist_spots(count), cities!playlists_city_id_fkey(display_name, is_primary)")
     .eq("user_id", userId)
     .order("created_at", { ascending: false });
   if (error) return [];
   return data.map((p: any) => ({
     ...p,
+    city: p.cities?.display_name
+      ? formatCityDisplay(p.cities.display_name, p.cities.is_primary)
+      : p.city,
+    cities: undefined,
     spot_count: p.playlist_spots?.[0]?.count ?? 0,
     playlist_spots: undefined,
   }));
@@ -51,7 +60,7 @@ export async function getTodaysPick(): Promise<TodaysPick | null> {
   const { data: psData } = await supabase
     .from("playlist_spots")
     .select(
-      "spot_id, playlists!inner(name, city, is_public, profiles!playlists_user_id_fkey(username))"
+      "spot_id, playlists!inner(name, city, city_id, is_public, profiles!playlists_user_id_fkey(username), cities!playlists_city_id_fkey(display_name, is_primary))"
     )
     .eq("playlists.is_public", true)
     .limit(50);
@@ -82,7 +91,9 @@ export async function getTodaysPick(): Promise<TodaysPick | null> {
   return {
     spot: pick,
     playlist_name: playlist?.name ?? "",
-    playlist_city: playlist?.city ?? "",
+    playlist_city: playlist?.cities?.display_name
+      ? formatCityDisplay(playlist.cities.display_name, playlist.cities.is_primary)
+      : (playlist?.city ?? ""),
     username: playlist?.profiles?.username ?? "",
   };
 }

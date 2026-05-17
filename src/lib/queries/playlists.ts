@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { toSlug } from "@/lib/playlistUrl";
+import { formatCityDisplay } from "@/lib/cityDisplay";
 import type { Playlist, Spot } from "@/types";
 
 export async function getPlaylistsByUser(
@@ -9,7 +10,7 @@ export async function getPlaylistsByUser(
   const supabase = await createClient();
   let query = supabase
     .from("playlists")
-    .select("*, playlist_spots(count)")
+    .select("*, playlist_spots(count), cities!playlists_city_id_fkey(display_name, is_primary)")
     .eq("user_id", userId)
     .order("created_at", { ascending: false });
   if (onlyPublic) query = query.eq("is_public", true);
@@ -17,6 +18,12 @@ export async function getPlaylistsByUser(
   if (error) return [];
   return data.map((p: any) => ({
     ...p,
+    // Prefer the smart display name from the cities table over the
+    // denormalized playlist.city string (which may be stale like "Los Angeles, CA").
+    city: p.cities?.display_name
+      ? formatCityDisplay(p.cities.display_name, p.cities.is_primary)
+      : p.city,
+    cities: undefined,
     spot_count: p.playlist_spots?.[0]?.count ?? 0,
     playlist_spots: undefined,
   }));
@@ -45,6 +52,10 @@ export async function getSpotsByUser(userId: string): Promise<Spot[]> {
 
 const PLAYLIST_SELECT = `
   *,
+  cities!playlists_city_id_fkey (
+    display_name,
+    is_primary
+  ),
   profiles!playlists_user_id_fkey (
     username,
     full_name,
@@ -87,5 +98,13 @@ export async function getPlaylistByUsernameAndName(
 
   if (error || !data) return null;
 
-  return data.find((p: any) => toSlug(p.name) === nameSlug) ?? null;
+  const match = data.find((p: any) => toSlug(p.name) === nameSlug);
+  if (!match) return null;
+
+  // Prefer smart display name from cities table over stale playlist.city
+  const m = match as any;
+  if (m.cities?.display_name) {
+    m.city = formatCityDisplay(m.cities.display_name, m.cities.is_primary);
+  }
+  return match;
 }

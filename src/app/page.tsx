@@ -8,6 +8,7 @@ import { Map } from "@/components/ui/icons/Map";
 import { useAuth } from "@/lib/authContext";
 import { getProfile } from "@/lib/services/users";
 import { createClient } from "@/lib/supabase/client";
+import { formatCityDisplay } from "@/lib/cityDisplay";
 import { upsertCityAction } from "@/lib/actions/cities";
 import { updateProfileCityAction } from "@/lib/actions/users";
 import { useRouter } from "next/navigation";
@@ -40,10 +41,10 @@ export default function HomePage() {
         const supabase = createClient();
         const { data: city } = await supabase
           .from("cities")
-          .select("display_name")
+          .select("display_name, is_primary")
           .eq("id", profile.city_id)
           .single();
-        if (city) setCityName(city.display_name);
+        if (city) setCityName(formatCityDisplay(city.display_name, city.is_primary));
       }
     });
   }, [user]);
@@ -84,10 +85,11 @@ export default function HomePage() {
         isOpen={cityPickerOpen}
         onClose={() => setCityPickerOpen(false)}
         onSelect={async (city) => {
-          setCityName(city.display_name);
+          setCityName(formatCityDisplay(city.display_name, city.is_primary));
           const cityId = await upsertCityAction({
             google_place_id: city.google_place_id,
             display_name: city.display_name,
+            is_primary: city.is_primary,
           });
           await updateProfileCityAction(cityId);
         }}

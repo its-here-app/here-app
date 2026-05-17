@@ -1,4 +1,5 @@
 import { createClient } from "../supabase/client";
+import { formatCityDisplay } from "../cityDisplay";
 import type { Profile, Playlist } from "@/types";
 
 export interface SearchResultPerson extends Profile {
@@ -85,7 +86,7 @@ export async function searchPlaylists(
   // City matches first, then name matches
   let baseQuery = supabase
     .from("playlists")
-    .select("*, profiles!playlists_user_id_fkey(username, avatar_url)")
+    .select("*, profiles!playlists_user_id_fkey(username, avatar_url), cities!playlists_city_id_fkey(display_name, is_primary)")
     .ilike("city", pattern)
     .order("created_at", { ascending: false })
     .limit(10);
@@ -98,7 +99,7 @@ export async function searchPlaylists(
 
   let nameQuery = supabase
     .from("playlists")
-    .select("*, profiles!playlists_user_id_fkey(username, avatar_url)")
+    .select("*, profiles!playlists_user_id_fkey(username, avatar_url), cities!playlists_city_id_fkey(display_name, is_primary)")
     .ilike("name", pattern)
     .order("created_at", { ascending: false })
     .limit(10);
@@ -132,8 +133,12 @@ function formatPlaylist(p: any): SearchResultPlaylist {
   const profile = p.profiles;
   return {
     ...p,
+    city: p.cities?.display_name
+      ? formatCityDisplay(p.cities.display_name, p.cities.is_primary)
+      : p.city,
     username: profile?.username ?? "",
     avatar_url: profile?.avatar_url ?? null,
+    cities: undefined,
     profiles: undefined,
   };
 }

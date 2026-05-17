@@ -4,7 +4,8 @@ import { useState, useEffect, useRef } from "react";
 
 interface CitySuggestion {
   google_place_id: string;
-  display_name: string;
+  display_name: string;   // Full canonical name (e.g. "Los Angeles, CA", "Portland, OR")
+  is_primary?: boolean;   // Google's #1 city for this base name
 }
 
 interface CityAutocompleteInputProps {

@@ -44,7 +44,11 @@ export function CreatePlaylistFlow() {
 
   // Form state
   const [city, setCity] = useState("");
-  const [cityPlaceId, setCityPlaceId] = useState("");
+  const [selectedCity, setSelectedCity] = useState<{
+    google_place_id: string;
+    display_name: string;
+    is_primary?: boolean;
+  } | null>(null);
   const [draftName, setDraftName] = useState("");
   const defaultNameRef = useRef("");
   const lastNameRef = useRef("");
@@ -93,7 +97,7 @@ export function CreatePlaylistFlow() {
 
   function resetState() {
     setCity("");
-    setCityPlaceId("");
+    setSelectedCity(null);
     setDraftName("");
     setDescription("");
     setIsPublic(false);
@@ -126,7 +130,7 @@ export function CreatePlaylistFlow() {
   function closePanel() {
     setPanelOpen(false);
     setCity("");
-    setCityPlaceId("");
+    setSelectedCity(null);
   }
 
   // ── Step 1: Create ─────────────────────────────────────────────────────────
@@ -202,10 +206,11 @@ export function CreatePlaylistFlow() {
 
     try {
       let cityId: string | undefined;
-      if (cityPlaceId && city) {
+      if (selectedCity) {
         cityId = await upsertCityAction({
-          google_place_id: cityPlaceId,
-          display_name: city,
+          google_place_id: selectedCity.google_place_id,
+          display_name: selectedCity.display_name,
+          is_primary: selectedCity.is_primary,
         });
       }
 
@@ -258,7 +263,7 @@ export function CreatePlaylistFlow() {
             size="md"
             darkTheme
             softDisabled
-            disabled={!cityPlaceId}
+            disabled={!selectedCity}
             onClick={handleCreate}
             className="w-full"
           >
@@ -271,7 +276,7 @@ export function CreatePlaylistFlow() {
             size="lg"
             darkTheme
             softDisabled
-            disabled={!cityPlaceId}
+            disabled={!selectedCity}
             onClick={handleCreate}
           >
             Create
@@ -283,11 +288,11 @@ export function CreatePlaylistFlow() {
           value={city}
           onSelect={(c) => {
             setCity(c.display_name);
-            setCityPlaceId(c.google_place_id);
+            setSelectedCity(c);
           }}
           onChange={(val) => {
             setCity(val);
-            setCityPlaceId("");
+            setSelectedCity(null);
           }}
           placeholder="New York"
           autoFocus

@@ -1,6 +1,7 @@
 import { createClient } from "../supabase/client";
 import { upsertSpot } from "./playlists";
 import { track } from "../analytics";
+import { formatCityDisplay } from "../cityDisplay";
 import type { Spot, SearchResult } from "@/types";
 
 export async function getSavedSpots(userId: string): Promise<Spot[]> {
@@ -73,8 +74,9 @@ export async function getSavedPlaylists(userId: string): Promise<SavedPlaylist[]
       id,
       playlist_id,
       playlists!saved_playlists_playlist_id_fkey (
-        id, name, city, slug, cover_photo_url,
+        id, name, city, city_id, slug, cover_photo_url,
         profiles!playlists_user_id_fkey (username, full_name),
+        cities!playlists_city_id_fkey (display_name, is_primary),
         playlist_spots (id)
       )
     `)
@@ -87,6 +89,10 @@ export async function getSavedPlaylists(userId: string): Promise<SavedPlaylist[]
     playlist_id: row.playlist_id,
     playlist: {
       ...row.playlists,
+      city: row.playlists.cities?.display_name
+        ? formatCityDisplay(row.playlists.cities.display_name, row.playlists.cities.is_primary)
+        : row.playlists.city,
+      cities: undefined,
       spot_count: row.playlists.playlist_spots?.length ?? 0,
     },
   }));

@@ -45,8 +45,11 @@ export default function LoginPage() {
   const [username, setUsername] = useState("");
   const [usernameStatus, setUsernameStatus] = useState<UsernameStatus>("idle");
   const [bio, setBio] = useState("");
-  const [cityDisplay, setCityDisplay] = useState("");
-  const [cityPlaceId, setCityPlaceId] = useState("");
+  const [selectedCity, setSelectedCity] = useState<{
+    google_place_id: string;
+    display_name: string;
+    is_primary?: boolean;
+  } | null>(null);
   const [profilePhoto, setProfilePhoto] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string>("");
   const [saving, setSaving] = useState(false);
@@ -209,8 +212,7 @@ export default function LoginPage() {
     setName("");
     setUsername("");
     setBio("");
-    setCityDisplay("");
-    setCityPlaceId("");
+    setSelectedCity(null);
     setProfilePhoto(null);
     setPhotoPreview("");
     setError("");
@@ -255,10 +257,11 @@ export default function LoginPage() {
       if (dbError) throw dbError;
 
       // Save city via server action (client-side upsert can't write city_id due to RLS)
-      if (cityPlaceId && cityDisplay) {
+      if (selectedCity) {
         const cityId = await upsertCityAction({
-          google_place_id: cityPlaceId,
-          display_name: cityDisplay,
+          google_place_id: selectedCity.google_place_id,
+          display_name: selectedCity.display_name,
+          is_primary: selectedCity.is_primary,
         });
         await updateProfileAction({
           full_name: name,
@@ -523,15 +526,10 @@ export default function LoginPage() {
               <CityAutocompleteInput
                 focusBrand
                 label="City"
-                value={cityDisplay}
+                value={selectedCity?.display_name ?? ""}
                 placeholder="Your city"
-                onSelect={(city) => {
-                  setCityDisplay(city.display_name);
-                  setCityPlaceId(city.google_place_id);
-                }}
-                onChange={() => {
-                  setCityPlaceId("");
-                }}
+                onSelect={(city) => setSelectedCity(city)}
+                onChange={() => setSelectedCity(null)}
               />
             </form>
 
