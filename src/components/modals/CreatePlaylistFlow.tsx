@@ -14,7 +14,7 @@ import { Photo } from "@/components/ui/icons/Photo";
 import { PlaylistCard } from "@/components/PlaylistCard";
 import SpotCard from "@/components/SpotCard";
 import { getDefaultCover } from "@/lib/playlist-covers";
-import { resolveSpot, uploadPlaylistCover } from "@/lib/services/playlists";
+import { resolveSpot, upsertSpot, uploadPlaylistCover } from "@/lib/services/playlists";
 import { randomPlaylistName } from "@/lib/playlistNames";
 import { createPlaylistAction } from "@/lib/actions/playlists";
 import { upsertCityAction } from "@/lib/actions/cities";
@@ -167,6 +167,14 @@ export function CreatePlaylistFlow() {
       try {
         const match = await resolveSpot(spotName, city);
         if (match) {
+          await upsertSpot({
+            google_place_id: match.spot_id,
+            name: match.name,
+            address: match.address,
+            photo_url: match.photo_url,
+            rating: match.rating,
+            types: match.types,
+          });
           foundTemp.push({
             google_place_id: match.spot_id,
             name: match.name,
