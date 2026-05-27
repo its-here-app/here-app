@@ -23,20 +23,37 @@ import {
   RecommendedSection,
 } from "@/components/home";
 
+function getGreeting(): string {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  return "Good evening";
+}
+
+interface Weather {
+  temp: number;
+  condition: string;
+}
+
 export default function HomePage() {
   const { user, loading } = useAuth();
   const router = useRouter();
   const [cityName, setCityName] = useState<string | null>(null);
   const [cityPickerOpen, setCityPickerOpen] = useState(false);
+  const [firstName, setFirstName] = useState<string | null>(null);
+  const [weather, setWeather] = useState<Weather | null>(null);
 
   useEffect(() => {
     if (!loading && !user) router.push("/signin");
   }, [user, loading]);
 
-  // Load the user's city for the top-right button
+  // Load user profile: city + name + weather
   useEffect(() => {
     if (!user) return;
     getProfile(user.id).then(async (profile) => {
+      if (profile?.full_name) {
+        setFirstName(profile.full_name.split(" ")[0]);
+      }
       if (profile?.city_id) {
         const supabase = createClient();
         const { data: city } = await supabase
@@ -45,6 +62,12 @@ export default function HomePage() {
           .eq("id", profile.city_id)
           .single();
         if (city) setCityName(formatCityDisplay(city.display_name, city.is_primary));
+
+        // Fetch weather (non-blocking, best-effort)
+        fetch(`/api/weather?cityId=${profile.city_id}`)
+          .then((res) => (res.ok ? res.json() : null))
+          .then((data) => { if (data?.temp != null) setWeather(data); })
+          .catch(() => {});
       }
     });
   }, [user]);
@@ -70,6 +93,25 @@ export default function HomePage() {
           </Button>
         }
       />
+
+      {/* Desktop weather greeting */}
+      {firstName && weather && cityName && (
+        <div className="hidden lg:block mb-4">
+          <h1 className="text-display-radio-2 text-primary">
+            {getGreeting()}, {firstName}.
+          </h1>
+          <h1 className="text-display-radio-2 text-primary">
+            It&apos;s {weather.temp}° and {weather.condition} in{" "}
+            <button
+              onClick={() => setCityPickerOpen(true)}
+              className="underline underline-offset-4 cursor-pointer"
+            >
+              {cityName}
+            </button>{" "}
+            today.
+          </h1>
+        </div>
+      )}
 
       <div className="flex flex-col gap-12">
         <YourPlaylistsSection userId={user.id} />
