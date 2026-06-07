@@ -10,8 +10,8 @@ export async function generateMetadata({
 }: {
   params: Promise<{ username: string; city: string; slug: string }>;
 }): Promise<Metadata> {
-  const { username, slug } = await params;
-  const playlist = await getPlaylistByUsernameAndName(username, slug);
+  const { username, city, slug } = await params;
+  const playlist = await getPlaylistByUsernameAndName(username, slug, city);
   if (!playlist) return {};
   return {
     title: playlistDocTitle(playlist.city, playlist.name, playlist.profiles?.username),
@@ -25,11 +25,11 @@ export default async function PlaylistPage({
   params: Promise<{ username: string; city: string; slug: string }>;
   searchParams: Promise<{ from?: string }>;
 }) {
-  const [{ username, slug }, { from }] = await Promise.all([params, searchParams]);
+  const [{ username, city, slug }, { from }] = await Promise.all([params, searchParams]);
   const supabase = await createClient();
 
   const [playlist, { data: { user } }] = await Promise.all([
-    getPlaylistByUsernameAndName(username, slug),
+    getPlaylistByUsernameAndName(username, slug, city),
     supabase.auth.getUser(),
   ]);
 

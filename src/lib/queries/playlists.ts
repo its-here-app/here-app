@@ -79,7 +79,8 @@ const PLAYLIST_SELECT = `
 
 export async function getPlaylistByUsernameAndName(
   username: string,
-  nameSlug: string
+  nameSlug: string,
+  citySlug?: string
 ) {
   const supabase = await createClient();
 
@@ -98,10 +99,29 @@ export async function getPlaylistByUsernameAndName(
 
   if (error || !data) return null;
 
-  const match = data.find((p: any) => toSlug(p.name) === nameSlug);
+  // Match by stored slug (unique per user, includes -2/-3 suffixes for duplicates)
+  let match = data.find((p: any) => p.slug === nameSlug) ?? null;
+
+  // Fall back to matching by derived slug from name (handles legacy playlists)
+  if (!match) {
+    const candidates = data.filter((p: any) => toSlug(p.name) === nameSlug);
+    if (candidates.length === 1) {
+      match = candidates[0];
+    } else if (candidates.length > 1 && citySlug) {
+      match = candidates.find((p: any) => {
+        const raw = p.cities?.display_name ?? p.city ?? "";
+        const formatted = p.cities?.display_name
+          ? formatCityDisplay(raw, p.cities?.is_primary)
+          : raw;
+        return toSlug(formatted) === citySlug;
+      }) ?? candidates[0];
+    } else {
+      match = candidates[0] ?? null;
+    }
+  }
+
   if (!match) return null;
 
-  // Prefer smart display name from cities table over stale playlist.city
   const m = match as any;
   if (m.cities?.display_name) {
     m.city = formatCityDisplay(m.cities.display_name, m.cities.is_primary);

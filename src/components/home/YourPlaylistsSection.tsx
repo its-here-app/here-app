@@ -40,7 +40,7 @@ export function YourPlaylistsSection({ userId }: { userId: string }) {
           name={latestPlaylist.name}
           subtitle={latestPlaylist.description ?? undefined}
           image={latestPlaylist.cover_photo_url ?? undefined}
-          href={playlistUrl(username, latestPlaylist.city, latestPlaylist.name)}
+          href={playlistUrl(username, latestPlaylist.city, latestPlaylist.name, latestPlaylist.slug)}
         />
       ) : (
         <PlaylistCard

@@ -84,6 +84,7 @@ export function SharedRecentlySection({ userId }: { userId: string }) {
                     playlist.username,
                     playlist.city,
                     playlist.name,
+                    playlist.slug,
                   )}
                   bottomLeft={
                     <Avatar

@@ -416,7 +416,7 @@ export default function PlaylistEditor({ playlist, isOwner, onClose }: Props) {
     const username = playlist.profiles.username;
     const playlistId = playlist.id;
     const playlistName = playlist.name;
-    const url = playlistUrl(username, playlist.city, playlistName);
+    const url = playlistUrl(username, playlist.city, playlistName, playlist.slug);
 
     sessionStorage.setItem("deletingPlaylistId", playlistId);
     onClose?.(`/${username}`);
@@ -522,7 +522,7 @@ export default function PlaylistEditor({ playlist, isOwner, onClose }: Props) {
                     label="Share"
                     onClick={() =>
                       share(
-                        `${window.location.origin}${playlistUrl(playlist.profiles.username, playlist.city, name)}`,
+                        `${window.location.origin}${playlistUrl(playlist.profiles.username, playlist.city, name, playlist.slug)}`,
                         playlistDocTitle(
                           playlist.city,
                           name,
@@ -712,7 +712,7 @@ export default function PlaylistEditor({ playlist, isOwner, onClose }: Props) {
                       label: "Share",
                       onClick: () =>
                         share(
-                          `${window.location.origin}${playlistUrl(playlist.profiles.username, playlist.city, name)}`,
+                          `${window.location.origin}${playlistUrl(playlist.profiles.username, playlist.city, name, playlist.slug)}`,
                           playlistDocTitle(
                             playlist.city,
                             name,

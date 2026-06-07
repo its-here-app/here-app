@@ -36,7 +36,7 @@ export async function createPlaylistAction(params: {
   is_public: boolean;
   coverUrl?: string;
   spots: DraftSpot[];
-}): Promise<{ id: string; username: string; city: string; name: string }> {
+}): Promise<{ id: string; slug: string; username: string; city: string; name: string }> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -106,6 +106,7 @@ export async function createPlaylistAction(params: {
 
   return {
     id: playlist.id,
+    slug,
     username: profile.username,
     city: params.city,
     name: params.name,

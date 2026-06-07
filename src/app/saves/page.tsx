@@ -229,7 +229,7 @@ export default function SavesPage() {
                     }
                     city={playlist.city}
                     name={playlist.name}
-                    href={playlistUrl(playlist.profiles.username, playlist.city, playlist.name)}
+                    href={playlistUrl(playlist.profiles.username, playlist.city, playlist.name, playlist.slug)}
                     className="w-full"
                     topRight={
                       <span onClick={(e) => e.preventDefault()}>

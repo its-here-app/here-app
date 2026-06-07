@@ -149,7 +149,7 @@ export default function NewPlaylistPage() {
         if (spot.notes) await updateSpotNotes(added.id, spot.notes);
       }
 
-      router.push(playlistUrl(username, city, name) + "?from=new");
+      router.push(playlistUrl(username, city, name, slug) + "?from=new");
     } catch (err: any) {
       console.error("Error creating playlist:", err);
       setError(err.message);

@@ -6,6 +6,7 @@ const FILTERED_TYPES = new Set(["point_of_interest", "establishment"]);
 interface PlaylistForText {
   name: string;
   city: string;
+  slug: string;
   profiles: { username: string };
   playlist_spots: PlaylistSpot[];
 }
@@ -29,7 +30,7 @@ export function playlistToText(playlist: PlaylistForText): string {
     return `* ${spot.name}${description}${typeLabel}`;
   });
 
-  const url = `${typeof window !== "undefined" ? window.location.origin : ""}${playlistUrl(username, city, name)}`;
+  const url = `${typeof window !== "undefined" ? window.location.origin : ""}${playlistUrl(username, city, name, playlist.slug)}`;
 
   return [
     `${city} — ${name} @${username}`,

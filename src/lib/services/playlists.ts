@@ -115,33 +115,47 @@ function normalize(s: string) {
   return s.toLowerCase().replace(/[^a-z0-9\s]/g, "").trim();
 }
 
-function isGoodMatch(query: string, name: string, address: string, city: string): boolean {
-  const queryWords = normalize(query).split(/\s+/).filter((w) => w.length > 2);
-  const nameWords = normalize(name).split(/\s+/).filter((w) => w.length > 2);
-  const addressNorm = normalize(address);
+function nameOverlapScore(query: string, name: string): number {
+  const queryWords = normalize(query).split(/\s+/).filter((w) => w.length > 1);
+  const nameWords = normalize(name).split(/\s+/).filter((w) => w.length > 1);
+  if (queryWords.length === 0) return 1;
 
-  const hasNameOverlap =
-    queryWords.length === 0 ||
-    queryWords.some((qw) =>
-      nameWords.some((nw) => nw === qw || nw.startsWith(qw) || qw.startsWith(nw))
-    );
-
-  const cityWords = normalize(city).split(/\s+/).filter((w) => w.length > 1);
-  const hasCityMatch =
-    cityWords.length === 0 ||
-    cityWords.every((cw) => addressNorm.includes(cw));
-
-  return hasNameOverlap && hasCityMatch;
+  let matches = 0;
+  for (const qw of queryWords) {
+    if (nameWords.some((nw) => nw === qw || nw.startsWith(qw) || qw.startsWith(nw))) {
+      matches++;
+    }
+  }
+  return matches / queryWords.length;
 }
 
-// Resolves a single spot name to a verified Google Places result.
-// Returns null if no confident match is found — use for batch import flows.
+function isGoodMatch(query: string, name: string, address: string, city: string): boolean {
+  const score = nameOverlapScore(query, name);
+  // Accept if at least one query word matches the result name
+  return score > 0;
+}
+
 export async function resolveSpot(
   name: string,
   city: string
 ): Promise<SearchResult | null> {
   const results = await searchSpots(name, city);
-  return results.find((r) => isGoodMatch(name, r.name, r.address, city)) ?? null;
+
+  if (results.length === 0) {
+    console.warn(`[resolveSpot] "${name}" in "${city}" — Google returned 0 results`);
+    return null;
+  }
+
+  const match = results.find((r) => isGoodMatch(name, r.name, r.address, city));
+
+  if (!match) {
+    console.warn(
+      `[resolveSpot] "${name}" in "${city}" — ${results.length} results, none passed isGoodMatch:`,
+      results.slice(0, 3).map((r) => ({ name: r.name, address: r.address }))
+    );
+  }
+
+  return match ?? null;
 }
 
 // Returns a slug unique to this user, appending -2, -3, etc. if needed.

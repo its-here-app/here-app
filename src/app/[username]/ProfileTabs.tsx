@@ -98,7 +98,7 @@ export default function ProfileTabs({
                   image={playlist.cover_photo_url ?? undefined}
                   city={playlist.city}
                   name={playlist.name}
-                  href={playlistUrl(username, playlist.city, playlist.name)}
+                  href={playlistUrl(username, playlist.city, playlist.name, playlist.slug)}
                   className="w-full"
                   bottomCenter={
                     <span className="flex items-center gap-1 text-body-xs text-neon">
@@ -122,7 +122,7 @@ export default function ProfileTabs({
                         onClick={(e) => {
                           e.preventDefault();
                           share(
-                            `${window.location.origin}${playlistUrl(username, playlist.city, playlist.name)}`,
+                            `${window.location.origin}${playlistUrl(username, playlist.city, playlist.name, playlist.slug)}`,
                             playlistDocTitle(
                               playlist.city,
                               playlist.name,
@@ -146,7 +146,7 @@ export default function ProfileTabs({
                           onClick={(e) => {
                             e.preventDefault();
                             share(
-                              `${window.location.origin}${playlistUrl(username, playlist.city, playlist.name)}`,
+                              `${window.location.origin}${playlistUrl(username, playlist.city, playlist.name, playlist.slug)}`,
                               playlistDocTitle(
                                 playlist.city,
                                 playlist.name,

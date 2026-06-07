@@ -159,6 +159,7 @@ export default function SearchPage() {
                   playlist.username,
                   playlist.city,
                   playlist.name,
+                  playlist.slug,
                 )}
                 bottomLeft={
                   <Avatar
