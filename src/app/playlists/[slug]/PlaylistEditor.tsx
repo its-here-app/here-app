@@ -684,14 +684,7 @@ export default function PlaylistEditor({ playlist, isOwner, onClose }: Props) {
             placeholder={`Search spots in ${playlist.city}`}
             city={playlist.city}
             excludePlaceIds={existingPlaceIds}
-            renderAction={(place) => (
-              <button
-                onClick={() => handleAddSpot(place)}
-                className="flex-shrink-0 text-sm text-blue-500 hover:text-blue-700"
-              >
-                Add
-              </button>
-            )}
+            onSelect={(place) => handleAddSpot(place)}
           />
         )}
       </div>

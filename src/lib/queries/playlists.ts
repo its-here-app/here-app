@@ -63,6 +63,7 @@ const PLAYLIST_SELECT = `
   ),
   playlist_spots (
     id,
+    position,
     notes,
     created_at,
     spots (

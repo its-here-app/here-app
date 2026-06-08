@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { AppBarConfig } from "@/lib/appBarContext";
 import { SearchInput } from "@/components/ui/inputs/SearchInput";
 import type { SearchInputState } from "@/components/ui/inputs/SearchInput";
 import { Avatar } from "@/components/ui/Avatar";
@@ -14,6 +15,7 @@ import {
   type SearchResultPlaylist,
 } from "@/lib/services/search";
 import { playlistUrl } from "@/lib/playlistUrl";
+import BookmarkButton from "@/components/BookmarkButton";
 
 export default function SearchPage() {
   const { user } = useAuth();
@@ -55,7 +57,8 @@ export default function SearchPage() {
   const hasResults = people.length > 0 || playlists.length > 0;
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 -mt-[var(--space-page-md)] pt-[var(--space-page-sm)]">
+      <AppBarConfig hidden />
       {/* Search bar */}
       <div className="flex items-center gap-3">
         <SearchInput
@@ -88,6 +91,13 @@ export default function SearchPage() {
           </button>
         )}
       </div>
+
+      {/* Empty state */}
+      {!query && (
+        <p className="text-body-xs text-tertiary text-center py-8">
+          Search for people or playlists
+        </p>
+      )}
 
       {/* Results */}
       {loading && query.length > 0 && !hasResults && (
@@ -167,6 +177,16 @@ export default function SearchPage() {
                     src={playlist.avatar_url ?? undefined}
                     username={playlist.username}
                   />
+                }
+                topRight={
+                  user ? (
+                    <span onClick={(e) => e.preventDefault()}>
+                      <BookmarkButton
+                        playlistId={playlist.id}
+                        variant="overlay"
+                      />
+                    </span>
+                  ) : undefined
                 }
               />
             ))}

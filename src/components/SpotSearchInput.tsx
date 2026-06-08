@@ -8,13 +8,15 @@ interface SpotSearchInputProps {
   placeholder?: string;
   city?: string;
   excludePlaceIds?: Set<string>;
-  renderAction: (result: SearchResult) => React.ReactNode;
+  onSelect?: (result: SearchResult) => void;
+  renderAction?: (result: SearchResult) => React.ReactNode;
 }
 
 export default function SpotSearchInput({
   placeholder = "Search for a spot…",
   city,
   excludePlaceIds,
+  onSelect,
   renderAction,
 }: SpotSearchInputProps) {
   const [query, setQuery] = useState("");
@@ -69,13 +71,15 @@ export default function SpotSearchInput({
           {results.map((result) => (
             <div
               key={result.spot_id}
-              className="bg-white border border-gray-200 rounded-lg p-4 flex items-center justify-between gap-4"
+              role={onSelect ? "button" : undefined}
+              onClick={onSelect ? () => onSelect(result) : undefined}
+              className={`bg-white border border-gray-200 rounded-lg p-4 flex items-center justify-between gap-4 ${onSelect ? "cursor-pointer active:bg-gray-50" : ""}`}
             >
               <div className="min-w-0">
                 <p className="font-medium text-sm truncate">{result.name}</p>
                 <p className="text-xs text-gray-500 truncate">{result.address}</p>
               </div>
-              {renderAction(result)}
+              {renderAction?.(result)}
             </div>
           ))}
         </div>
