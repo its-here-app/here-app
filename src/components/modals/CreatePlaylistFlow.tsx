@@ -84,6 +84,112 @@ function DescriptionField({
   );
 }
 
+// ─── Shared form body ────────────────────────────────────────────────────────
+
+const SPOTS_PLACEHOLDER = `Start by pasting an existing list of spots here,\nand we will add them to your playlist for you.\n\nFor example\n\n  · Melody, Cute bungalow wine bar with rotating chefs.\n  · Sqirl, Cutest small brunch + lunch place with house jam.\n  · Salazar, Mexican cute outdoor spot with vibes.\n  · 123 Farm, Lavender-themed foods, crafts, and petting zoo.`;
+
+function PlaylistFormBody({
+  description,
+  onDescriptionChange,
+  spotsInput,
+  onSpotsInputChange,
+  imported,
+  importing,
+  foundSpots,
+  onImport,
+  onOpenSearch,
+  textareaClassName,
+  textareaFooter,
+}: {
+  description: string;
+  onDescriptionChange: (v: string) => void;
+  spotsInput: string;
+  onSpotsInputChange: (v: string) => void;
+  imported: boolean;
+  importing: boolean;
+  foundSpots: DraftSpot[];
+  onImport: () => void;
+  onOpenSearch: () => void;
+  textareaClassName?: string;
+  textareaFooter?: React.ReactNode;
+}) {
+  const hasSpots = imported || foundSpots.length > 0;
+
+  return (
+    <>
+      <DescriptionField value={description} onChange={onDescriptionChange} />
+
+      {/* Pre-import: spots textarea */}
+      {!imported && (
+        <div className="flex-1 flex flex-col min-h-0 mb-4">
+          <textarea
+            value={spotsInput}
+            onChange={(e) => onSpotsInputChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey && spotsInput.trim()) {
+                e.preventDefault();
+                onImport();
+              }
+            }}
+            placeholder={SPOTS_PLACEHOLDER}
+            className={`flex-1 w-full px-4 py-3 border border-subtle rounded-2xl text-body-sm text-primary bg-transparent resize-none outline-none placeholder:text-tertiary focus:border-primary transition-colors ${textareaClassName ?? ""}`}
+          />
+          {textareaFooter}
+        </div>
+      )}
+
+      {/* Spot list */}
+      {foundSpots.length > 0 && (
+        <>
+          {imported && (
+            <p className="text-body-sm text-primary mb-3">
+              {foundSpots.length} spot{foundSpots.length !== 1 ? "s" : ""} ✦
+            </p>
+          )}
+          <div className="space-y-3 mb-4">
+            {foundSpots.map((spot) => (
+              <SpotCard key={spot.google_place_id} spot={spot} />
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* Bottom action */}
+      {hasSpots ? (
+        <Button
+          variant="outline"
+          size="md"
+          leftIcon={<Add className="size-5" />}
+          className="w-full"
+          onClick={onOpenSearch}
+        >
+          Add a spot
+        </Button>
+      ) : spotsInput.trim() ? (
+        <Button
+          variant="outline"
+          size="md"
+          className="w-full"
+          onClick={onImport}
+          disabled={importing}
+        >
+          {importing ? "Importing…" : "Import"}
+        </Button>
+      ) : (
+        <Button
+          variant="outline"
+          size="md"
+          leftIcon={<Add className="size-5" />}
+          className="w-full"
+          onClick={onOpenSearch}
+        >
+          Add a spot
+        </Button>
+      )}
+    </>
+  );
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function CreatePlaylistFlow() {
@@ -526,114 +632,35 @@ export function CreatePlaylistFlow() {
                     </button>
                   </div>
 
-                  {/* Description */}
-                  <DescriptionField
-                    value={description}
-                    onChange={setDescription}
+                  <PlaylistFormBody
+                    description={description}
+                    onDescriptionChange={setDescription}
+                    spotsInput={spotsInput}
+                    onSpotsInputChange={setSpotsInput}
+                    imported={imported}
+                    importing={importing}
+                    foundSpots={foundSpots}
+                    onImport={handleImport}
+                    onOpenSearch={() => setSpotSearchOpen(true)}
+                    textareaClassName="min-h-0"
                   />
-
-                  {/* Pre-import: spots textarea */}
-                  {!imported && (
-                    <div className="flex-1 flex flex-col min-h-0 mb-4">
-                      <textarea
-                        value={spotsInput}
-                        onChange={(e) => setSpotsInput(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" && !e.shiftKey && spotsInput.trim()) {
-                            e.preventDefault();
-                            handleImport();
-                          }
-                        }}
-                        placeholder={`Start by pasting an existing list of spots here,\nand we will add them to your playlist for you.\n\nFor example\n\n  · Melody, Cute bungalow wine bar with rotating chefs.\n  · Sqirl, Cutest small brunch + lunch place with house jam.\n  · Salazar, Mexican cute outdoor spot with vibes.\n  · 123 Farm, Lavender-themed foods, crafts, and petting zoo.`}
-                        className="flex-1 min-h-0 w-full px-4 py-3 border border-subtle rounded-2xl text-body-sm text-primary bg-transparent resize-none outline-none placeholder:text-tertiary focus:border-primary transition-colors"
-                      />
-                    </div>
-                  )}
-
-                  {/* Post-import: spot list */}
-                  {imported && (
-                    <>
-                      {foundSpots.length > 0 && (
-                        <p className="text-body-sm text-primary mb-3">
-                          {foundSpots.length} spot{foundSpots.length !== 1 ? "s" : ""} ✦
-                        </p>
-                      )}
-                      <div className="space-y-3 mb-4">
-                        {foundSpots.map((spot) => (
-                          <SpotCard key={spot.google_place_id} spot={spot} />
-                        ))}
-                      </div>
-                    </>
-                  )}
-
-                  {/* Spots added individually */}
-                  {!imported && foundSpots.length > 0 && (
-                    <div className="space-y-3 mb-4">
-                      {foundSpots.map((spot) => (
-                        <SpotCard key={spot.google_place_id} spot={spot} />
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Bottom action */}
-                  {imported || foundSpots.length > 0 ? (
-                    <Button
-                      variant="outline"
-                      size="md"
-                      leftIcon={<Add className="size-5" />}
-                      className="w-full"
-                      onClick={() => setSpotSearchOpen(true)}
-                    >
-                      Add a spot
-                    </Button>
-                  ) : spotsInput.trim() ? (
-                    <Button
-                      variant="outline"
-                      size="md"
-                      className="w-full"
-                      onClick={handleImport}
-                      disabled={importing}
-                    >
-                      {importing ? "Importing…" : "Import"}
-                    </Button>
-                  ) : (
-                    <Button
-                      variant="outline"
-                      size="md"
-                      leftIcon={<Add className="size-5" />}
-                      className="w-full"
-                      onClick={() => setSpotSearchOpen(true)}
-                    >
-                      Add a spot
-                    </Button>
-                  )}
                 </div>
               )}
 
-              {/* Mobile — always show form (search is a BottomPanel) */}
+              {/* Mobile — always show form (search is a separate overlay) */}
               <div className="lg:hidden">
-                {/* Description */}
-                <DescriptionField
-                  value={description}
-                  onChange={setDescription}
-                />
-
-                {/* Pre-import: spots textarea */}
-                {!imported && (
-                  <div className="flex-1 flex flex-col min-h-0 mb-4">
-                    <textarea
-                      value={spotsInput}
-                      onChange={(e) => setSpotsInput(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && !e.shiftKey && spotsInput.trim()) {
-                          e.preventDefault();
-                          handleImport();
-                        }
-                      }}
-                      placeholder={`Start by pasting an existing list of spots here,\nand we will add them to your playlist for you.\n\nFor example\n\n  · Melody, Cute bungalow wine bar with rotating chefs.\n  · Sqirl, Cutest small brunch + lunch place with house jam.\n  · Salazar, Mexican cute outdoor spot with vibes.\n  · 123 Farm, Lavender-themed foods, crafts, and petting zoo.`}
-                      className="flex-1 min-h-[12rem] w-full px-4 py-3 border border-subtle rounded-2xl text-body-sm text-primary bg-transparent resize-none outline-none placeholder:text-tertiary focus:border-primary transition-colors"
-                    />
-
+                <PlaylistFormBody
+                  description={description}
+                  onDescriptionChange={setDescription}
+                  spotsInput={spotsInput}
+                  onSpotsInputChange={setSpotsInput}
+                  imported={imported}
+                  importing={importing}
+                  foundSpots={foundSpots}
+                  onImport={handleImport}
+                  onOpenSearch={() => setSpotSearchOpen(true)}
+                  textareaClassName="min-h-[12rem]"
+                  textareaFooter={
                     <div className="flex items-center justify-between mt-3">
                       <p className="text-body-xs text-tertiary">
                         {spotsInput.trim() ? "↵ Press enter to import" : ""}
@@ -656,66 +683,8 @@ export function CreatePlaylistFlow() {
                         </button>
                       </div>
                     </div>
-                  </div>
-                )}
-
-                {/* Post-import: spot list */}
-                {imported && (
-                  <>
-                    {foundSpots.length > 0 && (
-                      <p className="text-body-sm text-primary mb-3">
-                        {foundSpots.length} spot{foundSpots.length !== 1 ? "s" : ""} ✦
-                      </p>
-                    )}
-                    <div className="space-y-3 mb-4">
-                      {foundSpots.map((spot) => (
-                        <SpotCard key={spot.google_place_id} spot={spot} />
-                      ))}
-                    </div>
-                  </>
-                )}
-
-                {/* Spots added individually */}
-                {!imported && foundSpots.length > 0 && (
-                  <div className="space-y-3 mb-4">
-                    {foundSpots.map((spot) => (
-                      <SpotCard key={spot.google_place_id} spot={spot} />
-                    ))}
-                  </div>
-                )}
-
-                {/* Bottom action */}
-                {imported || foundSpots.length > 0 ? (
-                  <Button
-                    variant="outline"
-                    size="md"
-                    leftIcon={<Add className="size-5" />}
-                    className="w-full"
-                    onClick={() => setSpotSearchOpen(true)}
-                  >
-                    Add a spot
-                  </Button>
-                ) : spotsInput.trim() ? (
-                  <Button
-                    variant="outline"
-                    size="md"
-                    className="w-full"
-                    onClick={handleImport}
-                    disabled={importing}
-                  >
-                    {importing ? "Importing…" : "Import"}
-                  </Button>
-                ) : (
-                  <Button
-                    variant="outline"
-                    size="md"
-                    leftIcon={<Add className="size-5" />}
-                    className="w-full"
-                    onClick={() => setSpotSearchOpen(true)}
-                  >
-                    Add a spot
-                  </Button>
-                )}
+                  }
+                />
               </div>
             </div>
           </div>
