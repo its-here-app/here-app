@@ -164,7 +164,7 @@ export default function FollowsModal({
       </Tabs>
 
       {/* Sliding user lists */}
-      <TabPanels activeIndex={tab === "followers" ? 0 : 1}>
+      <TabPanels activeIndex={tab === "followers" ? 0 : 1} bleed="1.5rem">
         {renderList(followers, "No followers yet.", isOwnProfile)}
         {renderList(following, "Not following anyone yet.")}
       </TabPanels>

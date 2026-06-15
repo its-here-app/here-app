@@ -86,7 +86,7 @@ export default function ProfileTabs({
         />
       </Tabs>
 
-      <TabPanels activeIndex={tabIndex}>
+      <TabPanels activeIndex={tabIndex} bleed="var(--space-page-dynamic)">
         {/* Playlists */}
         <div>
           {playlists.length > 0 ? (
