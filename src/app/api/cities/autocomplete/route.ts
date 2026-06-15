@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 
 /**
  * Place Autocomplete proxy for city selection.
@@ -27,6 +28,34 @@ type AutocompleteResponse = {
   predictions?: AutocompletePrediction[];
   status?: string;
 };
+
+function escapeLike(s: string): string {
+  return s.replace(/[%_\\]/g, "\\$&");
+}
+
+async function fallbackToDb(query: string) {
+  try {
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SECRET_KEY!,
+    );
+    const { data } = await supabase
+      .from("cities")
+      .select("google_place_id, display_name, is_primary")
+      .ilike("display_name", `%${escapeLike(query)}%`)
+      .limit(5);
+
+    return NextResponse.json(
+      { cities: data ?? [] },
+      { headers: { "Cache-Control": "no-store" } },
+    );
+  } catch {
+    return NextResponse.json(
+      { cities: [] },
+      { headers: { "Cache-Control": "no-store" } },
+    );
+  }
+}
 
 function normalizeQuery(q: string): string {
   return q.toLowerCase().trim().replace(/\s+/g, " ");
@@ -88,10 +117,7 @@ export async function GET(request: NextRequest) {
 
     if (data.status && data.status !== "OK" && data.status !== "ZERO_RESULTS") {
       console.error("cities/autocomplete: places status", data.status);
-      return NextResponse.json(
-        { error: "search failed" },
-        { status: 502, headers: { "Cache-Control": "no-store" } },
-      );
+      return fallbackToDb(query);
     }
 
     // Determine is_primary for each prediction. Google returns results ranked
@@ -158,9 +184,6 @@ export async function GET(request: NextRequest) {
       "cities/autocomplete: fetch threw",
       error instanceof Error ? error.name : "unknown",
     );
-    return NextResponse.json(
-      { error: "failed to search cities" },
-      { status: 500, headers: { "Cache-Control": "no-store" } },
-    );
+    return fallbackToDb(query);
   }
 }

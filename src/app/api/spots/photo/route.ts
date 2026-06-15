@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient as createServiceClient } from "@supabase/supabase-js";
 
 /**
  * Stable photo proxy for Google Places.
@@ -36,6 +36,16 @@ const ALLOWED_REDIRECT_HOSTS = new Set([
   "lh6.googleusercontent.com",
   "maps.gstatic.com",
 ]);
+
+const PLACEHOLDER_PATH = "/images/playlist-default.jpg";
+
+function placeholderRedirect(request: NextRequest) {
+  const base = request.nextUrl.origin;
+  return NextResponse.redirect(`${base}${PLACEHOLDER_PATH}`, {
+    status: 302,
+    headers: { "Cache-Control": "public, max-age=60" },
+  });
+}
 
 function errorResponse(status: number, message: string) {
   return NextResponse.json(
@@ -78,7 +88,10 @@ export async function GET(request: NextRequest) {
   // arbitrary place IDs. Only places we've already saved are proxyable.
 
   try {
-    const supabase = await createClient();
+    const supabase = createServiceClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SECRET_KEY!,
+    );
     const { data: spot, error: spotErr } = await supabase
       .from("spots")
       .select("google_place_id")
@@ -111,20 +124,25 @@ export async function GET(request: NextRequest) {
 
     if (!detailsRes.ok) {
       console.error("photo proxy: details upstream non-ok", detailsRes.status);
-      return errorResponse(502, "upstream error");
+      return placeholderRedirect(request);
     }
 
     const details = (await detailsRes.json()) as {
       result?: { photos?: { photo_reference: string }[] };
+      status?: string;
     };
+    if (details.status && details.status !== "OK") {
+      console.error("photo proxy: places API status", details.status);
+      return placeholderRedirect(request);
+    }
     photoRef = details.result?.photos?.[0]?.photo_reference;
   } catch {
     console.error("photo proxy: details fetch threw");
-    return errorResponse(502, "upstream error");
+    return placeholderRedirect(request);
   }
 
   if (!photoRef) {
-    return errorResponse(404, "no photo available");
+    return placeholderRedirect(request);
   }
 
   // --- 4. Resolve the CDN URL from Places Photo ----------------------------
@@ -143,11 +161,11 @@ export async function GET(request: NextRequest) {
     cdnUrl = photoRes.headers.get("location");
   } catch {
     console.error("photo proxy: photo fetch threw");
-    return errorResponse(502, "upstream error");
+    return placeholderRedirect(request);
   }
 
   if (!cdnUrl) {
-    return errorResponse(502, "no photo location");
+    return placeholderRedirect(request);
   }
 
   // --- 5. Validate the redirect target is a Google CDN --------------------
