@@ -37,9 +37,14 @@ import { Photo } from "@/components/ui/icons/Photo";
 import { Spinner } from "@/components/ui/Spinner";
 import { Share } from "@/components/ui/icons/Share";
 import { Copy } from "@/components/ui/icons/Copy";
+import { Add } from "@/components/ui/icons/Add";
+import { Arrows } from "@/components/ui/icons/Arrows";
 import { Check } from "@/components/ui/icons/Check";
+import { CheckCircle } from "@/components/ui/icons/CheckCircle";
+import { Info } from "@/components/ui/icons/Info";
 import { Trash } from "@/components/ui/icons/Trash";
 import { World } from "@/components/ui/icons/World";
+import { BottomPanel } from "@/components/ui/BottomPanel";
 import { Sheet, ConfirmSheet } from "@/components/ui/Sheet";
 import { snackbar } from "@/components/ui/Snackbar";
 import { toast } from "@/components/ui/Toast";
@@ -105,11 +110,13 @@ function GripIcon() {
 function SortableSpotCard({
   ps,
   editMode,
+  reorderMode,
   onRemove,
   onNotesChange,
 }: {
   ps: PlaylistSpot;
   editMode: boolean;
+  reorderMode: boolean;
   onRemove: (id: string) => void;
   onNotesChange: (id: string, notes: string) => void;
 }) {
@@ -122,6 +129,10 @@ function SortableSpotCard({
     isDragging,
   } = useSortable({ id: ps.id });
 
+  const [isFocused, setIsFocused] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const noteAtFocus = useRef<string>("");
+
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -132,7 +143,7 @@ function SortableSpotCard({
   return (
     <div ref={setNodeRef} style={style} className="">
       <div className="flex items-start gap-3">
-        {editMode && (
+        {reorderMode && (
           <button
             {...attributes}
             {...listeners}
@@ -146,29 +157,61 @@ function SortableSpotCard({
           spot={ps.spots}
           subtitleText={ps.notes ?? ""}
           className="flex-1"
-          bookmark={<BookmarkButton spot={ps.spots} />}
+          disableLink={editMode}
+          onClick={editMode ? () => inputRef.current?.focus() : undefined}
+          bookmark={editMode ? undefined : <BookmarkButton spot={ps.spots} variant="secondary" />}
+          subtitleSlot={
+            <input
+              ref={inputRef}
+              value={ps.notes ?? ""}
+              readOnly={!editMode}
+              onChange={(e) => onNotesChange(ps.id, e.target.value)}
+              onFocus={() => {
+                if (!editMode) return;
+                setIsFocused(true);
+                noteAtFocus.current = ps.notes ?? "";
+              }}
+              onBlur={() => {
+                setIsFocused(false);
+                const current = ps.notes ?? "";
+                if (current !== noteAtFocus.current) {
+                  const previous = noteAtFocus.current;
+                  if (current.trim()) {
+                    snackbar({
+                      icon: <CheckCircle />,
+                      message: `Note added to ${ps.spots.name}`,
+                      actionLabel: "Undo",
+                      onAction: () => onNotesChange(ps.id, previous),
+                    });
+                  } else if (previous.trim()) {
+                    snackbar({
+                      icon: <Info />,
+                      message: `Note removed from ${ps.spots.name}`,
+                      actionLabel: "Undo",
+                      onAction: () => onNotesChange(ps.id, previous),
+                    });
+                  }
+                }
+              }}
+              placeholder={editMode ? "Add a note…" : ""}
+              className={`block w-full bg-transparent text-body-xs text-secondary placeholder:text-tertiary outline-none border-none p-0 leading-4 h-4 mb-1 truncate ${!editMode ? "pointer-events-none" : ""} ${!editMode && !ps.notes ? "hidden" : ""}`}
+            />
+          }
           action={
-            editMode ? (
-              <button
-                onClick={() => onRemove(ps.id)}
-                className="text-sm text-red-500 hover:text-red-700"
-              >
-                Remove
-              </button>
+            editMode && isFocused ? (
+              <IconButton
+                variant="secondary"
+                icon={<Trash />}
+                label="Remove spot"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  onRemove(ps.id);
+                }}
+              />
             ) : undefined
           }
         />
       </div>
-
-      {editMode ? (
-        <textarea
-          value={ps.notes ?? ""}
-          onChange={(e) => onNotesChange(ps.id, e.target.value)}
-          placeholder="Add a note…"
-          rows={2}
-          className="mt-3 w-full text-sm text-gray-600 border border-gray-200 rounded-lg px-3 py-2 resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-        />
-      ) : null}
     </div>
   );
 }
@@ -178,6 +221,8 @@ export default function PlaylistEditor({ playlist, isOwner, onClose }: Props) {
   const router = useRouter();
 
   const [editMode, setEditMode] = useState(false);
+  const [reorderMode, setReorderMode] = useState(false);
+  const [isAddSpotOpen, setIsAddSpotOpen] = useState(false);
   const coverInputRef = useRef<HTMLInputElement>(null);
   const [coverUrl, setCoverUrl] = useState<string>(
     playlist.cover_photo_url ?? getDefaultCover(playlist.city, playlist.name),
@@ -187,6 +232,8 @@ export default function PlaylistEditor({ playlist, isOwner, onClose }: Props) {
   const [description, setDescription] = useState<string>(
     playlist.description ?? "",
   );
+  const [descriptionFocused, setDescriptionFocused] = useState(false);
+  const descriptionRef = useRef<HTMLTextAreaElement>(null);
   const [spots, setSpots] = useState<PlaylistSpot[]>(
     [...playlist.playlist_spots].sort(
       (a: PlaylistSpot, b: PlaylistSpot) =>
@@ -259,8 +306,29 @@ export default function PlaylistEditor({ playlist, isOwner, onClose }: Props) {
   }
 
   function handleRemoveSpot(playlistSpotId: string) {
+    const removed = spots.find((s) => s.id === playlistSpotId);
     setPendingRemoveIds((prev) => new Set([...prev, playlistSpotId]));
     setSpots((prev) => prev.filter((s) => s.id !== playlistSpotId));
+    snackbar({
+      icon: <Trash />,
+      message: `${removed?.spots.name ?? "Spot"} removed`,
+      actionLabel: "Undo",
+      onAction: () => {
+        setPendingRemoveIds((prev) => {
+          const next = new Set(prev);
+          next.delete(playlistSpotId);
+          return next;
+        });
+        if (removed) {
+          setSpots((prev) => {
+            const idx = removed.position ?? prev.length;
+            const copy = [...prev];
+            copy.splice(idx, 0, removed);
+            return copy;
+          });
+        }
+      },
+    });
   }
 
   function handleNotesChange(spotId: string, notes: string) {
@@ -416,7 +484,12 @@ export default function PlaylistEditor({ playlist, isOwner, onClose }: Props) {
     const username = playlist.profiles.username;
     const playlistId = playlist.id;
     const playlistName = playlist.name;
-    const url = playlistUrl(username, playlist.city, playlistName, playlist.slug);
+    const url = playlistUrl(
+      username,
+      playlist.city,
+      playlistName,
+      playlist.slug,
+    );
 
     sessionStorage.setItem("deletingPlaylistId", playlistId);
     onClose?.(`/${username}`);
@@ -567,7 +640,7 @@ export default function PlaylistEditor({ playlist, isOwner, onClose }: Props) {
           bottomRight={
             editMode ? undefined : (
               <p className="text-brand text-body-xs">
-                <span className="flex items-center justify-center gap-[0.125rem]">
+                <span suppressHydrationWarning className="flex items-center justify-center gap-[0.125rem]">
                   Last updated{" "}
                   {savedAt !== null ? "now" : timeAgo(playlist.updated_at)}
                   {!isPublic && (
@@ -597,22 +670,34 @@ export default function PlaylistEditor({ playlist, isOwner, onClose }: Props) {
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-start justify-between gap-4">
-            <div>
-              {editMode ? (
-                <TextInput
-                  size="tall"
-                  lightMode
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Add a description…"
-                  className="mb-4"
-                />
-              ) : (
-                description && (
-                  <p className="text-body-sm text-primary mb-4">
-                    {description}
-                  </p>
-                )
+            <div className="w-full">
+              {(editMode || description) && (
+                <div className="relative mb-4">
+                  <TextInput
+                    ref={descriptionRef}
+                    size="tall"
+                    ghost
+                    autoResize
+                    readOnly={!editMode}
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="What does this playlist capture? (optional) ie. favorite spots that is nostalgic to me"
+                    onFocus={() => { if (editMode) setDescriptionFocused(true); }}
+                    onBlur={() => setDescriptionFocused(false)}
+                    className={!editMode ? "pointer-events-none" : undefined}
+                  />
+                  {descriptionFocused && (
+                    <button
+                      className="absolute bottom-4 right-4 text-body-xs text-black cursor-pointer"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        descriptionRef.current?.blur();
+                      }}
+                    >
+                      Done
+                    </button>
+                  )}
+                </div>
               )}
               <div className="flex items-center gap-4 text-sm text-gray-500">
                 <p className="flex items-center text-body-md text-primary">
@@ -646,6 +731,7 @@ export default function PlaylistEditor({ playlist, isOwner, onClose }: Props) {
                   key={ps.id}
                   ps={ps}
                   editMode={editMode}
+                  reorderMode={reorderMode}
                   onRemove={handleRemoveSpot}
                   onNotesChange={handleNotesChange}
                 />
@@ -678,14 +764,41 @@ export default function PlaylistEditor({ playlist, isOwner, onClose }: Props) {
           </SortableContext>
         </DndContext>
 
-        {/* Search — edit mode only */}
+        {/* Add a spot + Reorder — edit mode only */}
         {editMode && (
-          <SpotSearchInput
-            placeholder={`Search spots in ${playlist.city}`}
-            city={playlist.city}
-            excludePlaceIds={existingPlaceIds}
-            onSelect={(place) => handleAddSpot(place)}
-          />
+          <>
+            <div className="flex gap-2 mb-4">
+              <Button size="lg" variant="tonal" leftIcon={<Add />} className="flex-1" onClick={() => setIsAddSpotOpen(true)}>
+                Add a spot
+              </Button>
+              {spots.length > 1 && (
+                <IconButton
+                  size="lg"
+                  variant="secondary"
+                  icon={<Arrows />}
+                  label={reorderMode ? "Done reordering" : "Reorder spots"}
+                  onClick={() => setReorderMode((r) => !r)}
+                />
+              )}
+            </div>
+            <BottomPanel
+              isOpen={isAddSpotOpen}
+              onClose={() => setIsAddSpotOpen(false)}
+              header="Add a spot"
+              desktopVariant="floating"
+              desktopWidth="30rem"
+            >
+              <SpotSearchInput
+                placeholder={`Search spots in ${playlist.city}`}
+                city={playlist.city}
+                excludePlaceIds={existingPlaceIds}
+                onSelect={(place) => {
+                  handleAddSpot(place);
+                  setIsAddSpotOpen(false);
+                }}
+              />
+            </BottomPanel>
+          </>
         )}
       </div>
       {/* end right column */}
@@ -721,7 +834,10 @@ export default function PlaylistEditor({ playlist, isOwner, onClose }: Props) {
                 onClick: async () => {
                   await navigator.clipboard.writeText(playlistToText(playlist));
                   setIsSheetOpen(false);
-                  toast({ icon: <Check focus />, message: "Playlist copied to clipboard" });
+                  toast({
+                    icon: <Check focus />,
+                    message: "Playlist copied to clipboard",
+                  });
                 },
                 icon: <Copy />,
               },
@@ -734,7 +850,9 @@ export default function PlaylistEditor({ playlist, isOwner, onClose }: Props) {
                 icon: <Edit />,
               },
               {
-                label: isPublic ? "Make playlist private" : "Make playlist public",
+                label: isPublic
+                  ? "Make playlist private"
+                  : "Make playlist public",
                 onClick: async () => {
                   const next = !isPublic;
                   setIsPublic(next);

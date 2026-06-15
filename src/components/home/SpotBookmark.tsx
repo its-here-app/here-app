@@ -5,6 +5,7 @@ import type { Spot } from "@/types";
 export function SpotBookmark({ spot }: { spot: Spot }) {
   return (
     <BookmarkButton
+      variant="secondary"
       spot={{
         google_place_id: spot.google_place_id,
         name: spot.name,

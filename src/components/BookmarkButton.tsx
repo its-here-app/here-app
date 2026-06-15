@@ -17,11 +17,14 @@ type PlaylistProps = { playlistId: string; spot?: never; variant?: IconButtonVar
 export default function BookmarkButton({ spot, playlistId, variant = "ghost", className, onRemove, onRestore }: SpotProps | PlaylistProps) {
   const { isSaved, toggle } = useSaves();
   const { user } = useAuth();
+  const [mounted, setMounted] = useState(false);
   const [playlistSaved, setPlaylistSaved] = useState(false);
   const [loading, setLoading] = useState(!!playlistId);
   const [savedOverride, setSavedOverride] = useState<boolean | null>(null);
   const [animating, setAnimating] = useState(false);
   const prevActiveRef = useRef(false);
+
+  useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
     if (!playlistId || !user) { setLoading(false); return; }
@@ -60,11 +63,11 @@ export default function BookmarkButton({ spot, playlistId, variant = "ghost", cl
     }
   }
 
-  const saved = playlistId
+  const saved = mounted && (playlistId
     ? playlistSaved
     : savedOverride !== null
       ? savedOverride
-      : isSaved(spot!.google_place_id);
+      : isSaved(spot!.google_place_id));
 
   useEffect(() => {
     if (saved && !prevActiveRef.current) setAnimating(true);

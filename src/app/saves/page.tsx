@@ -194,6 +194,7 @@ export default function SavesPage() {
                     <SpotCard
                       className="flex-1"
                       spot={spot}
+                      subtitleText=""
                       bookmark={<BookmarkButton spot={spot} onRemove={() => optimisticRemove(spot.google_place_id)} onRestore={() => restoreSpot(spot)} />}
                     />
                   </div>
