@@ -13,8 +13,12 @@ export async function generateMetadata({
   const { username, city, slug } = await params;
   const playlist = await getPlaylistByUsernameAndName(username, slug, city);
   if (!playlist) return {};
+  const title = playlistDocTitle(playlist.city, playlist.name, playlist.profiles?.username);
+  const image = playlist.cover_photo_url ?? "/og.png";
   return {
-    title: playlistDocTitle(playlist.city, playlist.name, playlist.profiles?.username),
+    title,
+    openGraph: { images: [{ url: image }] },
+    twitter: { card: "summary_large_image", images: [image] },
   };
 }
 

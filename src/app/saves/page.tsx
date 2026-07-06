@@ -24,6 +24,16 @@ import { DropdownList } from "@/components/DropdownList";
 import { DropdownListItem } from "@/components/DropdownListItem";
 import { Spots } from "@/components/ui/icons/Spots";
 import { List } from "@/components/ui/icons/List";
+import { Filter } from "@/components/ui/icons/Filter";
+import { Chip } from "@/components/ui/Chip";
+
+type SortOrder = "default" | "distance" | "top_rated";
+
+const SORT_ORDER_LABELS: Record<SortOrder, string> = {
+  default: "Default",
+  distance: "Distance",
+  top_rated: "Top rated",
+};
 
 export default function SavesPage() {
   const { user, loading: authLoading } = useAuth();
@@ -35,6 +45,8 @@ export default function SavesPage() {
     searchParams.get("view") === "playlists" ? "playlists" : "spots"
   );
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [reorderOpen, setReorderOpen] = useState(false);
+  const [sortOrder, setSortOrder] = useState<SortOrder>("default");
   const [savedPlaylists, setSavedPlaylists] = useState<SavedPlaylist[] | null>(
     null,
   );
@@ -61,6 +73,13 @@ export default function SavesPage() {
   }, [user, tab, savedPlaylists]);
 
   const savedPlaceIds = new Set(savedSpots.map((s) => s.google_place_id));
+
+  // "Distance" has no real sort behind it yet — spots don't store coordinates,
+  // only cities do, so there's nothing to sort by until that data exists.
+  const displayedSpots =
+    sortOrder === "top_rated"
+      ? [...savedSpots].sort((a, b) => (b.rating ?? -1) - (a.rating ?? -1))
+      : savedSpots;
 
   async function handleSearch(e: React.FormEvent) {
     e.preventDefault();
@@ -92,6 +111,15 @@ export default function SavesPage() {
             onClick={() => setDropdownOpen((o) => !o)}
           />
         }
+        right={
+          <Chip
+            variant="secondary"
+            leftIcon={<Filter className="text-black" />}
+            onClick={() => setReorderOpen(true)}
+          >
+            {SORT_ORDER_LABELS[sortOrder]}
+          </Chip>
+        }
       />
       <BottomPanel
         isOpen={dropdownOpen}
@@ -118,6 +146,39 @@ export default function SavesPage() {
               setTab("playlists");
               router.replace("/saves?view=playlists", { scroll: false });
               setDropdownOpen(false);
+            }}
+          />
+        </DropdownList>
+      </BottomPanel>
+      <BottomPanel
+        isOpen={reorderOpen}
+        onClose={() => setReorderOpen(false)}
+        header="Re-order"
+        desktopVariant="floating"
+      >
+        <DropdownList>
+          <DropdownListItem
+            label="Default"
+            selected={sortOrder === "default"}
+            onClick={() => {
+              setSortOrder("default");
+              setReorderOpen(false);
+            }}
+          />
+          <DropdownListItem
+            label="Distance"
+            selected={sortOrder === "distance"}
+            onClick={() => {
+              setSortOrder("distance");
+              setReorderOpen(false);
+            }}
+          />
+          <DropdownListItem
+            label="Top rated"
+            selected={sortOrder === "top_rated"}
+            onClick={() => {
+              setSortOrder("top_rated");
+              setReorderOpen(false);
             }}
           />
         </DropdownList>
@@ -189,7 +250,7 @@ export default function SavesPage() {
               </p>
             ) : (
               <div className="space-y-3">
-                {savedSpots.map((spot) => (
+                {displayedSpots.map((spot) => (
                   <div key={spot.id}>
                     <SpotCard
                       className="flex-1"

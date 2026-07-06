@@ -27,14 +27,14 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "Here*",
+  title: "Here* — Discover and share favorite spots through city playlists",
   description: "For the spots you love & the places you'll go.",
   openGraph: {
-    images: [{ url: "/og.jpg" }],
+    images: [{ url: "/og.png" }],
   },
   twitter: {
     card: "summary_large_image",
-    images: ["/og.jpg"],
+    images: ["/og.png"],
   },
 };
 

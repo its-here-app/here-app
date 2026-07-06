@@ -14,17 +14,6 @@ export default function PlaylistOverlay({ playlist, isOwner, fromNew }: Props) {
   const router = useRouter();
 
   useEffect(() => {
-    const prev = document.title;
-    const description = playlist.description
-      ? ` — ${playlist.description}`
-      : "";
-    document.title = `${playlist.city}${description} @${playlist.profiles.username} • Here*`;
-    return () => {
-      document.title = prev;
-    };
-  }, []);
-
-  useEffect(() => {
     document.body.style.overflow = "hidden";
     return () => {
       document.body.style.overflow = "";

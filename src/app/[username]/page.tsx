@@ -14,7 +14,9 @@ export async function generateMetadata({
   params: Promise<{ username: string }>;
 }): Promise<Metadata> {
   const { username } = await params;
-  return { title: `@${username} • Here*` };
+  const profile = await getUserByUsername(username);
+  const name = profile?.full_name;
+  return { title: `${name ? `${name} ` : ""}(@${username}) • Here*` };
 }
 
 export default async function UserProfilePage({

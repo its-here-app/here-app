@@ -2,7 +2,7 @@ import { type ReactNode } from "react";
 import { Check } from "@/components/ui/icons/Check";
 
 interface DropdownListItemProps {
-  icon: ReactNode;
+  icon?: ReactNode;
   label: string;
   selected?: boolean;
   onClick?: () => void;
@@ -19,9 +19,11 @@ export function DropdownListItem({
       onClick={onClick}
       className="flex items-center h-9 gap-2 w-full cursor-pointer"
     >
-      <span className="size-6 shrink-0 flex items-center justify-center text-primary">
-        {icon}
-      </span>
+      {icon && (
+        <span className="size-6 shrink-0 flex items-center justify-center text-primary">
+          {icon}
+        </span>
+      )}
       <span className="flex-1 text-left text-header-radio-2 text-primary">
         {label}
       </span>

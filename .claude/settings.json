@@ -13,7 +13,8 @@
       "Bash(git diff *)",
       "Bash(npx eslint *)",
       "Bash(xargs -I{} echo {})",
-      "Bash(node check_popular.mjs)"
+      "Bash(node check_popular.mjs)",
+      "Bash(curl -s \"http://localhost:3000/ekin?back=1\")"
     ]
   }
 }
