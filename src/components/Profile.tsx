@@ -13,6 +13,8 @@ interface ProfileProps {
   followingCount?: number;
   avatarSrc?: string;
   instagramHandle?: string;
+  /** Whether this user already follows you (shows "Follow back" instead of "Follow") */
+  followsYou?: boolean;
   onEditProfile?: () => void;
   onFollow?: () => void;
   onInstagram?: () => void;
@@ -31,6 +33,7 @@ export function Profile({
   followingCount = 0,
   avatarSrc,
   instagramHandle,
+  followsYou = false,
   onEditProfile,
   onFollow,
   onInstagram,
@@ -100,7 +103,7 @@ export function Profile({
             )}
             {isOthers && onFollow && (
               <Button variant="outline" className="flex-1" onClick={onFollow}>
-                Follow
+                {followsYou ? "Follow back" : "Follow"}
               </Button>
             )}
             {isFriend && onFollow && (

@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(lsof -nP -iTCP:3000 -sTCP:LISTEN)",
+      "Bash(ps -p 57780 -o pid,command)",
+      "Bash(kill 57780)",
+      "Bash(disown)",
+      "Bash(kill 44602)",
+      "Bash(lsof -nP -iTCP:3001 -sTCP:LISTEN)",
+      "Bash(open http://localhost:3000)",
+      "Bash(lsof -ti:3000)",
+      "Bash(xargs kill -9)",
+      "Bash(git diff *)",
+      "Bash(npx eslint *)",
+      "Bash(xargs -I{} echo {})",
+      "Bash(node check_popular.mjs)"
+    ]
+  }
+}

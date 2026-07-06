@@ -23,7 +23,11 @@ interface BaseProps {
   ghost?: boolean;
   /** Textarea grows to fit its content instead of using a fixed height (size="tall" only) */
   autoResize?: boolean;
+  /** Overrides the default fixed height for size="tall" when autoResize is false */
+  heightClassName?: string;
   label?: string;
+  /** Slot for a left-side element (e.g. a fixed "@" prefix) */
+  leftSlot?: React.ReactNode;
   /** Slot for a right-side element (e.g. a submit button or icon) */
   rightSlot?: React.ReactNode;
   className?: string;
@@ -47,7 +51,9 @@ export const TextInput = forwardRef<
     focusBrand = false,
     ghost = false,
     autoResize = false,
+    heightClassName,
     label,
+    leftSlot,
     rightSlot,
     className,
     placeholder = "Input field",
@@ -83,6 +89,21 @@ export const TextInput = forwardRef<
     el.style.height = `${el.scrollHeight}px`;
   }, [autoResize, textareaRest?.value]);
 
+  // Re-measure when the element toggles between hidden (display:none, e.g. a
+  // duplicate mobile/desktop instance) and visible, since scrollHeight reads
+  // as 0 while hidden and that stale height otherwise sticks after it reappears.
+  useEffect(() => {
+    if (!autoResize || !internalRef.current) return;
+    const el = internalRef.current;
+    const observer = new ResizeObserver(() => {
+      if (el.offsetParent === null) return;
+      el.style.height = "auto";
+      el.style.height = `${el.scrollHeight}px`;
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [autoResize]);
+
   const textClass = "text-primary placeholder:text-tertiary";
 
   const bg = ghost || lightMode ? "bg-transparent" : "bg-black";
@@ -95,12 +116,13 @@ export const TextInput = forwardRef<
     <div className={`flex flex-col gap-2 w-full ${className ?? ""}`}>
       {label && <span className="text-body-xs text-secondary">{label}</span>}
       <div
-        className={`group ${bg} border ${borderClass} ${paddingClass} flex gap-2.5 rounded-[1rem] w-full transition-[padding,border-color] duration-200 ${
+        className={`group ${bg} border ${borderClass} ${paddingClass} flex rounded-[1rem] w-full transition-[padding,border-color] duration-200 ${
           isTall
-            ? `relative ${autoResize ? "" : "h-[5.375rem]"} items-start`
+            ? `relative ${autoResize ? "" : (heightClassName ?? "h-[5.375rem]")} items-start`
             : "h-14 items-center"
         }`}
       >
+        {leftSlot && <div className="shrink-0">{leftSlot}</div>}
         {isTall ? (
           <>
             <textarea
@@ -124,7 +146,7 @@ export const TextInput = forwardRef<
             {...(rest as InputHTMLAttributes<HTMLInputElement>)}
           />
         )}
-        {rightSlot && <div className="shrink-0">{rightSlot}</div>}
+        {rightSlot && <div className="shrink-0 ml-2.5">{rightSlot}</div>}
       </div>
     </div>
   );

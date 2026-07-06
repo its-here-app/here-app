@@ -18,6 +18,8 @@ import {
 } from "@/lib/services/users";
 import { updateProfileAction } from "@/lib/actions/users";
 import { upsertCityAction } from "@/lib/actions/cities";
+import { isValidInstagramHandle, sanitizeInstagramHandleInput } from "@/lib/isValidInstagramHandle";
+import { useDebouncedValue } from "@/lib/useDebouncedValue";
 import { CityAutocompleteInput } from "../ui/inputs/CityAutocompleteInput";
 
 type UsernameStatus = "idle" | "too-short" | "checking" | "valid" | "taken";
@@ -44,6 +46,7 @@ export default function EditProfileModal({
   const [initialUsername, setInitialUsername] = useState("");
   const [usernameStatus, setUsernameStatus] = useState<UsernameStatus>("idle");
   const [bio, setBio] = useState("");
+  const [instagramHandle, setInstagramHandle] = useState("");
   const [selectedCity, setSelectedCity] = useState<{
     google_place_id: string;
     display_name: string;
@@ -56,6 +59,7 @@ export default function EditProfileModal({
   const [hasCamera, setHasCamera] = useState(false);
   const uploadInputRef = useRef<HTMLInputElement>(null);
   const captureInputRef = useRef<HTMLInputElement>(null);
+  const isInstagramValid = !instagramHandle || isValidInstagramHandle(instagramHandle);
   const avatarRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -82,26 +86,31 @@ export default function EditProfileModal({
     setCurrentPhotoUrl("");
   }
 
+  const debouncedUsername = useDebouncedValue(username, 800);
+  const debouncedInstagramHandle = useDebouncedValue(instagramHandle, 800);
+
   useEffect(() => {
     if (username.length === 0) {
       setUsernameStatus("idle");
+    } else if (username.length >= 3 && username !== initialUsername) {
+      setUsernameStatus("checking");
+    }
+  }, [username, initialUsername]);
+
+  useEffect(() => {
+    if (debouncedUsername.length === 0) return;
+    if (debouncedUsername.length < 3) {
+      setUsernameStatus("too-short");
       return;
     }
-    if (username.length < 3) {
-      const timer = setTimeout(() => setUsernameStatus("too-short"), 800);
-      return () => clearTimeout(timer);
-    }
-    if (username === initialUsername) {
+    if (debouncedUsername === initialUsername) {
       setUsernameStatus("valid");
       return;
     }
-    setUsernameStatus("checking");
-    const timer = setTimeout(async () => {
-      const existing = await getUserByUsername(username);
+    getUserByUsername(debouncedUsername).then((existing) => {
       setUsernameStatus(existing ? "taken" : "valid");
-    }, 800);
-    return () => clearTimeout(timer);
-  }, [username]);
+    });
+  }, [debouncedUsername, initialUsername]);
 
   useEffect(() => {
     if (usernameStatus === "too-short") {
@@ -117,6 +126,14 @@ export default function EditProfileModal({
     }
   }, [usernameStatus]);
 
+  useEffect(() => {
+    if (!debouncedInstagramHandle || debouncedInstagramHandle.length >= 2) return;
+    toast({
+      icon: <Error />,
+      message: "Instagram handle must be at least 2 characters",
+    });
+  }, [debouncedInstagramHandle]);
+
   async function loadProfile() {
     if (!user) return;
     try {
@@ -128,6 +145,7 @@ export default function EditProfileModal({
         setInitialUsername(loadedUsername);
         setUsernameStatus(loadedUsername.length >= 3 ? "valid" : "idle");
         setBio(profile.bio || "");
+        setInstagramHandle(profile.instagram_handle || "");
         setCurrentPhotoUrl(profile.avatar_url || "");
         setPhotoPreview(profile.avatar_url || "");
 
@@ -195,6 +213,7 @@ export default function EditProfileModal({
         full_name: name,
         username,
         bio,
+        instagram_handle: instagramHandle,
         avatar_url: photoUrl,
         city_id: cityId,
         previousUsername: initialUsername,
@@ -316,6 +335,15 @@ export default function EditProfileModal({
         }
       />
 
+      <CityAutocompleteInput
+        focusBrand
+        label="City"
+        value={selectedCity?.display_name ?? ""}
+        placeholder="Your city"
+        onSelect={(city) => setSelectedCity(city)}
+        onChange={() => setSelectedCity(null)}
+      />
+
       <TextInput
         focusBrand
         label="Bio (optional)"
@@ -327,13 +355,22 @@ export default function EditProfileModal({
         state={bio ? "filled" : "default"}
       />
 
-      <CityAutocompleteInput
+      <TextInput
         focusBrand
-        label="City"
-        value={selectedCity?.display_name ?? ""}
-        placeholder="Your city"
-        onSelect={(city) => setSelectedCity(city)}
-        onChange={() => setSelectedCity(null)}
+        label="Instagram (optional)"
+        leftSlot={<span className="text-body-sm leading-none text-primary">@</span>}
+        value={instagramHandle}
+        onChange={(e) => setInstagramHandle(sanitizeInstagramHandleInput(e.target.value))}
+        maxLength={30}
+        placeholder="username"
+        state={instagramHandle ? "filled" : "default"}
+        rightSlot={
+          !instagramHandle ? undefined : isInstagramValid ? (
+            <Check focus className="text-brand" />
+          ) : (
+            <Error className="text-brand" />
+          )
+        }
       />
 
       {/* Delete account */}
@@ -364,7 +401,7 @@ export default function EditProfileModal({
           variant="tonal"
           size="md"
           darkTheme
-          disabled={saving || usernameStatus === "too-short" || usernameStatus === "taken" || usernameStatus === "checking"}
+          disabled={saving || usernameStatus === "too-short" || usernameStatus === "taken" || usernameStatus === "checking" || !isInstagramValid}
           className="w-full"
         >
           {saving ? "Saving..." : "Save"}
@@ -377,7 +414,7 @@ export default function EditProfileModal({
           variant="tonal"
           size="lg"
           darkTheme
-          disabled={saving || usernameStatus === "too-short" || usernameStatus === "taken" || usernameStatus === "checking"}
+          disabled={saving || usernameStatus === "too-short" || usernameStatus === "taken" || usernameStatus === "checking" || !isInstagramValid}
         >
           {saving ? "Saving..." : "Save"}
         </Button>

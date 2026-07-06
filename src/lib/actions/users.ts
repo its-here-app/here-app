@@ -8,6 +8,7 @@ export async function updateProfileAction(params: {
   full_name: string;
   username: string;
   bio: string;
+  instagram_handle: string;
   avatar_url: string;
   city_id?: string | null;
   previousUsername: string;
@@ -30,6 +31,7 @@ export async function updateProfileAction(params: {
       full_name: params.full_name,
       username: params.username,
       bio: params.bio,
+      instagram_handle: params.instagram_handle,
       avatar_url: params.avatar_url,
       city_id: params.city_id ?? null,
     })

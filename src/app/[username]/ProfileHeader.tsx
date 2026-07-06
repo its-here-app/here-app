@@ -257,9 +257,14 @@ export default function ProfileHeader({ profile }: ProfileHeaderProps) {
         username={profile.username}
         bio={profile.bio ?? undefined}
         avatarSrc={profile.avatar_url ?? undefined}
+        instagramHandle={profile.instagram_handle ?? undefined}
+        followsYou={relationship?.followedBy ?? false}
         followerCount={counts?.followers ?? 0}
         followingCount={counts?.following ?? 0}
         onEditProfile={() => setIsEditModalOpen(true)}
+        onInstagram={() =>
+          window.open(`https://instagram.com/${profile.instagram_handle}`, "_blank")
+        }
         onFollow={
           !user
             ? undefined

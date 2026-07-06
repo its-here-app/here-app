@@ -21,6 +21,8 @@ import { CityAutocompleteInput } from "../../components/ui/inputs/CityAutocomple
 import { upsertCityAction } from "../../lib/actions/cities";
 import { updateProfileAction } from "../../lib/actions/users";
 import { getUserByUsername } from "../../lib/services/users";
+import { isValidInstagramHandle, sanitizeInstagramHandleInput } from "../../lib/isValidInstagramHandle";
+import { useDebouncedValue } from "../../lib/useDebouncedValue";
 
 type Step = "auth" | "profile";
 type UsernameStatus = "idle" | "too-short" | "checking" | "valid" | "taken";
@@ -45,6 +47,7 @@ export default function LoginPage() {
   const [username, setUsername] = useState("");
   const [usernameStatus, setUsernameStatus] = useState<UsernameStatus>("idle");
   const [bio, setBio] = useState("");
+  const [instagramHandle, setInstagramHandle] = useState("");
   const [selectedCity, setSelectedCity] = useState<{
     google_place_id: string;
     display_name: string;
@@ -58,6 +61,7 @@ export default function LoginPage() {
   const uploadInputRef = useRef<HTMLInputElement>(null);
   const captureInputRef = useRef<HTMLInputElement>(null);
   const avatarRef = useRef<HTMLDivElement>(null);
+  const isInstagramValid = !instagramHandle || isValidInstagramHandle(instagramHandle);
 
   useEffect(() => {
     setHasCamera(window.matchMedia("(pointer: coarse)").matches);
@@ -96,23 +100,28 @@ export default function LoginPage() {
       });
   }, [user?.id, authLoading]);
 
+  const debouncedUsername = useDebouncedValue(username, 800);
+  const debouncedInstagramHandle = useDebouncedValue(instagramHandle, 800);
+
   // Debounced username uniqueness check
   useEffect(() => {
     if (username.length === 0) {
       setUsernameStatus("idle");
+    } else if (username.length >= 3) {
+      setUsernameStatus("checking");
+    }
+  }, [username]);
+
+  useEffect(() => {
+    if (debouncedUsername.length === 0) return;
+    if (debouncedUsername.length < 3) {
+      setUsernameStatus("too-short");
       return;
     }
-    if (username.length < 3) {
-      const timer = setTimeout(() => setUsernameStatus("too-short"), 800);
-      return () => clearTimeout(timer);
-    }
-    setUsernameStatus("checking");
-    const timer = setTimeout(async () => {
-      const existing = await getUserByUsername(username);
+    getUserByUsername(debouncedUsername).then((existing) => {
       setUsernameStatus(existing ? "taken" : "valid");
-    }, 800);
-    return () => clearTimeout(timer);
-  }, [username]);
+    });
+  }, [debouncedUsername]);
 
   useEffect(() => {
     if (usernameStatus === "too-short") {
@@ -127,6 +136,14 @@ export default function LoginPage() {
       });
     }
   }, [usernameStatus]);
+
+  useEffect(() => {
+    if (!debouncedInstagramHandle || debouncedInstagramHandle.length >= 2) return;
+    toast({
+      icon: <Error />,
+      message: "Instagram handle must be at least 2 characters",
+    });
+  }, [debouncedInstagramHandle]);
 
   async function handleGoogleSignIn() {
     setLoading(true);
@@ -212,6 +229,7 @@ export default function LoginPage() {
     setName("");
     setUsername("");
     setBio("");
+    setInstagramHandle("");
     setSelectedCity(null);
     setProfilePhoto(null);
     setPhotoPreview("");
@@ -251,6 +269,7 @@ export default function LoginPage() {
         full_name: name,
         username,
         bio,
+        instagram_handle: instagramHandle,
         avatar_url: photoUrl,
       });
 
@@ -267,6 +286,7 @@ export default function LoginPage() {
           full_name: name,
           username,
           bio,
+          instagram_handle: instagramHandle,
           avatar_url: photoUrl ?? "",
           city_id: cityId,
           previousUsername: username,
@@ -512,6 +532,15 @@ export default function LoginPage() {
                 }
               />
 
+              <CityAutocompleteInput
+                focusBrand
+                label="City"
+                value={selectedCity?.display_name ?? ""}
+                placeholder="Your city"
+                onSelect={(city) => setSelectedCity(city)}
+                onChange={() => setSelectedCity(null)}
+              />
+
               <TextInput
                 focusBrand
                 aria-label="Bio"
@@ -523,13 +552,22 @@ export default function LoginPage() {
                 state={bio ? "filled" : "default"}
               />
 
-              <CityAutocompleteInput
+              <TextInput
                 focusBrand
-                label="City"
-                value={selectedCity?.display_name ?? ""}
-                placeholder="Your city"
-                onSelect={(city) => setSelectedCity(city)}
-                onChange={() => setSelectedCity(null)}
+                aria-label="Instagram"
+                leftSlot={<span className="text-body-sm leading-none text-primary">@</span>}
+                value={instagramHandle}
+                onChange={(e) => setInstagramHandle(sanitizeInstagramHandleInput(e.target.value))}
+                maxLength={30}
+                placeholder="Instagram username (optional)"
+                state={instagramHandle ? "filled" : "default"}
+                rightSlot={
+                  !instagramHandle ? undefined : isInstagramValid ? (
+                    <Check focus className="text-brand" />
+                  ) : (
+                    <Error className="text-brand" />
+                  )
+                }
               />
             </form>
 
@@ -542,7 +580,7 @@ export default function LoginPage() {
                 size="lg"
                 darkTheme
                 softDisabled
-                disabled={saving || !name || usernameStatus !== "valid"}
+                disabled={saving || !name || usernameStatus !== "valid" || !isInstagramValid}
                 className="w-full"
               >
                 {saving ? "Saving..." : "Done"}

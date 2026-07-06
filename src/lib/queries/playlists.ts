@@ -29,12 +29,17 @@ export async function getPlaylistsByUser(
   }));
 }
 
-export async function getSpotsByUser(userId: string): Promise<Spot[]> {
+export async function getSpotsByUser(
+  userId: string,
+  onlyPublic = false
+): Promise<Spot[]> {
   const supabase = await createClient();
-  const { data, error } = await supabase
+  let query = supabase
     .from("playlists")
     .select("playlist_spots(spots(*))")
     .eq("user_id", userId);
+  if (onlyPublic) query = query.eq("is_public", true);
+  const { data, error } = await query;
   if (error || !data) return [];
   const seen = new Set<string>();
   const spots: Spot[] = [];

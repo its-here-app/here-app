@@ -37,23 +37,23 @@ import { Photo } from "@/components/ui/icons/Photo";
 import { Spinner } from "@/components/ui/Spinner";
 import { Share } from "@/components/ui/icons/Share";
 import { Copy } from "@/components/ui/icons/Copy";
-import { Add } from "@/components/ui/icons/Add";
-import { Arrows } from "@/components/ui/icons/Arrows";
 import { Check } from "@/components/ui/icons/Check";
 import { CheckCircle } from "@/components/ui/icons/CheckCircle";
-import { Info } from "@/components/ui/icons/Info";
 import { Trash } from "@/components/ui/icons/Trash";
 import { World } from "@/components/ui/icons/World";
-import { BottomPanel } from "@/components/ui/BottomPanel";
 import { Sheet, ConfirmSheet } from "@/components/ui/Sheet";
 import { snackbar } from "@/components/ui/Snackbar";
 import { toast } from "@/components/ui/Toast";
 import { Error as ErrorIcon } from "@/components/ui/icons/Error";
 import type { SheetItem } from "@/components/ui/Sheet";
 import SpotCard from "@/components/SpotCard";
-import { TextInput } from "@/components/ui/inputs";
 import BookmarkButton from "@/components/BookmarkButton";
-import SpotSearchInput from "@/components/SpotSearchInput";
+import { SpotSearchPanel } from "@/components/SpotSearchPanel";
+import { DescriptionField } from "@/components/playlist-editor/DescriptionField";
+import { EditableSpotCard } from "@/components/playlist-editor/EditableSpotCard";
+import { AddSpotSection } from "@/components/playlist-editor/AddSpotSection";
+import { useCoverPhotoUpload } from "@/components/playlist-editor/useCoverPhotoUpload";
+import { SlotRow } from "@/components/ui/SlotRow";
 import {
   DndContext,
   closestCenter,
@@ -66,11 +66,9 @@ import {
 import {
   SortableContext,
   sortableKeyboardCoordinates,
-  useSortable,
   verticalListSortingStrategy,
   arrayMove,
 } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
 import { Asterisk } from "@/components/ui/icons/Asterisk";
 
 interface Props {
@@ -94,127 +92,6 @@ function timeAgo(dateStr: string): string {
   return `${Math.floor(months / 12)}y ago`;
 }
 
-function GripIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-      <circle cx="5" cy="4" r="1.5" />
-      <circle cx="11" cy="4" r="1.5" />
-      <circle cx="5" cy="8" r="1.5" />
-      <circle cx="11" cy="8" r="1.5" />
-      <circle cx="5" cy="12" r="1.5" />
-      <circle cx="11" cy="12" r="1.5" />
-    </svg>
-  );
-}
-
-function SortableSpotCard({
-  ps,
-  editMode,
-  reorderMode,
-  onRemove,
-  onNotesChange,
-}: {
-  ps: PlaylistSpot;
-  editMode: boolean;
-  reorderMode: boolean;
-  onRemove: (id: string) => void;
-  onNotesChange: (id: string, notes: string) => void;
-}) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: ps.id });
-
-  const [isFocused, setIsFocused] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const noteAtFocus = useRef<string>("");
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.4 : 1,
-    zIndex: isDragging ? 10 : undefined,
-  };
-
-  return (
-    <div ref={setNodeRef} style={style} className="">
-      <div className="flex items-start gap-3">
-        {reorderMode && (
-          <button
-            {...attributes}
-            {...listeners}
-            className="flex-shrink-0 text-gray-300 hover:text-gray-500 cursor-grab active:cursor-grabbing mt-0.5"
-            aria-label="Drag to reorder"
-          >
-            <GripIcon />
-          </button>
-        )}
-        <SpotCard
-          spot={ps.spots}
-          subtitleText={ps.notes ?? ""}
-          className="flex-1"
-          disableLink={editMode}
-          onClick={editMode ? () => inputRef.current?.focus() : undefined}
-          bookmark={editMode ? undefined : <BookmarkButton spot={ps.spots} variant="secondary" />}
-          subtitleSlot={
-            <input
-              ref={inputRef}
-              value={ps.notes ?? ""}
-              readOnly={!editMode}
-              onChange={(e) => onNotesChange(ps.id, e.target.value)}
-              onFocus={() => {
-                if (!editMode) return;
-                setIsFocused(true);
-                noteAtFocus.current = ps.notes ?? "";
-              }}
-              onBlur={() => {
-                setIsFocused(false);
-                const current = ps.notes ?? "";
-                if (current !== noteAtFocus.current) {
-                  const previous = noteAtFocus.current;
-                  if (current.trim()) {
-                    snackbar({
-                      icon: <CheckCircle />,
-                      message: `Note added to ${ps.spots.name}`,
-                      actionLabel: "Undo",
-                      onAction: () => onNotesChange(ps.id, previous),
-                    });
-                  } else if (previous.trim()) {
-                    snackbar({
-                      icon: <Info />,
-                      message: `Note removed from ${ps.spots.name}`,
-                      actionLabel: "Undo",
-                      onAction: () => onNotesChange(ps.id, previous),
-                    });
-                  }
-                }
-              }}
-              placeholder={editMode ? "Add a note…" : ""}
-              className={`block w-full bg-transparent text-body-xs text-secondary placeholder:text-tertiary outline-none border-none p-0 leading-4 h-4 mb-1 truncate ${!editMode ? "pointer-events-none" : ""} ${!editMode && !ps.notes ? "hidden" : ""}`}
-            />
-          }
-          action={
-            editMode && isFocused ? (
-              <IconButton
-                variant="secondary"
-                icon={<Trash />}
-                label="Remove spot"
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  onRemove(ps.id);
-                }}
-              />
-            ) : undefined
-          }
-        />
-      </div>
-    </div>
-  );
-}
 
 export default function PlaylistEditor({ playlist, isOwner, onClose }: Props) {
   const { user } = useAuth();
@@ -223,7 +100,6 @@ export default function PlaylistEditor({ playlist, isOwner, onClose }: Props) {
   const [editMode, setEditMode] = useState(false);
   const [reorderMode, setReorderMode] = useState(false);
   const [isAddSpotOpen, setIsAddSpotOpen] = useState(false);
-  const coverInputRef = useRef<HTMLInputElement>(null);
   const [coverUrl, setCoverUrl] = useState<string>(
     playlist.cover_photo_url ?? getDefaultCover(playlist.city, playlist.name),
   );
@@ -232,8 +108,6 @@ export default function PlaylistEditor({ playlist, isOwner, onClose }: Props) {
   const [description, setDescription] = useState<string>(
     playlist.description ?? "",
   );
-  const [descriptionFocused, setDescriptionFocused] = useState(false);
-  const descriptionRef = useRef<HTMLTextAreaElement>(null);
   const [spots, setSpots] = useState<PlaylistSpot[]>(
     [...playlist.playlist_spots].sort(
       (a: PlaylistSpot, b: PlaylistSpot) =>
@@ -255,6 +129,10 @@ export default function PlaylistEditor({ playlist, isOwner, onClose }: Props) {
     spots: PlaylistSpot[];
   } | null>(null);
   const [stagedCoverFile, setStagedCoverFile] = useState<File | null>(null);
+  const { coverInputRef, handleCoverSelect } = useCoverPhotoUpload((file) => {
+    setStagedCoverFile(file);
+    setCoverUrl(URL.createObjectURL(file));
+  });
   const [pendingAdds, setPendingAdds] = useState<SearchResult[]>([]);
   const [pendingRemoveIds, setPendingRemoveIds] = useState<Set<string>>(
     new Set(),
@@ -299,6 +177,12 @@ export default function PlaylistEditor({ playlist, isOwner, onClose }: Props) {
   function handleAddSpot(place: SearchResult) {
     if (pendingAdds.some((p) => p.spot_id === place.spot_id)) return;
     setPendingAdds((prev) => [...prev, place]);
+    snackbar({
+      icon: <CheckCircle />,
+      message: `Added to “${name}”`,
+      actionLabel: "Undo",
+      onAction: () => handleRemovePendingAdd(place.spot_id),
+    });
   }
 
   function handleRemovePendingAdd(spotId: string) {
@@ -473,13 +357,6 @@ export default function PlaylistEditor({ playlist, isOwner, onClose }: Props) {
     }
   }
 
-  function handleCoverSelect(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setStagedCoverFile(file);
-    setCoverUrl(URL.createObjectURL(file));
-  }
-
   function handleDeletePlaylist() {
     const username = playlist.profiles.username;
     const playlistId = playlist.id;
@@ -546,7 +423,7 @@ export default function PlaylistEditor({ playlist, isOwner, onClose }: Props) {
             editMode ? (
               <button
                 onClick={handleCancelEdit}
-                className="text-body-xs text-white cursor-pointer"
+                className="text-body-xs text-white cursor-pointer lg:hidden"
               >
                 Cancel
               </button>
@@ -565,7 +442,7 @@ export default function PlaylistEditor({ playlist, isOwner, onClose }: Props) {
           }
           topCenter={
             editMode ? (
-              <p className="text-body-sm-bold text-white">Edit playlist</p>
+              <p className="text-body-sm-bold text-white lg:hidden">Edit playlist</p>
             ) : undefined
           }
           topRight={
@@ -573,7 +450,7 @@ export default function PlaylistEditor({ playlist, isOwner, onClose }: Props) {
               <button
                 onClick={handleDone}
                 disabled={saving}
-                className="text-body-xs text-white cursor-pointer disabled:opacity-50 min-w-[3.5rem] text-right"
+                className="text-body-xs text-white cursor-pointer disabled:opacity-50 min-w-[3.5rem] text-right lg:hidden"
               >
                 {saving ? "Saving…" : "Done"}
               </button>
@@ -666,45 +543,40 @@ export default function PlaylistEditor({ playlist, isOwner, onClose }: Props) {
       </div>
 
       {/* Right column */}
-      <div>
+      <div className={editMode ? "lg:flex lg:flex-col lg:h-[calc(100vh-2*var(--space-page-sm))]" : undefined}>
+        <div className={isAddSpotOpen ? "hidden" : undefined}>
+        {editMode && (
+          <div className="hidden lg:block">
+            <SlotRow
+              className="mb-6"
+              left={
+                <Button variant="text" size="md" onClick={handleCancelEdit}>
+                  Cancel
+                </Button>
+              }
+              center={<p className="text-body-sm-bold text-primary">Edit playlist</p>}
+              right={
+                <Button variant="text" size="md" onClick={handleDone} disabled={saving}>
+                  {saving ? "Saving…" : "Done"}
+                </Button>
+              }
+            />
+          </div>
+        )}
+
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-start justify-between gap-4">
             <div className="w-full">
               {(editMode || description) && (
-                <div className="relative mb-4">
-                  <TextInput
-                    ref={descriptionRef}
-                    size="tall"
-                    ghost
-                    autoResize
-                    readOnly={!editMode}
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    placeholder="What does this playlist capture? (optional) ie. favorite spots that is nostalgic to me"
-                    onFocus={() => { if (editMode) setDescriptionFocused(true); }}
-                    onBlur={() => setDescriptionFocused(false)}
-                    className={!editMode ? "pointer-events-none" : undefined}
-                  />
-                  {descriptionFocused && (
-                    <button
-                      className="absolute bottom-4 right-4 text-body-xs text-black cursor-pointer"
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        descriptionRef.current?.blur();
-                      }}
-                    >
-                      Done
-                    </button>
-                  )}
-                </div>
+                <DescriptionField value={description} onChange={setDescription} readOnly={!editMode} />
               )}
               <div className="flex items-center gap-4 text-sm text-gray-500">
                 <p className="flex items-center text-body-md text-primary">
                   {spots.length + pendingAdds.length}{" "}
                   {spots.length + pendingAdds.length === 1 ? "spot" : "spots"}
-                  <span className="ml-[0.25rem]">
-                    <Asterisk className="mt-1 size-[0.5rem]" />
+                  <span>
+                    <Asterisk className="size-[18px]" />
                   </span>
                 </p>
               </div>
@@ -726,16 +598,24 @@ export default function PlaylistEditor({ playlist, isOwner, onClose }: Props) {
               {spots.length === 0 && pendingAdds.length === 0 && (
                 <p className="text-gray-500 text-sm">No spots yet.</p>
               )}
-              {spots.map((ps) => (
-                <SortableSpotCard
-                  key={ps.id}
-                  ps={ps}
-                  editMode={editMode}
-                  reorderMode={reorderMode}
-                  onRemove={handleRemoveSpot}
-                  onNotesChange={handleNotesChange}
-                />
-              ))}
+              {spots.map((ps) =>
+                editMode ? (
+                  <EditableSpotCard
+                    key={ps.id}
+                    item={{ id: ps.id, spot: ps.spots, notes: ps.notes ?? undefined }}
+                    reorderMode={reorderMode}
+                    onRemove={handleRemoveSpot}
+                    onNotesChange={handleNotesChange}
+                  />
+                ) : (
+                  <SpotCard
+                    key={ps.id}
+                    spot={ps.spots}
+                    subtitleText={ps.notes ?? ""}
+                    bookmark={<BookmarkButton spot={ps.spots} variant="secondary" />}
+                  />
+                ),
+              )}
               {/* Pending adds (not yet persisted) */}
               {pendingAdds.map((place) => (
                 <div key={place.spot_id} className="flex items-start gap-3">
@@ -745,8 +625,6 @@ export default function PlaylistEditor({ playlist, isOwner, onClose }: Props) {
                       name: place.name,
                       address: place.address,
                       photo_url: place.photo_url,
-                      rating: place.rating,
-                      types: place.types,
                     }}
                     className="flex-1"
                     action={
@@ -766,40 +644,25 @@ export default function PlaylistEditor({ playlist, isOwner, onClose }: Props) {
 
         {/* Add a spot + Reorder — edit mode only */}
         {editMode && (
-          <>
-            <div className="flex gap-2 mb-4">
-              <Button size="lg" variant="tonal" leftIcon={<Add />} className="flex-1" onClick={() => setIsAddSpotOpen(true)}>
-                Add a spot
-              </Button>
-              {spots.length > 1 && (
-                <IconButton
-                  size="lg"
-                  variant="secondary"
-                  icon={<Arrows />}
-                  label={reorderMode ? "Done reordering" : "Reorder spots"}
-                  onClick={() => setReorderMode((r) => !r)}
-                />
-              )}
-            </div>
-            <BottomPanel
-              isOpen={isAddSpotOpen}
-              onClose={() => setIsAddSpotOpen(false)}
-              header="Add a spot"
-              desktopVariant="floating"
-              desktopWidth="30rem"
-            >
-              <SpotSearchInput
-                placeholder={`Search spots in ${playlist.city}`}
-                city={playlist.city}
-                excludePlaceIds={existingPlaceIds}
-                onSelect={(place) => {
-                  handleAddSpot(place);
-                  setIsAddSpotOpen(false);
-                }}
-              />
-            </BottomPanel>
-          </>
+          <AddSpotSection
+            spotCount={spots.length}
+            reorderMode={reorderMode}
+            onToggleReorder={() => setReorderMode((r) => !r)}
+            onOpenSearch={() => setIsAddSpotOpen(true)}
+          />
         )}
+      </div>
+
+      {editMode && (
+        <SpotSearchPanel
+          isOpen={isAddSpotOpen}
+          onClose={() => setIsAddSpotOpen(false)}
+          city={playlist.city}
+          cityId={playlist.city_id ?? undefined}
+          addedPlaceIds={existingPlaceIds}
+          onSelect={handleAddSpot}
+        />
+      )}
       </div>
       {/* end right column */}
 

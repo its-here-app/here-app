@@ -4,6 +4,7 @@ import { useState, useRef, useLayoutEffect, useEffect, type ReactNode } from "re
 import Link from "next/link";
 import { ArrowRight } from "./ui/icons/ArrowRight";
 import { IconButton } from "./ui/IconButton";
+import { SlotRow } from "./ui/SlotRow";
 
 // ─── TextScrim ────────────────────────────────────────────────────────────────
 // Gradient overlay for text legibility on card images.
@@ -87,13 +88,7 @@ function TopActions({
 }) {
   if (!left && !center && !right) return null;
   return (
-    <div
-      className={`absolute top-0 inset-x-0 grid grid-cols-[1fr_auto_1fr] items-center whitespace-nowrap ${padding}`}
-    >
-      <div className="flex justify-start">{left}</div>
-      <div className="flex justify-center">{center}</div>
-      <div className="flex justify-end">{right}</div>
-    </div>
+    <SlotRow left={left} center={center} right={right} className={`absolute top-0 inset-x-0 ${padding}`} />
   );
 }
 
@@ -110,13 +105,7 @@ function BottomActions({
 }) {
   if (!left && !center && !right) return null;
   return (
-    <div
-      className={`absolute bottom-0 inset-x-0 grid grid-cols-[1fr_auto_1fr] items-center whitespace-nowrap ${padding}`}
-    >
-      <div className="flex justify-start">{left}</div>
-      <div className="flex justify-center">{center}</div>
-      <div className="flex justify-end">{right}</div>
-    </div>
+    <SlotRow left={left} center={center} right={right} className={`absolute bottom-0 inset-x-0 ${padding}`} />
   );
 }
 
@@ -150,8 +139,8 @@ const sizeConfig: Record<PlaylistCardSize, SizeConfig> = {
     height: "h-[30rem] lg:h-full",
     radius: "rounded-lg",
     scrim: heroScrim,
-    cityText: "text-display-crimson-1",
-    nameText: "text-display-golos-1",
+    cityText: "text-display-crimson-hero",
+    nameText: "text-display-golos-hero",
     nameOffset: "-mt-1",
     namePadding: "px-8",
     actionPadding: "py-4 px-4 lg:p-6",
@@ -269,13 +258,28 @@ export function PlaylistCard({
     el.scrollTop = 0;
   });
 
+  // Re-measure on pure CSS-driven reflow (e.g. a window resize changing the
+  // cqw-based font size and wrapping the title onto another line) — that
+  // doesn't trigger a React re-render, so the layout effect above alone
+  // wouldn't catch it and the new line would clip against overflow-hidden.
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver(() => {
+      el.style.height = "1px";
+      el.style.height = `${el.scrollHeight}px`;
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
   return (
     <Wrapper
       {...(wrapperProps as Record<string, unknown>)}
       className={`flex flex-col gap-3 w-full ${href || onClick ? "cursor-pointer group" : ""} ${className ?? ""}`}
     >
       <div
-        className={`relative overflow-hidden w-full ${size !== "hero" ? "@container" : ""} ${imageLoaded ? "bg-transparent" : "bg-black"} ${sizeConfig[size].height} ${sizeConfig[size].radius}`}
+        className={`relative overflow-hidden w-full @container ${imageLoaded ? "bg-transparent" : "bg-black"} ${sizeConfig[size].height} ${sizeConfig[size].radius}`}
       >
         {image && (
           <img

@@ -42,6 +42,7 @@ export interface Profile {
   full_name: string;
   email?: string | null;
   bio?: string | null;
+  instagram_handle?: string | null;
   avatar_url?: string | null;
   city_id?: string | null;
   created_at: string;

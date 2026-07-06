@@ -1,12 +1,30 @@
 "use client";
 
-import { useState, useRef } from "react";
-import { searchSpots } from "@/lib/services/playlists";
+import { useEffect, useState } from "react";
+import { searchSpots, getPopularSpotsForCity } from "@/lib/services/playlists";
+import { useDebouncedValue } from "@/lib/useDebouncedValue";
+import { SearchInput } from "@/components/ui/inputs/SearchInput";
+import type { SearchInputState } from "@/components/ui/inputs/SearchInput";
+import { Add } from "@/components/ui/icons/Add";
+import { CheckCircle } from "@/components/ui/icons/CheckCircle";
+import { IconButton } from "@/components/ui/IconButton";
+import SpotCard from "@/components/SpotCard";
 import type { SearchResult } from "@/types";
+
+// Searches automatically after the user pauses typing, instead of requiring
+// Enter. Costs more Google Places Text Search calls ($32/1k) than Enter-only,
+// since partial queries aren't cache hits — flip to false to fall back to
+// Enter-to-search only if that cost needs to come down.
+const DEBOUNCE_SEARCH = true;
+const DEBOUNCE_MS = 400;
+
+// Keeps the empty-query suggestion list short enough to scan at a glance.
+const POPULAR_SPOTS_LIMIT = 5;
 
 interface SpotSearchInputProps {
   placeholder?: string;
   city?: string;
+  cityId?: string;
   addedPlaceIds?: Set<string>;
   excludePlaceIds?: Set<string>;
   onSelect?: (result: SearchResult) => void;
@@ -16,6 +34,7 @@ interface SpotSearchInputProps {
 export default function SpotSearchInput({
   placeholder = "Search for a spot…",
   city,
+  cityId,
   addedPlaceIds,
   excludePlaceIds,
   onSelect,
@@ -23,17 +42,18 @@ export default function SpotSearchInput({
 }: SpotSearchInputProps) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
+  const [popularSpots, setPopularSpots] = useState<SearchResult[]>([]);
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState("");
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [inputState, setInputState] = useState<SearchInputState>("default");
+  const debouncedQuery = useDebouncedValue(query, DEBOUNCE_MS);
 
-  async function handleSearch(e: React.FormEvent) {
-    e.preventDefault();
-    if (!query.trim()) return;
+  async function performSearch(q: string) {
+    if (!q.trim()) return;
     setSearching(true);
     setError("");
     try {
-      const data = await searchSpots(query, city);
+      const data = await searchSpots(q, city);
       setResults(
         excludePlaceIds ? data.filter((r) => !excludePlaceIds.has(r.spot_id)) : data
       );
@@ -44,76 +64,110 @@ export default function SpotSearchInput({
     }
   }
 
+  useEffect(() => {
+    if (!debouncedQuery.trim()) {
+      setResults([]);
+      return;
+    }
+    if (DEBOUNCE_SEARCH) performSearch(debouncedQuery);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedQuery]);
+
+  useEffect(() => {
+    if (!cityId) {
+      setPopularSpots([]);
+      return;
+    }
+    let cancelled = false;
+    getPopularSpotsForCity(cityId, POPULAR_SPOTS_LIMIT).then((data) => {
+      if (!cancelled) setPopularSpots(data);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [cityId]);
+
+  async function handleSearch(e: React.FormEvent) {
+    e.preventDefault();
+    await performSearch(query);
+  }
+
+  // Unlike regular search results (which show already-added spots with a
+  // checkmark), popular spots are filtered out entirely once added — this
+  // list is meant as quick suggestions, not something to revisit/confirm.
+  const visiblePopularSpots = popularSpots.filter(
+    (s) => !addedPlaceIds?.has(s.spot_id),
+  );
+
+  function renderSpotRow(result: SearchResult) {
+    return (
+      <SpotCard
+        key={result.spot_id}
+        spot={{
+          google_place_id: result.spot_id,
+          name: result.name,
+          address: result.address,
+          photo_url: result.photo_url,
+          rating: result.rating,
+          types: result.types,
+        }}
+        size="xxsmall"
+        disableLink
+        onClick={onSelect ? () => onSelect(result) : undefined}
+        action={
+          addedPlaceIds?.has(result.spot_id) ? (
+            <IconButton variant="ghost" icon={<CheckCircle focus className="size-6 text-primary" />} label="Added" onClick={() => onSelect?.(result)} />
+          ) : (
+            <IconButton variant="ghost" icon={<Add className="size-6" />} label="Add spot" onClick={() => onSelect?.(result)} />
+          )
+        }
+      />
+    );
+  }
+
   return (
     <div>
       <form onSubmit={handleSearch} className="mb-4">
-        <div className="flex items-center gap-2 px-3 py-2.5 border border-transparent rounded-[12px] bg-gray-100 focus-within:bg-white focus-within:border-subtle transition-colors">
-          <svg className="size-4 text-tertiary shrink-0" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clipRule="evenodd" />
-          </svg>
-          <input
-            ref={inputRef}
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder={placeholder}
-            autoFocus
-            className="flex-1 text-body-sm text-primary bg-transparent outline-none placeholder:text-tertiary"
-          />
-          {query && (
-            <button
-              type="button"
-              onClick={() => { setQuery(""); setResults([]); inputRef.current?.focus(); }}
-              className="text-tertiary cursor-pointer shrink-0"
-            >
-              <svg className="size-4" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clipRule="evenodd" />
-              </svg>
-            </button>
-          )}
-        </div>
+        <SearchInput
+          state={inputState}
+          value={query}
+          onChange={(v) => {
+            setQuery(v);
+            setInputState(v ? "typing" : "focused");
+          }}
+          onFocus={() => setInputState(query ? "typing" : "focused")}
+          onBlur={() => {
+            if (!query) setInputState("default");
+          }}
+          onClear={() => {
+            setQuery("");
+            setResults([]);
+            setInputState("focused");
+          }}
+          placeholder={placeholder}
+        />
       </form>
 
       {error && (
         <p className="text-body-xs text-red-500 mb-3">{error}</p>
       )}
 
+      {!query.trim() && visiblePopularSpots.length > 0 && (
+        <div>
+          <p className="text-body-sm text-tertiary mb-2 px-1">Popular spots</p>
+          <div className="space-y-3">
+            {visiblePopularSpots.map(renderSpotRow)}
+          </div>
+        </div>
+      )}
+
       {results.length > 0 && (
         <div>
-          <p className="text-body-xs text-tertiary mb-2 px-1">Popular spots</p>
-          <div className="divide-y divide-subtle">
-            {results.map((result) => (
-              <div
-                key={result.spot_id}
-                role={onSelect ? "button" : undefined}
-                onClick={onSelect ? () => onSelect(result) : undefined}
-                className={`flex items-center gap-3 py-3 ${onSelect ? "cursor-pointer active:bg-gray-50" : ""}`}
-              >
-                {result.photo_url ? (
-                  <img
-                    src={result.photo_url}
-                    alt=""
-                    className="size-10 rounded-lg object-cover shrink-0"
-                  />
-                ) : (
-                  <div className="size-10 rounded-lg bg-gray-100 shrink-0" />
-                )}
-                <div className="flex-1 min-w-0">
-                  <p className="text-body-sm text-primary truncate">{result.name}</p>
-                  <p className="text-body-xs text-tertiary truncate">{result.address}</p>
-                </div>
-                {addedPlaceIds?.has(result.spot_id) ? (
-                  <svg className="size-5 text-primary shrink-0" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clipRule="evenodd" />
-                  </svg>
-                ) : (
-                  <svg className="size-5 text-tertiary shrink-0" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
-                    <circle cx="10" cy="10" r="7.5" />
-                    <path d="M10 6.5v7M6.5 10h7" strokeLinecap="round" />
-                  </svg>
-                )}
-              </div>
-            ))}
+          <p className="text-body-sm text-tertiary mb-2 px-1">
+            {results.length} result{results.length === 1 ? "" : "s"}
+          </p>
+          <div className="space-y-3">
+            {results.map(renderSpotRow)}
           </div>
         </div>
       )}

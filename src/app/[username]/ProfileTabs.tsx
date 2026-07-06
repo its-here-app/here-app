@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Tabs, Tab, TabPanels } from "@/components/ui/Tabs";
-import { Button } from "@/components/ui/Button";
 import { List } from "@/components/ui/icons/List";
 import { Map } from "@/components/ui/icons/Map";
 import { Spots } from "@/components/ui/icons/Spots";
@@ -15,7 +15,7 @@ import { useAuth } from "@/lib/authContext";
 import { useShare } from "@/lib/useShare";
 
 import { PlaylistCard } from "@/components/PlaylistCard";
-import ProfileMessage from "./ProfileMessage";
+import ProfileEmptyState from "./ProfileEmptyState";
 import { playlistUrl } from "@/lib/playlistUrl";
 import { openCreatePlaylist } from "@/components/modals/CreatePlaylistFlow";
 import type { Playlist, Spot } from "@/types";
@@ -40,6 +40,7 @@ export default function ProfileTabs({
   );
   const [playlists, setPlaylists] = useState(initialPlaylists);
   const { user } = useAuth();
+  const router = useRouter();
 
   useEffect(() => {
     setPlaylists(initialPlaylists);
@@ -162,26 +163,27 @@ export default function ProfileTabs({
               ))}
             </div>
           ) : (
-            <ProfileMessage header={isActualOwner ? "Get started" : undefined}>
-              <p>
-                {isActualOwner
+            <ProfileEmptyState
+              header={isActualOwner ? "Get started" : undefined}
+              message={
+                isActualOwner
                   ? "You don't have any lists yet. Create your first to organize your favorite places and share them with friends"
-                  : "No public lists found"}
-              </p>
-              {isActualOwner && (
-                <Button size="lg" variant="tonal" className="bg-neon mt-6" onClick={openCreatePlaylist}>
-                  Create a list
-                </Button>
-              )}
-            </ProfileMessage>
+                  : "No public lists found"
+              }
+              actionLabel={isActualOwner ? "Create a list" : undefined}
+              onAction={isActualOwner ? openCreatePlaylist : undefined}
+              neonAction
+            />
           )}
         </div>
 
         {/* Cities */}
         <div>
-          <ProfileMessage>
-            <p>This view is coming soon!</p>
-          </ProfileMessage>
+          <ProfileEmptyState
+            header="Coming soon!"
+            message="We're currently working on the city view, come back later"
+            actionLabel="Get notified"
+          />
         </div>
 
         {/* Spots */}
@@ -191,9 +193,12 @@ export default function ProfileTabs({
               <SpotCard key={spot.id} spot={spot} subtitleText="" bookmark={<BookmarkButton spot={spot} />} />
             ))
           ) : (
-            <ProfileMessage>
-              <p>{isActualOwner ? "You haven't saved any spots yet" : "No saved spots found"}</p>
-            </ProfileMessage>
+            <ProfileEmptyState
+              header={isActualOwner ? "Nothing saved yet" : undefined}
+              message={isActualOwner ? "Save spots you love so you can find them later" : "No public saved spots found"}
+              actionLabel={isActualOwner ? "Start exploring" : undefined}
+              onAction={isActualOwner ? () => router.push("/") : undefined}
+            />
           )}
         </div>
       </TabPanels>

@@ -98,6 +98,53 @@ export async function getTodaysPick(): Promise<TodaysPick | null> {
   };
 }
 
+/**
+ * Spots already saved into (public) playlists for a city, ranked by how many
+ * playlists include them, then alphabetically for ties. "Saved" here means
+ * "added to a playlist" — spots have no direct city column of their own, so
+ * city association only exists via playlist_spots -> playlists.city_id.
+ */
+export async function getPopularSpotsForCity(
+  cityId: string,
+  limit: number,
+): Promise<SearchResult[]> {
+  const supabase = createClient();
+  const { data: psData, error } = await supabase
+    .from("playlist_spots")
+    .select("spot_id, playlists!inner(city_id, is_public)")
+    .eq("playlists.city_id", cityId)
+    .eq("playlists.is_public", true);
+
+  if (error || !psData || psData.length === 0) return [];
+
+  const counts = new Map<string, number>();
+  for (const row of psData as { spot_id: string }[]) {
+    counts.set(row.spot_id, (counts.get(row.spot_id) ?? 0) + 1);
+  }
+
+  const { data: spots } = await supabase
+    .from("spots")
+    .select("*")
+    .in("id", [...counts.keys()]);
+
+  if (!spots) return [];
+
+  return (spots as Spot[])
+    .sort((a, b) => {
+      const diff = (counts.get(b.id) ?? 0) - (counts.get(a.id) ?? 0);
+      return diff !== 0 ? diff : a.name.localeCompare(b.name);
+    })
+    .slice(0, limit)
+    .map((spot) => ({
+      spot_id: spot.google_place_id,
+      name: spot.name,
+      address: spot.address,
+      photo_url: spot.photo_url,
+      rating: spot.rating,
+      types: spot.types,
+    }));
+}
+
 export async function searchSpots(
   query: string,
   city?: string

@@ -345,6 +345,14 @@
 }
 
 /* Display — Crimson Text (italic) */
+@utility text-display-crimson-hero {
+  font-family: var(--font-crimson);
+  font-size: clamp(2rem, 1.44rem + 2.4cqw, 3rem); /* 32px → 48px, scales with card width */
+  line-height: 1.05;
+  letter-spacing: -0.06em;
+  font-style: italic;
+  font-weight: 400;
+}
 @utility text-display-crimson-1 {
   font-family: var(--font-crimson);
   font-size: 3rem; /* 48px */
@@ -396,6 +404,13 @@
 }
 
 /* Display — Golos Text (semibold) */
+@utility text-display-golos-hero {
+  font-family: var(--font-golos);
+  font-size: clamp(2.5rem, 1.8rem + 3cqw, 3.75rem); /* 40px → 60px, scales with card width */
+  line-height: 1;
+  letter-spacing: -0.06em;
+  font-weight: 600;
+}
 @utility text-display-golos-1 {
   font-family: var(--font-golos);
   font-size: 3.75rem; /* 60px */

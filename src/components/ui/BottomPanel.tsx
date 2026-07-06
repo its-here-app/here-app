@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Close } from "./icons/Close";
 import { FullLogo } from "./Logo";
 import { Scrim } from "./Scrim";
+import { useSlideTransition } from "@/lib/useSlideTransition";
 
 interface BottomPanelProps {
   isOpen: boolean;
@@ -51,8 +52,7 @@ export function BottomPanel({
   handle = false,
   children,
 }: BottomPanelProps) {
-  const [isVisible, setIsVisible] = useState(false);
-  const [isAnimating, setIsAnimating] = useState(false);
+  const { isVisible, isAnimating } = useSlideTransition(isOpen);
   const [dragY, setDragY] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -75,23 +75,7 @@ export function BottomPanel({
   }
 
   useEffect(() => {
-    if (isOpen) {
-      setIsVisible(true);
-      setIsAnimating(false);
-      let raf2: number;
-      const raf1 = requestAnimationFrame(() => {
-        raf2 = requestAnimationFrame(() => setIsAnimating(true));
-      });
-      return () => {
-        cancelAnimationFrame(raf1);
-        cancelAnimationFrame(raf2);
-      };
-    } else {
-      setIsAnimating(false);
-      setIsExpanded(false);
-      const t = setTimeout(() => setIsVisible(false), 300);
-      return () => clearTimeout(t);
-    }
+    if (!isOpen) setIsExpanded(false);
   }, [isOpen]);
 
   useEffect(() => {

@@ -22,7 +22,7 @@ export default async function PlaylistSection({
 
   const [rawPlaylists, spots, blockRow] = await Promise.all([
     getPlaylistsByUser(profileId, !isOwnProfile),
-    getSpotsByUser(profileId),
+    getSpotsByUser(profileId, !isOwnProfile),
     userId && !isOwnProfile
       ? supabase
           .from("blocks")

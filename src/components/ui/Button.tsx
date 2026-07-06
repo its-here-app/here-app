@@ -1,6 +1,6 @@
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 
-export type ButtonVariant = "filled" | "tonal" | "outline" | "text" | "overlay";
+export type ButtonVariant = "filled" | "tonal" | "outline" | "text" | "overlay" | "brand";
 export type ButtonSize = "sm" | "md" | "lg";
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -30,6 +30,7 @@ function variantClasses(variant: ButtonVariant, darkTheme: boolean): string {
       case "tonal":   return "bg-surface-subtle text-primary";
       case "outline": return "border border-subtle text-primary";
       case "text":    return "text-primary";
+      case "brand":   return "bg-neon text-black";
     }
   } else {
     switch (variant) {
@@ -37,6 +38,7 @@ function variantClasses(variant: ButtonVariant, darkTheme: boolean): string {
       case "tonal":   return "bg-surface-subtle text-primary";
       case "outline": return "border border-subtle text-primary";
       case "text":    return "text-primary";
+      case "brand":   return "bg-neon text-black";
     }
   }
 }
@@ -60,7 +62,7 @@ export function Button({
     <button
       className={`inline-flex items-center justify-center whitespace-nowrap cursor-pointer transition-[filter] hover:brightness-95 active:brightness-90 ${disabledClasses} ${
         isOverlay ? variantClasses(variant, darkTheme) : `${sizeClasses[size]} ${variantClasses(variant, darkTheme)}`
-      } ${(leftIcon || rightIcon) && !isOverlay ? "rounded-full" : ""} ${className ?? ""}`}
+      } ${className ?? ""}`}
       {...rest}
     >
       {leftIcon && <span className="shrink-0 size-6 flex items-center justify-center">{leftIcon}</span>}
