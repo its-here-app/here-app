@@ -131,8 +131,11 @@ export async function getPopularSpotsForCity(
 
   return (spots as Spot[])
     .sort((a, b) => {
-      const diff = (counts.get(b.id) ?? 0) - (counts.get(a.id) ?? 0);
-      return diff !== 0 ? diff : a.name.localeCompare(b.name);
+      const countDiff = (counts.get(b.id) ?? 0) - (counts.get(a.id) ?? 0);
+      if (countDiff !== 0) return countDiff;
+      const ratingDiff = (b.rating ?? -1) - (a.rating ?? -1);
+      if (ratingDiff !== 0) return ratingDiff;
+      return a.name.localeCompare(b.name);
     })
     .slice(0, limit)
     .map((spot) => ({

@@ -182,7 +182,6 @@ export default function ProfileTabs({
           <ProfileEmptyState
             header="Coming soon!"
             message="We're currently working on the city view, come back later"
-            actionLabel="Get notified"
           />
         </div>
 
