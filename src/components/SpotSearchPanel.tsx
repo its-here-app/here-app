@@ -48,7 +48,7 @@ export function SpotSearchPanel({ isOpen, onClose, city, cityId, onSelect, added
         <div className="fixed inset-0 z-[70] lg:hidden flex flex-col justify-end">
           <Scrim visible={isAnimating} onClick={onClose} />
           <div
-            className="relative bg-white rounded-t-[1.5rem] h-[90vh] flex flex-col transition-transform duration-300 overflow-hidden"
+            className="relative bg-white h-full flex flex-col transition-transform duration-300 overflow-hidden"
             style={{ transform: isAnimating ? "translateY(0)" : "translateY(100%)" }}
           >
             <SlotRow className="p-[var(--space-page-sm)] shrink-0" left={cancelButton} center={title} right={doneButton} />

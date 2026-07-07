@@ -51,7 +51,7 @@ export function EditableSpotCard({
   };
 
   return (
-    <div ref={setNodeRef} style={style}>
+    <div ref={setNodeRef} style={style} className="group">
       <div className="flex items-start gap-3">
         <SpotCard
           spot={{
@@ -103,24 +103,27 @@ export function EditableSpotCard({
           action={
             reorderMode ? (
               <IconButton
+                key="reorder"
                 variant="ghost"
                 icon={<Reorder />}
                 label="Drag to reorder"
-                className="cursor-grab active:cursor-grabbing"
+                className="touch-none cursor-grab active:cursor-grabbing"
                 {...attributes}
                 {...listeners}
               />
-            ) : isFocused ? (
+            ) : (
               <IconButton
+                key="trash"
                 variant="secondary"
                 icon={<Trash />}
                 label="Remove spot"
+                className={`transition-opacity opacity-0 group-hover:opacity-100 ${isFocused ? "[@media(hover:none)]:opacity-100" : ""}`}
                 onMouseDown={(e) => {
                   e.preventDefault();
                   onRemove(item.id);
                 }}
               />
-            ) : undefined
+            )
           }
         />
       </div>

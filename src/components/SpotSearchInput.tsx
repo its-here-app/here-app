@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { searchSpots, getPopularSpotsForCity } from "@/lib/services/playlists";
 import { useDebouncedValue } from "@/lib/useDebouncedValue";
 import { SearchInput } from "@/components/ui/inputs/SearchInput";
@@ -48,6 +48,12 @@ export default function SpotSearchInput({
   const [inputState, setInputState] = useState<SearchInputState>("default");
   const debouncedQuery = useDebouncedValue(query, DEBOUNCE_MS);
 
+  // Read via a ref (not a effect dependency) so adding a spot during the
+  // session doesn't re-trigger the fetch below — only spots already in the
+  // playlist *at load time* get filtered out; ones added after stay visible.
+  const addedPlaceIdsRef = useRef(addedPlaceIds);
+  addedPlaceIdsRef.current = addedPlaceIds;
+
   async function performSearch(q: string) {
     if (!q.trim()) return;
     setSearching(true);
@@ -80,7 +86,11 @@ export default function SpotSearchInput({
     }
     let cancelled = false;
     getPopularSpotsForCity(cityId, POPULAR_SPOTS_LIMIT).then((data) => {
-      if (!cancelled) setPopularSpots(data);
+      if (cancelled) return;
+      const alreadyAdded = addedPlaceIdsRef.current;
+      setPopularSpots(
+        alreadyAdded ? data.filter((s) => !alreadyAdded.has(s.spot_id)) : data,
+      );
     });
     return () => {
       cancelled = true;
@@ -91,13 +101,6 @@ export default function SpotSearchInput({
     e.preventDefault();
     await performSearch(query);
   }
-
-  // Unlike regular search results (which show already-added spots with a
-  // checkmark), popular spots are filtered out entirely once added — this
-  // list is meant as quick suggestions, not something to revisit/confirm.
-  const visiblePopularSpots = popularSpots.filter(
-    (s) => !addedPlaceIds?.has(s.spot_id),
-  );
 
   function renderSpotRow(result: SearchResult) {
     return (
@@ -152,11 +155,11 @@ export default function SpotSearchInput({
         <p className="text-body-xs text-red-500 mb-3">{error}</p>
       )}
 
-      {!query.trim() && visiblePopularSpots.length > 0 && (
+      {!query.trim() && popularSpots.length > 0 && (
         <div>
           <p className="text-body-sm text-tertiary mb-2 px-1">Popular spots</p>
           <div className="space-y-3">
-            {visiblePopularSpots.map(renderSpotRow)}
+            {popularSpots.map(renderSpotRow)}
           </div>
         </div>
       )}

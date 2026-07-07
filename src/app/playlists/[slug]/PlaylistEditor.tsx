@@ -78,6 +78,9 @@ interface Props {
   onClose?: (pushTo?: string) => void;
 }
 
+/** A spot added via search but not yet persisted — notes are staged client-side. */
+type PendingAdd = SearchResult & { notes?: string };
+
 function timeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
   const mins = Math.floor(diff / 60000);
@@ -133,7 +136,7 @@ export default function PlaylistEditor({ playlist, isOwner, onClose }: Props) {
     setStagedCoverFile(file);
     setCoverUrl(URL.createObjectURL(file));
   });
-  const [pendingAdds, setPendingAdds] = useState<SearchResult[]>([]);
+  const [pendingAdds, setPendingAdds] = useState<PendingAdd[]>([]);
   const [pendingRemoveIds, setPendingRemoveIds] = useState<Set<string>>(
     new Set(),
   );
@@ -187,6 +190,12 @@ export default function PlaylistEditor({ playlist, isOwner, onClose }: Props) {
 
   function handleRemovePendingAdd(spotId: string) {
     setPendingAdds((prev) => prev.filter((p) => p.spot_id !== spotId));
+  }
+
+  function handlePendingAddNotesChange(spotId: string, notes: string) {
+    setPendingAdds((prev) =>
+      prev.map((p) => (p.spot_id === spotId ? { ...p, notes } : p)),
+    );
   }
 
   function handleRemoveSpot(playlistSpotId: string) {
@@ -316,7 +325,7 @@ export default function PlaylistEditor({ playlist, isOwner, onClose }: Props) {
           finalSpots.length,
           user?.id ?? "",
         );
-        finalSpots = [...finalSpots, { ...ps, spots: spot }];
+        finalSpots = [...finalSpots, { ...ps, spots: spot, notes: place.notes ?? null }];
       }
 
       // Reorder if anything changed
@@ -544,7 +553,7 @@ export default function PlaylistEditor({ playlist, isOwner, onClose }: Props) {
 
       {/* Right column */}
       <div className={editMode ? "lg:flex lg:flex-col lg:h-[calc(100vh-2*var(--space-page-sm))]" : undefined}>
-        <div className={isAddSpotOpen ? "hidden" : undefined}>
+        <div className={`${isAddSpotOpen ? "hidden" : ""} ${editMode ? "lg:flex-1 lg:overflow-y-auto" : ""}`}>
         {editMode && (
           <div className="hidden lg:block">
             <SlotRow
@@ -616,27 +625,24 @@ export default function PlaylistEditor({ playlist, isOwner, onClose }: Props) {
                   />
                 ),
               )}
-              {/* Pending adds (not yet persisted) */}
+              {/* Pending adds (not yet persisted) — no reorder, not in the sortable items list above */}
               {pendingAdds.map((place) => (
-                <div key={place.spot_id} className="flex items-start gap-3">
-                  <SpotCard
-                    spot={{
+                <EditableSpotCard
+                  key={place.spot_id}
+                  item={{
+                    id: place.spot_id,
+                    spot: {
                       google_place_id: place.spot_id,
                       name: place.name,
                       address: place.address,
                       photo_url: place.photo_url,
-                    }}
-                    className="flex-1"
-                    action={
-                      <button
-                        onClick={() => handleRemovePendingAdd(place.spot_id)}
-                        className="text-sm text-red-500 hover:text-red-700"
-                      >
-                        Remove
-                      </button>
-                    }
-                  />
-                </div>
+                    },
+                    notes: place.notes,
+                  }}
+                  reorderMode={false}
+                  onRemove={handleRemovePendingAdd}
+                  onNotesChange={handlePendingAddNotesChange}
+                />
               ))}
             </div>
           </SortableContext>

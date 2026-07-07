@@ -1,7 +1,6 @@
 "use client";
 
 import { Button } from "@/components/ui/Button";
-import { IconButton } from "@/components/ui/IconButton";
 import { Add } from "@/components/ui/icons/Add";
 import { Arrows } from "@/components/ui/icons/Arrows";
 
@@ -34,14 +33,14 @@ export function AddSpotSection({
         Add a spot
       </Button>
       {spotCount > 1 && (
-        <IconButton
+        <Button
           size="lg"
-          variant="secondary"
-          icon={<Arrows />}
-          label={reorderMode ? "Done reordering" : "Reorder spots"}
+          variant="tonal"
+          leftIcon={<Arrows />}
           onClick={onToggleReorder}
-          className="rounded-[1rem]"
-        />
+        >
+          <span className="sr-only">{reorderMode ? "Done reordering" : "Reorder spots"}</span>
+        </Button>
       )}
     </div>
   );
