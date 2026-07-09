@@ -4,8 +4,11 @@ import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/authContext";
 import { useSaves } from "@/lib/savesContext";
-import { getSavedPlaylists } from "@/lib/services/saves";
+import { getSavedPlaylists, getSpotMentionsForSpots } from "@/lib/services/saves";
 import type { SavedPlaylist } from "@/lib/services/saves";
+import type { SpotMention } from "@/lib/spotMentions";
+import { formatSpotMentionText } from "@/lib/spotMentions";
+import { parseCityFromAddress } from "@/lib/cityDisplay";
 import SpotCard from "@/components/SpotCard";
 import BookmarkButton from "@/components/BookmarkButton";
 import { getDefaultCover } from "@/lib/playlist-covers";
@@ -27,12 +30,13 @@ import { List } from "@/components/ui/icons/List";
 import { Filter } from "@/components/ui/icons/Filter";
 import { Chip } from "@/components/ui/Chip";
 
-type SortOrder = "default" | "distance" | "top_rated";
+type SortOrder = "default" | "city" | "top_rated" | "popular";
 
 const SORT_ORDER_LABELS: Record<SortOrder, string> = {
   default: "Default",
-  distance: "Distance",
-  top_rated: "Top rated",
+  city: "City",
+  top_rated: "Rating",
+  popular: "Popular",
 };
 
 export default function SavesPage() {
@@ -58,10 +62,21 @@ export default function SavesPage() {
     null,
   );
   const [searching, setSearching] = useState(false);
+  const [mentionsBySpotId, setMentionsBySpotId] = useState<
+    Map<string, SpotMention>
+  >(new Map());
 
   useEffect(() => {
     if (!authLoading && !user) router.push("/signin");
   }, [user, authLoading]);
+
+  useEffect(() => {
+    if (!user || savedSpots.length === 0) return;
+    getSpotMentionsForSpots(
+      user.id,
+      savedSpots.map((s) => s.id)
+    ).then(setMentionsBySpotId);
+  }, [user, savedSpots]);
 
   useEffect(() => {
     if (!user || tab !== "playlists" || savedPlaylists !== null) return;
@@ -74,12 +89,25 @@ export default function SavesPage() {
 
   const savedPlaceIds = new Set(savedSpots.map((s) => s.google_place_id));
 
-  // "Distance" has no real sort behind it yet — spots don't store coordinates,
-  // only cities do, so there's nothing to sort by until that data exists.
   const displayedSpots =
     sortOrder === "top_rated"
       ? [...savedSpots].sort((a, b) => (b.rating ?? -1) - (a.rating ?? -1))
-      : savedSpots;
+      : sortOrder === "city"
+        ? [...savedSpots].sort((a, b) =>
+            (parseCityFromAddress(a.address) ?? "").localeCompare(
+              parseCityFromAddress(b.address) ?? ""
+            )
+          )
+        : sortOrder === "popular"
+          ? [...savedSpots].sort((a, b) => {
+              const mentionDiff =
+                (mentionsBySpotId.get(b.id)?.count ?? 0) -
+                (mentionsBySpotId.get(a.id)?.count ?? 0);
+              return mentionDiff !== 0
+                ? mentionDiff
+                : (b.rating ?? -1) - (a.rating ?? -1);
+            })
+          : savedSpots;
 
   async function handleSearch(e: React.FormEvent) {
     e.preventDefault();
@@ -166,18 +194,26 @@ export default function SavesPage() {
             }}
           />
           <DropdownListItem
-            label="Distance"
-            selected={sortOrder === "distance"}
+            label="City"
+            selected={sortOrder === "city"}
             onClick={() => {
-              setSortOrder("distance");
+              setSortOrder("city");
               setReorderOpen(false);
             }}
           />
           <DropdownListItem
-            label="Top rated"
+            label="Rating"
             selected={sortOrder === "top_rated"}
             onClick={() => {
               setSortOrder("top_rated");
+              setReorderOpen(false);
+            }}
+          />
+          <DropdownListItem
+            label="Popular"
+            selected={sortOrder === "popular"}
+            onClick={() => {
+              setSortOrder("popular");
               setReorderOpen(false);
             }}
           />
@@ -255,7 +291,15 @@ export default function SavesPage() {
                     <SpotCard
                       className="flex-1"
                       spot={spot}
-                      subtitleText=""
+                      city={parseCityFromAddress(spot.address) ?? undefined}
+                      subtitleText={
+                        formatSpotMentionText(
+                          mentionsBySpotId.get(spot.id) ?? {
+                            count: 0,
+                            mostRecentUsername: null,
+                          }
+                        ) ?? ""
+                      }
                       bookmark={<BookmarkButton spot={spot} onRemove={() => optimisticRemove(spot.google_place_id)} onRestore={() => restoreSpot(spot)} />}
                     />
                   </div>

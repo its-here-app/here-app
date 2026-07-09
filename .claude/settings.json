@@ -15,7 +15,8 @@
       "Bash(xargs -I{} echo {})",
       "Bash(node check_popular.mjs)",
       "Bash(curl -s \"http://localhost:3000/ekin?back=1\")",
-      "Bash(node -e ' *)"
+      "Bash(node -e ' *)",
+      "Bash(grep -rniE \"portland|97[0-9]{3}|,\\\\s*[A-Z]{2}\\\\s+[0-9]{5}|USA\" --include=\"*.ts\" --include=\"*.tsx\" --include=\"*.json\" --include=\"*.sql\" .)"
     ]
   }
 }

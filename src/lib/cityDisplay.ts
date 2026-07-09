@@ -20,3 +20,23 @@ export function formatCityDisplay(
   }
   return city;
 }
+
+/**
+ * Extract a city name from a Google-formatted address, e.g.
+ * "1234 SW Broadway, Portland, OR 97201, USA" → "Portland".
+ * Returns null if no city segment can be identified.
+ */
+export function parseCityFromAddress(address: string): string | null {
+  const parts = address
+    .split(",")
+    .map((p) => p.trim())
+    .filter(Boolean);
+
+  const stateZipIndex = parts.findIndex((p) =>
+    /^[A-Z]{2}\s+\d{5}(-\d{4})?$/.test(p)
+  );
+  if (stateZipIndex > 0) return parts[stateZipIndex - 1];
+
+  if (parts.length >= 2) return parts[parts.length - 2];
+  return null;
+}

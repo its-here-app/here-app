@@ -2,6 +2,7 @@ import { createClient } from "../supabase/client";
 import { upsertSpot } from "./playlists";
 import { track } from "../analytics";
 import { formatCityDisplay } from "../cityDisplay";
+import type { SpotMention } from "../spotMentions";
 import type { Spot, SearchResult } from "@/types";
 
 export async function getSavedSpots(userId: string): Promise<Spot[]> {
@@ -267,6 +268,105 @@ export async function getOldFavoriteSpots(
       playlist_name: e.playlist_name,
     }))
     .filter((r) => r.spot);
+}
+
+// A followed user counts as "having" a spot if they've bookmarked it directly
+// (saved_spots) or added it to one of their public playlists (playlist_spots).
+async function getSaversBySpot(
+  supabase: ReturnType<typeof createClient>,
+  followingIds: string[],
+  spotIds: string[]
+): Promise<Map<string, Set<string>>> {
+  const [savesRes, playlistSpotsRes] = await Promise.all([
+    supabase
+      .from("saved_spots")
+      .select("spot_id, user_id")
+      .in("spot_id", spotIds)
+      .in("user_id", followingIds),
+    supabase
+      .from("playlist_spots")
+      .select("spot_id, playlists!inner(user_id, is_public)")
+      .in("spot_id", spotIds)
+      .in("playlists.user_id", followingIds)
+      .eq("playlists.is_public", true),
+  ]);
+
+  const saversBySpot = new Map<string, Set<string>>();
+  const addSaver = (spotId: string, saverId: string) => {
+    const set = saversBySpot.get(spotId);
+    if (set) set.add(saverId);
+    else saversBySpot.set(spotId, new Set([saverId]));
+  };
+
+  for (const row of (savesRes.data ?? []) as { spot_id: string; user_id: string }[]) {
+    addSaver(row.spot_id, row.user_id);
+  }
+  for (const row of (playlistSpotsRes.data ?? []) as any[]) {
+    addSaver(row.spot_id, row.playlists.user_id);
+  }
+
+  return saversBySpot;
+}
+
+export async function getSpotMentionsFromFollowing(
+  userId: string,
+  spotId: string
+): Promise<SpotMention> {
+  const result = await getSpotMentionsForSpots(userId, [spotId]);
+  return result.get(spotId) ?? { count: 0, mostRecentUsername: null };
+}
+
+export async function getSpotMentionsForSpots(
+  userId: string,
+  spotIds: string[]
+): Promise<Map<string, SpotMention>> {
+  const empty = new Map<string, SpotMention>();
+  if (spotIds.length === 0) return empty;
+
+  const supabase = createClient();
+
+  const { data: followData } = await supabase
+    .from("follows")
+    .select("following_id, created_at")
+    .eq("follower_id", userId);
+
+  if (!followData || followData.length === 0) return empty;
+
+  const followedAt = new Map<string, string>(
+    followData.map((f: any) => [f.following_id, f.created_at])
+  );
+  const followingIds = [...followedAt.keys()];
+
+  const saversBySpot = await getSaversBySpot(supabase, followingIds, spotIds);
+  if (saversBySpot.size === 0) return empty;
+
+  const mostRecentSaverBySpot = new Map<string, string>();
+  for (const [spotId, saverIds] of saversBySpot) {
+    const mostRecent = [...saverIds].reduce((latest, id) =>
+      (followedAt.get(id) ?? "") > (followedAt.get(latest) ?? "") ? id : latest
+    );
+    mostRecentSaverBySpot.set(spotId, mostRecent);
+  }
+
+  const profileIds = [...new Set(mostRecentSaverBySpot.values())];
+  const { data: profiles } = await supabase
+    .from("profiles")
+    .select("id, username")
+    .in("id", profileIds);
+
+  const usernameById = new Map(
+    (profiles ?? []).map((p: any) => [p.id, p.username as string])
+  );
+
+  const result = new Map<string, SpotMention>();
+  for (const [spotId, saverIds] of saversBySpot) {
+    const mostRecentSaverId = mostRecentSaverBySpot.get(spotId)!;
+    result.set(spotId, {
+      count: saverIds.size,
+      mostRecentUsername: usernameById.get(mostRecentSaverId) ?? null,
+    });
+  }
+  return result;
 }
 
 export async function getRecommendedSpots(userId: string): Promise<Spot[]> {

@@ -22,6 +22,7 @@ interface SpotCardProps {
   disableLink?: boolean;
   onClick?: () => void;
   subtitleSlot?: ReactNode;
+  city?: string;
 }
 
 export default function SpotCard({
@@ -34,6 +35,7 @@ export default function SpotCard({
   disableLink = false,
   onClick,
   subtitleSlot,
+  city,
 }: SpotCardProps) {
   const isXxsmall = size === "xxsmall";
   const firstType = spot.types
@@ -70,10 +72,13 @@ export default function SpotCard({
                 {subtitleText ?? spot.address}
               </p>
             )}
-            {!isXxsmall && (spot.rating != null || firstType) && (
+            {!isXxsmall && (spot.rating != null || firstType || city) && (
               <div className="flex items-center gap-1 mt-1 flex-wrap">
                 {firstType && <Badge>{firstType}</Badge>}
                 {spot.rating != null && <Rating rating={spot.rating} />}
+                {city && (
+                  <span className="text-body-xs text-secondary">{city}</span>
+                )}
               </div>
             )}
           </div>
@@ -102,10 +107,13 @@ export default function SpotCard({
                 {subtitleText ?? spot.address}
               </p>
             )}
-            {!isXxsmall && (spot.rating != null || firstType) && (
+            {!isXxsmall && (spot.rating != null || firstType || city) && (
               <div className="flex items-center gap-1 mt-1 flex-wrap">
                 {firstType && <Badge>{firstType}</Badge>}
                 {spot.rating != null && <Rating rating={spot.rating} />}
+                {city && (
+                  <span className="text-body-xs text-secondary">{city}</span>
+                )}
               </div>
             )}
           </div>
