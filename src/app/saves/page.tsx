@@ -10,6 +10,7 @@ import type { SpotMention } from "@/lib/spotMentions";
 import { formatSpotMentionText } from "@/lib/spotMentions";
 import { parseCityFromAddress } from "@/lib/cityDisplay";
 import SpotCard from "@/components/SpotCard";
+import EmptyState from "@/components/ui/EmptyState";
 import BookmarkButton from "@/components/BookmarkButton";
 import { getDefaultCover } from "@/lib/playlist-covers";
 import { playlistUrl } from "@/lib/playlistUrl";
@@ -18,8 +19,6 @@ import {
   SearchInput,
   type SearchInputState,
 } from "@/components/ui/inputs/SearchInput";
-import { searchSpots } from "@/lib/services/playlists";
-import type { SearchResult } from "@/types";
 import { AppBarConfig } from "@/lib/appBarContext";
 import { AppBarDropdown } from "@/components/AppBarDropdown";
 import { BottomPanel } from "@/components/ui/BottomPanel";
@@ -58,10 +57,6 @@ export default function SavesPage() {
   const [searchInputState, setSearchInputState] =
     useState<SearchInputState>("default");
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<SearchResult[] | null>(
-    null,
-  );
-  const [searching, setSearching] = useState(false);
   const [mentionsBySpotId, setMentionsBySpotId] = useState<
     Map<string, SpotMention>
   >(new Map());
@@ -87,9 +82,7 @@ export default function SavesPage() {
     });
   }, [user, tab, savedPlaylists]);
 
-  const savedPlaceIds = new Set(savedSpots.map((s) => s.google_place_id));
-
-  const displayedSpots =
+  const sortedSpots =
     sortOrder === "top_rated"
       ? [...savedSpots].sort((a, b) => (b.rating ?? -1) - (a.rating ?? -1))
       : sortOrder === "city"
@@ -109,17 +102,14 @@ export default function SavesPage() {
             })
           : savedSpots;
 
-  async function handleSearch(e: React.FormEvent) {
-    e.preventDefault();
-    if (!searchQuery.trim()) return;
-    setSearching(true);
-    try {
-      const data = await searchSpots(searchQuery);
-      setSearchResults(data.filter((r) => !savedPlaceIds.has(r.spot_id)));
-    } finally {
-      setSearching(false);
-    }
-  }
+  const query = searchQuery.trim().toLowerCase();
+  const displayedSpots = query
+    ? sortedSpots.filter(
+        (spot) =>
+          spot.name.toLowerCase().includes(query) ||
+          spot.address.toLowerCase().includes(query)
+      )
+    : sortedSpots;
 
   if (authLoading || savesLoading) {
     return (
@@ -223,11 +213,11 @@ export default function SavesPage() {
         {/* Spots tab */}
         {tab === "spots" && (
           <div>
-            <form onSubmit={handleSearch} className="mb-4">
+            <div className="mb-4">
               <SearchInput
                 state={searchInputState}
                 value={searchQuery}
-                placeholder="Search for a spot to save"
+                placeholder="Search"
                 onFocus={() => setSearchInputState("focused")}
                 onBlur={() => setSearchInputState("default")}
                 onChange={(v) => {
@@ -236,54 +226,27 @@ export default function SavesPage() {
                 }}
                 onClear={() => {
                   setSearchQuery("");
-                  setSearchResults(null);
                   setSearchInputState("focused");
                 }}
               />
-            </form>
+            </div>
             <p className="text-body-sm text-secondary py-1 mb-4">
-              {savedSpots.length} {savedSpots.length === 1 ? "spot" : "spots"}
+              {displayedSpots.length}{" "}
+              {displayedSpots.length === 1 ? "spot" : "spots"}
             </p>
-            {searchResults !== null ? (
-              <div className="space-y-3 mb-10">
-                {searching && (
-                  <p className="text-body-sm text-secondary">Searching…</p>
-                )}
-                {!searching && searchResults.length === 0 && (
-                  <p className="text-body-sm text-secondary">
-                    No results found.
-                  </p>
-                )}
-                {searchResults.map((r) => (
-                  <div
-                    key={r.spot_id}
-                    className="flex items-center justify-between gap-4"
-                  >
-                    <div className="min-w-0">
-                      <p className="text-body-sm text-primary truncate">
-                        {r.name}
-                      </p>
-                      <p className="text-body-sm text-secondary truncate">
-                        {r.address}
-                      </p>
-                    </div>
-                    <BookmarkButton
-                      spot={{
-                        google_place_id: r.spot_id,
-                        name: r.name,
-                        address: r.address,
-                        photo_url: r.photo_url,
-                        rating: r.rating,
-                        types: r.types,
-                      }}
-                    />
-                  </div>
-                ))}
-              </div>
-            ) : savedSpots.length === 0 ? (
-              <p className="text-body-sm text-secondary">
-                No saved spots yet. Search above to find places to save.
-              </p>
+            {savedSpots.length === 0 ? (
+              <EmptyState
+                header="Nothing saved yet"
+                message="Save spots you love to see them here."
+                actionLabel="Start exploring"
+                onAction={() => router.push("/")}
+              />
+            ) : displayedSpots.length === 0 ? (
+              <EmptyState
+                message={`No spots match "${searchQuery}".`}
+                actionLabel="Search all spots"
+                onAction={() => router.push("/search")}
+              />
             ) : (
               <div className="space-y-3">
                 {displayedSpots.map((spot) => (

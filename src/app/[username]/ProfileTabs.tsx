@@ -15,7 +15,7 @@ import { useAuth } from "@/lib/authContext";
 import { useShare } from "@/lib/useShare";
 
 import { PlaylistCard } from "@/components/PlaylistCard";
-import ProfileEmptyState from "./ProfileEmptyState";
+import EmptyState from "@/components/ui/EmptyState";
 import { playlistUrl } from "@/lib/playlistUrl";
 import { openCreatePlaylist } from "@/components/modals/CreatePlaylistFlow";
 import type { Playlist, Spot } from "@/types";
@@ -163,7 +163,7 @@ export default function ProfileTabs({
               ))}
             </div>
           ) : (
-            <ProfileEmptyState
+            <EmptyState
               header={isActualOwner ? "Get started" : undefined}
               message={
                 isActualOwner
@@ -179,7 +179,7 @@ export default function ProfileTabs({
 
         {/* Cities */}
         <div>
-          <ProfileEmptyState
+          <EmptyState
             header="Coming soon!"
             message="We're currently working on the city view, come back later"
           />
@@ -192,7 +192,7 @@ export default function ProfileTabs({
               <SpotCard key={spot.id} spot={spot} subtitleText="" bookmark={<BookmarkButton spot={spot} />} />
             ))
           ) : (
-            <ProfileEmptyState
+            <EmptyState
               header={isActualOwner ? "Nothing saved yet" : undefined}
               message={isActualOwner ? "Save spots you love so you can find them later" : "No public saved spots found"}
               actionLabel={isActualOwner ? "Start exploring" : undefined}

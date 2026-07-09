@@ -1,10 +1,10 @@
-import ProfileMessage from "./ProfileMessage";
+import Message from "@/components/ui/Message";
 import ProfileTabsShell from "./ProfileTabsShell";
 
 export default function PlaylistSkeleton() {
   return (
     <ProfileTabsShell>
-      <ProfileMessage>Loading playlists...</ProfileMessage>
+      <Message>Loading playlists...</Message>
     </ProfileTabsShell>
   );
 }

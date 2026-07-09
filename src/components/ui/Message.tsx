@@ -1,12 +1,12 @@
 import type { ReactNode } from "react";
 
-interface ProfileMessageProps {
+interface MessageProps {
   icon?: ReactNode;
   header?: string;
   children?: ReactNode;
 }
 
-export default function ProfileMessage({ icon, header, children }: ProfileMessageProps) {
+export default function Message({ icon, header, children }: MessageProps) {
   return (
     <div className="text-center flex flex-col items-center mt-16">
       {icon && (

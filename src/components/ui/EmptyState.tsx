@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/Button";
-import ProfileMessage from "./ProfileMessage";
+import Message from "./Message";
 
-interface ProfileEmptyStateProps {
+interface EmptyStateProps {
   icon?: ReactNode;
   header?: string;
   message: string;
@@ -11,16 +11,16 @@ interface ProfileEmptyStateProps {
   neonAction?: boolean;
 }
 
-export default function ProfileEmptyState({
+export default function EmptyState({
   icon,
   header,
   message,
   actionLabel,
   onAction,
   neonAction = false,
-}: ProfileEmptyStateProps) {
+}: EmptyStateProps) {
   return (
-    <ProfileMessage icon={icon} header={header}>
+    <Message icon={icon} header={header}>
       <p>{message}</p>
       {actionLabel && (
         <Button
@@ -32,6 +32,6 @@ export default function ProfileEmptyState({
           {actionLabel}
         </Button>
       )}
-    </ProfileMessage>
+    </Message>
   );
 }

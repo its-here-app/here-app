@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getPlaylistsByUser, getSpotsByUser } from "@/lib/queries/playlists";
 import { Block } from "@/components/ui/icons/Block";
 import ProfileTabs from "./ProfileTabs";
-import ProfileMessage from "./ProfileMessage";
+import Message from "@/components/ui/Message";
 import ProfileTabsShell from "./ProfileTabsShell";
 
 interface Props {
@@ -39,10 +39,10 @@ export default async function PlaylistSection({
   if (isBlocked) {
     return (
       <ProfileTabsShell>
-        <ProfileMessage icon={<Block className="size-9" />} header="You have blocked this account">
+        <Message icon={<Block className="size-9" />} header="You have blocked this account">
           <p className="mb-2">Unblock this account to see their playlists and saves.</p>
           <p>When you unblock them, they'll also be able to find your profile and see your content.</p>
-        </ProfileMessage>
+        </Message>
       </ProfileTabsShell>
     );
   }
