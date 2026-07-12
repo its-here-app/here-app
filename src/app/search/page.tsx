@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
 import { AppBarConfig } from "@/lib/appBarContext";
 import { SearchInput } from "@/components/ui/inputs/SearchInput";
 import type { SearchInputState } from "@/components/ui/inputs/SearchInput";
@@ -20,12 +19,8 @@ import BookmarkButton from "@/components/BookmarkButton";
 
 export default function SearchPage() {
   const { user } = useAuth();
-  const searchParams = useSearchParams();
-  const initialQuery = searchParams.get("q") ?? "";
-  const [query, setQuery] = useState(initialQuery);
-  const [inputState, setInputState] = useState<SearchInputState>(
-    initialQuery ? "typing" : "default",
-  );
+  const [query, setQuery] = useState("");
+  const [inputState, setInputState] = useState<SearchInputState>("default");
   const [people, setPeople] = useState<SearchResultPerson[]>([]);
   const [playlists, setPlaylists] = useState<SearchResultPlaylist[]>([]);
   const [loading, setLoading] = useState(false);
@@ -65,37 +60,20 @@ export default function SearchPage() {
     <div className="flex flex-col gap-6 -mt-[var(--space-page-md)] pt-[var(--space-page-sm)]">
       <AppBarConfig hidden />
       {/* Search bar */}
-      <div className="flex items-center gap-3">
-        <SearchInput
-          state={inputState}
-          value={query}
-          onChange={(v) => {
-            setQuery(v);
-            setInputState(v ? "typing" : "focused");
-          }}
-          onFocus={() => setInputState(query ? "typing" : "focused")}
-          onBlur={() => {
-            if (!query) setInputState("default");
-          }}
-          onClear={handleClear}
-          placeholder="Search"
-          className="flex-1"
-        />
-        {inputState !== "default" && (
-          <button
-            type="button"
-            onClick={() => {
-              setQuery("");
-              setPeople([]);
-              setPlaylists([]);
-              setInputState("default");
-            }}
-            className="text-body-sm text-secondary shrink-0 cursor-pointer"
-          >
-            Cancel
-          </button>
-        )}
-      </div>
+      <SearchInput
+        state={inputState}
+        value={query}
+        onChange={(v) => {
+          setQuery(v);
+          setInputState(v ? "typing" : "focused");
+        }}
+        onFocus={() => setInputState(query ? "typing" : "focused")}
+        onBlur={() => {
+          if (!query) setInputState("default");
+        }}
+        onClear={handleClear}
+        placeholder="Search"
+      />
 
       {/* Empty state */}
       {!query && (
@@ -120,7 +98,7 @@ export default function SearchPage() {
       {/* People */}
       {people.length > 0 && (
         <section>
-          <h2 className="text-body-xs text-secondary mb-3">People</h2>
+          <h2 className="text-body-sm text-secondary mb-3">People</h2>
           <ul className="flex flex-col">
             {people.map((person) => (
               <li key={person.id}>
@@ -159,7 +137,7 @@ export default function SearchPage() {
       {/* Playlists */}
       {playlists.length > 0 && (
         <section>
-          <p className="text-body-xs text-secondary mb-3">
+          <p className="text-body-sm text-secondary mb-3">
             {playlists.length} playlist{playlists.length !== 1 ? "s" : ""}
           </p>
           <div className="grid grid-cols-2 gap-2">

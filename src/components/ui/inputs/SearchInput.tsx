@@ -55,7 +55,10 @@ export function SearchInput({
           />
           <button
             type="button"
-            onClick={onClear}
+            onClick={() => {
+              onChange?.("");
+              onClear?.();
+            }}
             className="shrink-0 text-grey-500 hover:text-black transition-colors cursor-pointer"
             aria-label="Clear search"
           >

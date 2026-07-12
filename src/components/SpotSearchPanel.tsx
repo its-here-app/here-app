@@ -14,9 +14,12 @@ interface SpotSearchPanelProps {
   cityId?: string;
   onSelect: (result: SearchResult) => void;
   addedPlaceIds?: Set<string>;
+  renderAction?: (result: SearchResult) => React.ReactNode;
+  initialQuery?: string;
+  contentClassName?: string;
 }
 
-export function SpotSearchPanel({ isOpen, onClose, city, cityId, onSelect, addedPlaceIds }: SpotSearchPanelProps) {
+export function SpotSearchPanel({ isOpen, onClose, city, cityId, onSelect, addedPlaceIds, renderAction, initialQuery, contentClassName }: SpotSearchPanelProps) {
   const { isVisible, isAnimating } = useSlideTransition(isOpen);
 
   const closeButton = (
@@ -37,8 +40,8 @@ export function SpotSearchPanel({ isOpen, onClose, city, cityId, onSelect, added
       {isOpen && (
         <div className="hidden lg:flex lg:flex-col lg:h-full">
           <SlotRow className="mb-6" left={closeButton} center={title} right={doneButton} />
-          <div className="flex-1 overflow-y-auto">
-            <SpotSearchInput placeholder="Search" city={city} cityId={cityId} addedPlaceIds={addedPlaceIds} onSelect={onSelect} />
+          <div className={`flex-1 overflow-y-auto ${contentClassName ?? ""}`}>
+            <SpotSearchInput placeholder="Search" city={city} cityId={cityId} addedPlaceIds={addedPlaceIds} onSelect={onSelect} renderAction={renderAction} initialQuery={initialQuery} />
           </div>
         </div>
       )}
@@ -53,7 +56,7 @@ export function SpotSearchPanel({ isOpen, onClose, city, cityId, onSelect, added
           >
             <SlotRow className="p-[var(--space-page-sm)] shrink-0" left={closeButton} center={title} right={doneButton} />
             <div className="flex-1 overflow-y-auto px-[var(--space-page-sm)]">
-              <SpotSearchInput placeholder="Search" city={city} cityId={cityId} addedPlaceIds={addedPlaceIds} onSelect={onSelect} />
+              <SpotSearchInput placeholder="Search" city={city} cityId={cityId} addedPlaceIds={addedPlaceIds} onSelect={onSelect} renderAction={renderAction} initialQuery={initialQuery} />
             </div>
           </div>
         </div>

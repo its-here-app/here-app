@@ -112,8 +112,16 @@ export async function searchPlaylists(
 
   const [cityRes, nameRes] = await Promise.all([baseQuery, nameQuery]);
 
-  const cityPlaylists = (cityRes.data ?? []).map(formatPlaylist);
-  const namePlaylists = (nameRes.data ?? []).map(formatPlaylist);
+  const cityPlaylists = sortByRelevance(
+    (cityRes.data ?? []).map(formatPlaylist),
+    query,
+    "city",
+  );
+  const namePlaylists = sortByRelevance(
+    (nameRes.data ?? []).map(formatPlaylist),
+    query,
+    "name",
+  );
 
   // Deduplicate: city matches first, then name matches
   const seen = new Set<string>();
@@ -127,6 +135,23 @@ export async function searchPlaylists(
   }
 
   return results;
+}
+
+// Prefers matches where the field starts with the query over matches where
+// the query merely appears mid-string (e.g. "n" -> "New York" before "San Diego").
+function sortByRelevance(
+  playlists: SearchResultPlaylist[],
+  query: string,
+  field: "city" | "name",
+): SearchResultPlaylist[] {
+  const q = query.toLowerCase();
+  return [...playlists].sort((a, b) => {
+    const aStarts = (a[field] ?? "").toLowerCase().startsWith(q);
+    const bStarts = (b[field] ?? "").toLowerCase().startsWith(q);
+    if (aStarts && !bStarts) return -1;
+    if (!aStarts && bStarts) return 1;
+    return 0;
+  });
 }
 
 function formatPlaylist(p: any): SearchResultPlaylist {

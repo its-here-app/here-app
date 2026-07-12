@@ -29,6 +29,7 @@ interface SpotSearchInputProps {
   excludePlaceIds?: Set<string>;
   onSelect?: (result: SearchResult) => void;
   renderAction?: (result: SearchResult) => React.ReactNode;
+  initialQuery?: string;
 }
 
 export default function SpotSearchInput({
@@ -39,13 +40,16 @@ export default function SpotSearchInput({
   excludePlaceIds,
   onSelect,
   renderAction,
+  initialQuery = "",
 }: SpotSearchInputProps) {
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(initialQuery);
   const [results, setResults] = useState<SearchResult[]>([]);
   const [popularSpots, setPopularSpots] = useState<SearchResult[]>([]);
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState("");
-  const [inputState, setInputState] = useState<SearchInputState>("default");
+  const [inputState, setInputState] = useState<SearchInputState>(
+    initialQuery ? "typing" : "default",
+  );
   const debouncedQuery = useDebouncedValue(query, DEBOUNCE_MS);
 
   // Read via a ref (not a effect dependency) so adding a spot during the
@@ -118,7 +122,9 @@ export default function SpotSearchInput({
         disableLink
         onClick={onSelect ? () => onSelect(result) : undefined}
         action={
-          addedPlaceIds?.has(result.spot_id) ? (
+          renderAction ? (
+            renderAction(result)
+          ) : addedPlaceIds?.has(result.spot_id) ? (
             <IconButton variant="ghost" icon={<CheckCircle focus className="size-6 text-primary" />} label="Added" onClick={() => onSelect?.(result)} />
           ) : (
             <IconButton variant="ghost" icon={<Add className="size-6" />} label="Add spot" onClick={() => onSelect?.(result)} />

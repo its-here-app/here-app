@@ -238,7 +238,7 @@ export async function upsertSpot(spot: {
   const { data, error } = await supabase
     .from("spots")
     .upsert(spot, { onConflict: "google_place_id" })
-    .select("id, google_place_id, name, address")
+    .select("id, google_place_id, name, address, photo_url, rating, types")
     .single();
   if (error) throw error;
   return data;

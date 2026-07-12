@@ -15,6 +15,8 @@ import { parseCityFromAddress } from "@/lib/cityDisplay";
 import SpotCard from "@/components/SpotCard";
 import EmptyState from "@/components/ui/EmptyState";
 import BookmarkButton from "@/components/BookmarkButton";
+import { SpotSearchPanel } from "@/components/SpotSearchPanel";
+import type { SearchResult } from "@/types";
 import { getDefaultCover } from "@/lib/playlist-covers";
 import { playlistUrl } from "@/lib/playlistUrl";
 import { PlaylistCard } from "@/components/PlaylistCard";
@@ -57,6 +59,7 @@ export default function SavesPage() {
   );
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [reorderOpen, setReorderOpen] = useState(false);
+  const [spotSearchOpen, setSpotSearchOpen] = useState(false);
   const [sortOrder, setSortOrder] = useState<SortOrder>("default");
   const [savedPlaylists, setSavedPlaylists] = useState<SavedPlaylist[] | null>(
     null,
@@ -137,6 +140,7 @@ export default function SavesPage() {
   return (
     <main className="flex min-h-screen flex-col">
       <AppBarConfig
+        hidden={spotSearchOpen}
         left={
           <AppBarDropdown
             label={tab === "spots" ? "Spots" : "Playlists"}
@@ -224,7 +228,7 @@ export default function SavesPage() {
           />
         </DropdownList>
       </BottomPanel>
-      <div>
+      <div className={spotSearchOpen ? "lg:hidden" : undefined}>
         {/* Spots tab */}
         {tab === "spots" && (
           <div>
@@ -234,7 +238,9 @@ export default function SavesPage() {
                 value={searchQuery}
                 placeholder="Search"
                 onFocus={() => setSearchInputState("focused")}
-                onBlur={() => setSearchInputState("default")}
+                onBlur={() => {
+                  if (!searchQuery) setSearchInputState("default");
+                }}
                 onChange={(v) => {
                   setSearchQuery(v);
                   setSearchInputState(v ? "typing" : "focused");
@@ -260,9 +266,7 @@ export default function SavesPage() {
               <EmptyState
                 message={`No saves match "${searchQuery}".\n\nThis spot might exist — just not saved yet!`}
                 actionLabel="Search all places"
-                onAction={() =>
-                  router.push(`/search?q=${encodeURIComponent(searchQuery)}`)
-                }
+                onAction={() => setSpotSearchOpen(true)}
               />
             ) : (
               <div className="space-y-3">
@@ -373,6 +377,34 @@ export default function SavesPage() {
             )}
           </div>
         )}
+      </div>
+      <div
+        className={
+          spotSearchOpen
+            ? "lg:flex lg:flex-col lg:h-[calc(100vh-2*var(--space-page-sm))]"
+            : undefined
+        }
+      >
+        <SpotSearchPanel
+          isOpen={spotSearchOpen}
+          onClose={() => setSpotSearchOpen(false)}
+          onSelect={() => {}}
+          initialQuery={searchQuery}
+          contentClassName="mt-2"
+          renderAction={(result: SearchResult) => (
+            <BookmarkButton
+              spot={{
+                google_place_id: result.spot_id,
+                name: result.name,
+                address: result.address,
+                photo_url: result.photo_url,
+                rating: result.rating,
+                types: result.types,
+              }}
+              variant="ghost"
+            />
+          )}
+        />
       </div>
     </main>
   );
