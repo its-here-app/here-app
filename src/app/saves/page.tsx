@@ -4,7 +4,10 @@ import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/authContext";
 import { useSaves } from "@/lib/savesContext";
-import { getSavedPlaylists, getSpotMentionsForSpots } from "@/lib/services/saves";
+import {
+  getSavedPlaylists,
+  getSpotMentionsForSpots,
+} from "@/lib/services/saves";
 import type { SavedPlaylist } from "@/lib/services/saves";
 import type { SpotMention } from "@/lib/spotMentions";
 import { formatSpotMentionText, getFeaturedSaver } from "@/lib/spotMentions";
@@ -40,12 +43,17 @@ const SORT_ORDER_LABELS: Record<SortOrder, string> = {
 
 export default function SavesPage() {
   const { user, loading: authLoading } = useAuth();
-  const { savedSpots, loading: savesLoading, optimisticRemove, restoreSpot } = useSaves();
+  const {
+    savedSpots,
+    loading: savesLoading,
+    optimisticRemove,
+    restoreSpot,
+  } = useSaves();
   const router = useRouter();
 
   const searchParams = useSearchParams();
   const [tab, setTab] = useState<"spots" | "playlists">(
-    searchParams.get("view") === "playlists" ? "playlists" : "spots"
+    searchParams.get("view") === "playlists" ? "playlists" : "spots",
   );
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [reorderOpen, setReorderOpen] = useState(false);
@@ -69,7 +77,7 @@ export default function SavesPage() {
     if (!user || savedSpots.length === 0) return;
     getSpotMentionsForSpots(
       user.id,
-      savedSpots.map((s) => s.id)
+      savedSpots.map((s) => s.id),
     ).then(setMentionsBySpotId);
   }, [user, savedSpots]);
 
@@ -88,8 +96,8 @@ export default function SavesPage() {
       : sortOrder === "city"
         ? [...savedSpots].sort((a, b) =>
             (parseCityFromAddress(a.address) ?? "").localeCompare(
-              parseCityFromAddress(b.address) ?? ""
-            )
+              parseCityFromAddress(b.address) ?? "",
+            ),
           )
         : sortOrder === "popular"
           ? [...savedSpots].sort((a, b) => {
@@ -111,7 +119,7 @@ export default function SavesPage() {
           spot.name.toLowerCase().includes(query) ||
           spot.address.toLowerCase().includes(query) ||
           (mention?.savers.some((s) =>
-            s.username.toLowerCase().includes(usernameQuery)
+            s.username.toLowerCase().includes(usernameQuery),
           ) ??
             false)
         );
@@ -250,9 +258,11 @@ export default function SavesPage() {
               />
             ) : displayedSpots.length === 0 ? (
               <EmptyState
-                message={`No spots match "${searchQuery}".`}
-                actionLabel="Search all spots"
-                onAction={() => router.push("/search")}
+                message={`No saves match "${searchQuery}".\n\nThis spot might exist — just not saved yet!`}
+                actionLabel="Search all places"
+                onAction={() =>
+                  router.push(`/search?q=${encodeURIComponent(searchQuery)}`)
+                }
               />
             ) : (
               <div className="space-y-3">
@@ -270,11 +280,19 @@ export default function SavesPage() {
                           },
                           getFeaturedSaver(
                             mentionsBySpotId.get(spot.id),
-                            searchQuery
-                          )?.username ?? null
+                            searchQuery,
+                          )?.username ?? null,
                         ) ?? ""
                       }
-                      bookmark={<BookmarkButton spot={spot} onRemove={() => optimisticRemove(spot.google_place_id)} onRestore={() => restoreSpot(spot)} />}
+                      bookmark={
+                        <BookmarkButton
+                          spot={spot}
+                          onRemove={() =>
+                            optimisticRemove(spot.google_place_id)
+                          }
+                          onRestore={() => restoreSpot(spot)}
+                        />
+                      }
                     />
                   </div>
                 ))}
@@ -305,11 +323,17 @@ export default function SavesPage() {
                     key={id}
                     size="sm"
                     image={
-                      playlist.cover_photo_url ?? getDefaultCover(playlist.city, playlist.name)
+                      playlist.cover_photo_url ??
+                      getDefaultCover(playlist.city, playlist.name)
                     }
                     city={playlist.city}
                     name={playlist.name}
-                    href={playlistUrl(playlist.profiles.username, playlist.city, playlist.name, playlist.slug)}
+                    href={playlistUrl(
+                      playlist.profiles.username,
+                      playlist.city,
+                      playlist.name,
+                      playlist.slug,
+                    )}
                     className="w-full"
                     topRight={
                       <span onClick={(e) => e.preventDefault()}>
@@ -317,13 +341,31 @@ export default function SavesPage() {
                           playlistId={playlist.id}
                           variant="ghost"
                           className="text-white"
-                          onRemove={() => setSavedPlaylists((prev) => prev?.filter((p) => p.playlist_id !== playlist.id) ?? null)}
-                          onRestore={() => setSavedPlaylists((prev) => prev ? [{ id, playlist_id: playlist.id, playlist }, ...prev] : null)}
+                          onRemove={() =>
+                            setSavedPlaylists(
+                              (prev) =>
+                                prev?.filter(
+                                  (p) => p.playlist_id !== playlist.id,
+                                ) ?? null,
+                            )
+                          }
+                          onRestore={() =>
+                            setSavedPlaylists((prev) =>
+                              prev
+                                ? [
+                                    { id, playlist_id: playlist.id, playlist },
+                                    ...prev,
+                                  ]
+                                : null,
+                            )
+                          }
                         />
                       </span>
                     }
                     bottomCenter={
-                      <p className="text-body-xs text-neon">@{playlist.profiles.username}</p>
+                      <p className="text-body-xs text-neon">
+                        @{playlist.profiles.username}
+                      </p>
                     }
                   />
                 ))}

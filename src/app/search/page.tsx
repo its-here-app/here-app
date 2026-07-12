@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { AppBarConfig } from "@/lib/appBarContext";
 import { SearchInput } from "@/components/ui/inputs/SearchInput";
 import type { SearchInputState } from "@/components/ui/inputs/SearchInput";
@@ -19,8 +20,12 @@ import BookmarkButton from "@/components/BookmarkButton";
 
 export default function SearchPage() {
   const { user } = useAuth();
-  const [query, setQuery] = useState("");
-  const [inputState, setInputState] = useState<SearchInputState>("default");
+  const searchParams = useSearchParams();
+  const initialQuery = searchParams.get("q") ?? "";
+  const [query, setQuery] = useState(initialQuery);
+  const [inputState, setInputState] = useState<SearchInputState>(
+    initialQuery ? "typing" : "default",
+  );
   const [people, setPeople] = useState<SearchResultPerson[]>([]);
   const [playlists, setPlaylists] = useState<SearchResultPlaylist[]>([]);
   const [loading, setLoading] = useState(false);

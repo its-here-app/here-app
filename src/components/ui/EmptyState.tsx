@@ -21,7 +21,7 @@ export default function EmptyState({
 }: EmptyStateProps) {
   return (
     <Message icon={icon} header={header}>
-      <p>{message}</p>
+      <p className="whitespace-pre-line">{message}</p>
       {actionLabel && (
         <Button
           size="lg"
