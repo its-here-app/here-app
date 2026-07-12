@@ -19,9 +19,9 @@ interface SpotSearchPanelProps {
 export function SpotSearchPanel({ isOpen, onClose, city, cityId, onSelect, addedPlaceIds }: SpotSearchPanelProps) {
   const { isVisible, isAnimating } = useSlideTransition(isOpen);
 
-  const cancelButton = (
+  const closeButton = (
     <Button variant="text" size="md" onClick={onClose}>
-      Cancel
+      Close
     </Button>
   );
   const doneButton = (
@@ -36,7 +36,7 @@ export function SpotSearchPanel({ isOpen, onClose, city, cityId, onSelect, added
       {/* Desktop: inline, instant swap in place — no slide, nothing to slide */}
       {isOpen && (
         <div className="hidden lg:flex lg:flex-col lg:h-full">
-          <SlotRow className="mb-6" left={cancelButton} center={title} right={doneButton} />
+          <SlotRow className="mb-6" left={closeButton} center={title} right={doneButton} />
           <div className="flex-1 overflow-y-auto">
             <SpotSearchInput placeholder="Search" city={city} cityId={cityId} addedPlaceIds={addedPlaceIds} onSelect={onSelect} />
           </div>
@@ -51,7 +51,7 @@ export function SpotSearchPanel({ isOpen, onClose, city, cityId, onSelect, added
             className="relative bg-white h-full flex flex-col transition-transform duration-300 overflow-hidden"
             style={{ transform: isAnimating ? "translateY(0)" : "translateY(100%)" }}
           >
-            <SlotRow className="p-[var(--space-page-sm)] shrink-0" left={cancelButton} center={title} right={doneButton} />
+            <SlotRow className="p-[var(--space-page-sm)] shrink-0" left={closeButton} center={title} right={doneButton} />
             <div className="flex-1 overflow-y-auto px-[var(--space-page-sm)]">
               <SpotSearchInput placeholder="Search" city={city} cityId={cityId} addedPlaceIds={addedPlaceIds} onSelect={onSelect} />
             </div>

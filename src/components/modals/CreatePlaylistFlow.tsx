@@ -700,7 +700,10 @@ export function CreatePlaylistFlow() {
 
               <SpotSearchPanel
                 isOpen={spotSearchOpen}
-                onClose={() => setSpotSearchOpen(false)}
+                onClose={() => {
+                  setSpotSearchOpen(false);
+                  if (foundSpots.length > 0) setImported(true);
+                }}
                 city={city}
                 cityId={cityId}
                 addedPlaceIds={addedPlaceIds}

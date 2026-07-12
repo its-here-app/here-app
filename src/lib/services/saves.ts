@@ -2,7 +2,7 @@ import { createClient } from "../supabase/client";
 import { upsertSpot } from "./playlists";
 import { track } from "../analytics";
 import { formatCityDisplay } from "../cityDisplay";
-import type { SpotMention } from "../spotMentions";
+import type { SpotMention, SpotMentionSaver } from "../spotMentions";
 import type { Spot, SearchResult } from "@/types";
 
 export async function getSavedSpots(userId: string): Promise<Spot[]> {
@@ -313,7 +313,7 @@ export async function getSpotMentionsFromFollowing(
   spotId: string
 ): Promise<SpotMention> {
   const result = await getSpotMentionsForSpots(userId, [spotId]);
-  return result.get(spotId) ?? { count: 0, mostRecentUsername: null };
+  return result.get(spotId) ?? { count: 0, savers: [] };
 }
 
 export async function getSpotMentionsForSpots(
@@ -340,19 +340,13 @@ export async function getSpotMentionsForSpots(
   const saversBySpot = await getSaversBySpot(supabase, followingIds, spotIds);
   if (saversBySpot.size === 0) return empty;
 
-  const mostRecentSaverBySpot = new Map<string, string>();
-  for (const [spotId, saverIds] of saversBySpot) {
-    const mostRecent = [...saverIds].reduce((latest, id) =>
-      (followedAt.get(id) ?? "") > (followedAt.get(latest) ?? "") ? id : latest
-    );
-    mostRecentSaverBySpot.set(spotId, mostRecent);
-  }
-
-  const profileIds = [...new Set(mostRecentSaverBySpot.values())];
+  const allSaverIds = [
+    ...new Set([...saversBySpot.values()].flatMap((ids) => [...ids])),
+  ];
   const { data: profiles } = await supabase
     .from("profiles")
     .select("id, username")
-    .in("id", profileIds);
+    .in("id", allSaverIds);
 
   const usernameById = new Map(
     (profiles ?? []).map((p: any) => [p.id, p.username as string])
@@ -360,11 +354,16 @@ export async function getSpotMentionsForSpots(
 
   const result = new Map<string, SpotMention>();
   for (const [spotId, saverIds] of saversBySpot) {
-    const mostRecentSaverId = mostRecentSaverBySpot.get(spotId)!;
-    result.set(spotId, {
-      count: saverIds.size,
-      mostRecentUsername: usernameById.get(mostRecentSaverId) ?? null,
-    });
+    const savers: SpotMentionSaver[] = [...saverIds]
+      .map((id) => {
+        const username = usernameById.get(id);
+        return username
+          ? { username, followedAt: followedAt.get(id) ?? "" }
+          : null;
+      })
+      .filter((s): s is SpotMentionSaver => s !== null);
+
+    result.set(spotId, { count: saverIds.size, savers });
   }
   return result;
 }

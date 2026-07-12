@@ -7,7 +7,7 @@ import { useSaves } from "@/lib/savesContext";
 import { getSavedPlaylists, getSpotMentionsForSpots } from "@/lib/services/saves";
 import type { SavedPlaylist } from "@/lib/services/saves";
 import type { SpotMention } from "@/lib/spotMentions";
-import { formatSpotMentionText } from "@/lib/spotMentions";
+import { formatSpotMentionText, getFeaturedSaver } from "@/lib/spotMentions";
 import { parseCityFromAddress } from "@/lib/cityDisplay";
 import SpotCard from "@/components/SpotCard";
 import EmptyState from "@/components/ui/EmptyState";
@@ -103,12 +103,19 @@ export default function SavesPage() {
           : savedSpots;
 
   const query = searchQuery.trim().toLowerCase();
+  const usernameQuery = query.replace(/^@/, "");
   const displayedSpots = query
-    ? sortedSpots.filter(
-        (spot) =>
+    ? sortedSpots.filter((spot) => {
+        const mention = mentionsBySpotId.get(spot.id);
+        return (
           spot.name.toLowerCase().includes(query) ||
-          spot.address.toLowerCase().includes(query)
-      )
+          spot.address.toLowerCase().includes(query) ||
+          (mention?.savers.some((s) =>
+            s.username.toLowerCase().includes(usernameQuery)
+          ) ??
+            false)
+        );
+      })
     : sortedSpots;
 
   if (authLoading || savesLoading) {
@@ -259,8 +266,12 @@ export default function SavesPage() {
                         formatSpotMentionText(
                           mentionsBySpotId.get(spot.id) ?? {
                             count: 0,
-                            mostRecentUsername: null,
-                          }
+                            savers: [],
+                          },
+                          getFeaturedSaver(
+                            mentionsBySpotId.get(spot.id),
+                            searchQuery
+                          )?.username ?? null
                         ) ?? ""
                       }
                       bookmark={<BookmarkButton spot={spot} onRemove={() => optimisticRemove(spot.google_place_id)} onRestore={() => restoreSpot(spot)} />}
