@@ -6,46 +6,46 @@ const gcs = (path: string) =>
 /* ------------------------------------------------------------------ */
 
 const COVERS = [
-  "los-angeles_generic-hike_griffith-park.png",
-  "generic_dinner_los-angeles.png",
-  "new-york_china-town_manhattan.png",
-  "new-york_generic.png",
-  "san-francisco_generic_fish-market.png",
-  "san-francisco_generic_dolores-park.png",
-  "steph.kotula_utah_hiking-nature_cover.png",
-  "new-york_williamsburg_generic.png",
-  "maisieleung_los-angeles_ktown-faves_cover.png",
-  "new-york_brooklyn_dumbo.png",
-  "new-york_catskills_upstate_wine_bonfire.png",
-  "new-york_downtown-brooklyn_generic-city.png",
-  "wenju.tseng_London_bestmuseums_cover.png",
-  "new-york_les_generic-dessert.png",
-  "new-york_williamsburg_generic_domino-park.png",
-  "new-york_generic_2.png",
-  "jessicastrelioff_austin_a-perfect-day_cover.png",
-  "los-angeles_generic_palmtrees.png",
-  "weiweiyang_ho-chi-minh-city_best-restaurants-in-town_cover.png",
-  "los-angeles_generic_japan-town.png",
-  "new-york_generic-forest-hike_catskills.png",
-  "new-york_generic_5.png",
-  "portland_maine_generic.png",
-  "los-angeles_venice-canals.png",
-  "mexico_generic.png",
-  "new-york_empire-state.png",
-  "new-york_generic_4.png",
-  "new-york_generic_asian-food.png",
-  "new-york_generic-brunch.png",
-  "portland_oregon_generic-park_generic.png",
-  "san-francisco_generic_twin-peaks.png",
-  "los-angeles_larchmont_generic-market_fruits.png",
-  "san-francisco_generic.png",
-  "new-york_generic_3.png",
-  "new-york_generic_greek_brooklyn.png",
-  "new-york_generic_wine.png",
-  "new-york_west-village_cafe-tola.png",
-  "japan_generic-asia.png",
-  "los-angeles_robata_generic-sushi.png",
-  "new-york_manhattan_oculus.png",
+  "los-angeles_generic-hike_griffith-park.webp",
+  "generic_dinner_los-angeles.webp",
+  "new-york_china-town_manhattan.webp",
+  "new-york_generic.webp",
+  "san-francisco_generic_fish-market.webp",
+  "san-francisco_generic_dolores-park.webp",
+  "steph.kotula_utah_hiking-nature_cover.webp",
+  "new-york_williamsburg_generic.webp",
+  "maisieleung_los-angeles_ktown-faves_cover.webp",
+  "new-york_brooklyn_dumbo.webp",
+  "new-york_catskills_upstate_wine_bonfire.webp",
+  "new-york_downtown-brooklyn_generic-city.webp",
+  "wenju.tseng_London_bestmuseums_cover.webp",
+  "new-york_les_generic-dessert.webp",
+  "new-york_williamsburg_generic_domino-park.webp",
+  "new-york_generic_2.webp",
+  "jessicastrelioff_austin_a-perfect-day_cover.webp",
+  "los-angeles_generic_palmtrees.webp",
+  "weiweiyang_ho-chi-minh-city_best-restaurants-in-town_cover.webp",
+  "los-angeles_generic_japan-town.webp",
+  "new-york_generic-forest-hike_catskills.webp",
+  "new-york_generic_5.webp",
+  "portland_maine_generic.webp",
+  "los-angeles_venice-canals.webp",
+  "mexico_generic.webp",
+  "new-york_empire-state.webp",
+  "new-york_generic_4.webp",
+  "new-york_generic_asian-food.webp",
+  "new-york_generic-brunch.webp",
+  "portland_oregon_generic-park_generic.webp",
+  "san-francisco_generic_twin-peaks.webp",
+  "los-angeles_larchmont_generic-market_fruits.webp",
+  "san-francisco_generic.webp",
+  "new-york_generic_3.webp",
+  "new-york_generic_greek_brooklyn.webp",
+  "new-york_generic_wine.webp",
+  "new-york_west-village_cafe-tola.webp",
+  "japan_generic-asia.webp",
+  "los-angeles_robata_generic-sushi.webp",
+  "new-york_manhattan_oculus.webp",
 ] as const;
 
 const COVER_URLS = COVERS.map((f) => gcs(`default-covers/${f}`));
@@ -113,6 +113,18 @@ function fileMatchesKeyword(tokens: string[], keyword: string): boolean {
 
 function randomPick<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
+}
+
+/**
+ * Swap a cover photo URL from the "full" (hero) derivative to the "thumb"
+ * (grid/carousel) one, for uploads made after the resize-on-upload pipeline
+ * shipped. Falls back to the original URL for anything that doesn't match
+ * that naming scheme (default covers, legacy uploads, non-http paths).
+ */
+export function getThumbCoverUrl(url: string | null | undefined): string | undefined {
+  if (!url) return undefined;
+  const thumbUrl = url.replace(/-full\.([a-z0-9]+)(\?.*)?$/i, "-thumb.$1$2");
+  return thumbUrl;
 }
 
 /* ------------------------------------------------------------------ */

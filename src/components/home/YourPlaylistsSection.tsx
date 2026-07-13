@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { CardShelf } from "@/components/ui/CardShelf";
 import { Card } from "@/components/Card";
+import { IconButton } from "@/components/ui/IconButton";
+import { Add } from "@/components/ui/icons/Add";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { getPlaylistsByUser } from "@/lib/services/playlists";
 import { getUserUsername } from "@/lib/services/users";
@@ -34,14 +36,36 @@ export function YourPlaylistsSection({ userId }: { userId: string }) {
           </div>
         </div>
       ) : latestPlaylist && username ? (
-        <Card
-          size="xs"
-          city={latestPlaylist.city}
-          name={latestPlaylist.name}
-          subtitle={latestPlaylist.description ?? undefined}
-          image={latestPlaylist.cover_photo_url ?? undefined}
-          href={playlistUrl(username, latestPlaylist.city, latestPlaylist.name, latestPlaylist.slug)}
-        />
+        <div className="flex flex-col lg:grid lg:grid-cols-2 gap-2">
+          <Card
+            size="xs"
+            city={latestPlaylist.city}
+            name={latestPlaylist.name}
+            subtitle={latestPlaylist.description ?? undefined}
+            image={latestPlaylist.cover_photo_url ?? undefined}
+            href={playlistUrl(username, latestPlaylist.city, latestPlaylist.name, latestPlaylist.slug)}
+          />
+          <div
+            role="button"
+            onClick={openCreatePlaylist}
+            className="hidden lg:flex items-center gap-2 bg-transparent border border-grey-300 rounded-sm py-2 px-4 w-full overflow-hidden text-left cursor-pointer"
+          >
+            <div className="flex-1 min-w-0">
+              <p className="text-body-xs text-tertiary text-balance">
+                Create more playlists for us to learn your taste and recommend you spots you may like
+              </p>
+            </div>
+            <IconButton
+              variant="secondary"
+              icon={<Add />}
+              label="Start a new playlist"
+              onClick={(e) => {
+                e.stopPropagation();
+                openCreatePlaylist();
+              }}
+            />
+          </div>
+        </div>
       ) : (
         <Card
           size="xs"

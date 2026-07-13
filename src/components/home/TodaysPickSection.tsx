@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Card } from "@/components/Card";
-import { SpotSkeleton } from "./SpotSkeleton";
+import { FeaturedSpotSkeleton } from "./SpotSkeleton";
 import { SpotBookmark } from "./SpotBookmark";
 import { getTodaysPick } from "@/lib/services/playlists";
 import type { TodaysPick } from "@/types";
@@ -21,7 +21,7 @@ export function TodaysPickSection() {
   if (loaded && !pick) return null;
 
   return !loaded ? (
-    <SpotSkeleton />
+    <FeaturedSpotSkeleton />
   ) : (
     <Card
       size="featured"

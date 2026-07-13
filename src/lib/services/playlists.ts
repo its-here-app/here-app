@@ -3,6 +3,7 @@ import { track } from "../analytics";
 import { getDefaultCover } from "../playlist-covers";
 import { formatCityDisplay } from "../cityDisplay";
 import { toSlug } from "../playlistUrl";
+import { createImageDerivatives } from "../imageResize";
 import type { SearchResult, TodaysPick, Spot } from "@/types";
 
 export async function getRecentFollowingPlaylists(
@@ -466,27 +467,40 @@ export async function uploadPlaylistCover(
 ): Promise<string> {
   const supabase = createClient();
 
-  // Remove old file from storage if it was a user upload (not a local default)
+  // Remove old files from storage if they were a user upload (not a local default).
+  // Best-effort: also try the sibling -thumb file from the current naming scheme;
+  // an orphaned -original from a previous upload is a small, acceptable storage cost.
   if (currentUrl && currentUrl.startsWith("http")) {
     const storagePath = currentUrl.split("/playlist-covers/")[1];
     if (storagePath) {
-      await supabase.storage.from("playlist-covers").remove([storagePath]);
+      const thumbPath = storagePath.replace(/-full\.([a-z0-9]+)$/i, "-thumb.$1");
+      const pathsToRemove =
+        thumbPath !== storagePath ? [storagePath, thumbPath] : [storagePath];
+      await supabase.storage.from("playlist-covers").remove(pathsToRemove);
     }
   }
 
-  const fileExt = file.name.split(".").pop();
-  // Path format: {userId}/{playlistId}-{timestamp}.{ext}
+  const derivatives = await createImageDerivatives(file);
+  const originalExt = file.name.split(".").pop() || "jpg";
+  // Path format: {userId}/{playlistId}-{timestamp}-{variant}.{ext}
   // Putting userId first lets the storage policy check ownership without a table lookup
-  const fileName = `${userId}/${playlistId}-${Date.now()}.${fileExt}`;
+  const base = `${userId}/${playlistId}-${Date.now()}`;
+  const originalName = `${base}-original.${originalExt}`;
+  const fullName = `${base}-full.${derivatives.ext}`;
+  const thumbName = `${base}-thumb.${derivatives.ext}`;
 
-  const { error: uploadError } = await supabase.storage
-    .from("playlist-covers")
-    .upload(fileName, file);
-  if (uploadError) throw uploadError;
+  const [originalUpload, fullUpload, thumbUpload] = await Promise.all([
+    supabase.storage.from("playlist-covers").upload(originalName, derivatives.original),
+    supabase.storage.from("playlist-covers").upload(fullName, derivatives.full),
+    supabase.storage.from("playlist-covers").upload(thumbName, derivatives.thumb),
+  ]);
+  if (originalUpload.error) throw originalUpload.error;
+  if (fullUpload.error) throw fullUpload.error;
+  if (thumbUpload.error) throw thumbUpload.error;
 
   const {
     data: { publicUrl },
-  } = supabase.storage.from("playlist-covers").getPublicUrl(fileName);
+  } = supabase.storage.from("playlist-covers").getPublicUrl(fullName);
 
   await supabase
     .from("playlists")

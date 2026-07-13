@@ -7,6 +7,7 @@ import { IconButton } from "./ui/IconButton";
 import { SlotRow } from "./ui/SlotRow";
 import { Badge } from "./ui/Badge";
 import { Rating } from "./ui/Rating";
+import { getThumbCoverUrl } from "@/lib/playlist-covers";
 
 const FILTERED_METADATA_TYPES = new Set(["point_of_interest", "establishment"]);
 
@@ -132,7 +133,7 @@ function BottomActions({
 }
 
 const defaultScrim =
-  "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.12) 10%, rgba(0,0,0,0.3) 25%, rgba(0,0,0,0.45) 40%, rgba(0,0,0,0.45) 63%, rgba(0,0,0,0.28) 74%, rgba(0,0,0,0.1) 82%, rgba(0,0,0,0.03) 87%, rgba(0,0,0,0.12) 92%, rgba(0,0,0,0.3) 96%, rgba(0,0,0,0.45) 100%)";
+  "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.12) 10%, rgba(0,0,0,0.3) 25%, rgba(0,0,0,0.35) 40%, rgba(0,0,0,0.35) 63%, rgba(0,0,0,0.28) 74%, rgba(0,0,0,0.1) 82%, rgba(0,0,0,0.03) 87%, rgba(0,0,0,0.12) 92%, rgba(0,0,0,0.3) 96%, rgba(0,0,0,0.45) 100%)";
 
 const heroScrim =
   "linear-gradient(180deg, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0.3) 4%, rgba(0,0,0,0.12) 8%, rgba(0,0,0,0.03) 13%, rgba(0,0,0,0.1) 18%, rgba(0,0,0,0.28) 25%, rgba(0,0,0,0.45) 40%, rgba(0,0,0,0.45) 63%, rgba(0,0,0,0.28) 74%, rgba(0,0,0,0.1) 82%, rgba(0,0,0,0.03) 87%, rgba(0,0,0,0.12) 92%, rgba(0,0,0,0.3) 96%, rgba(0,0,0,0.45) 100%)";
@@ -213,6 +214,11 @@ export function Card({
 }: CardProps) {
   const [imageLoaded, setImageLoaded] = useState(false);
 
+  // hero/lg/featured render covers large enough to warrant the full
+  // derivative; smaller grid/carousel/list sizes use the thumb.
+  const useFullImage = size === "hero" || size === "lg" || size === "featured";
+  const displayImage = useFullImage ? image : (getThumbCoverUrl(image) ?? image);
+
   // ── Empty ─────────────────────────────────────────────────────────────────
   if (size === "empty") {
     return (
@@ -245,8 +251,8 @@ export function Card({
         className={`flex items-center gap-2 bg-surface-subtle rounded-sm p-2 w-full overflow-hidden text-left ${href || onClick ? "cursor-pointer" : ""} ${className ?? ""}`}
       >
         <div className="shrink-0 size-[3.125rem] rounded-xs overflow-hidden bg-black/10">
-          {image && (
-            <img src={image} alt={city ?? name ?? ""} className="size-full object-cover" />
+          {displayImage && (
+            <img src={displayImage} alt={city ?? name ?? ""} className="size-full object-cover" />
           )}
         </div>
         <div className="flex-1 min-w-0 flex flex-col">
@@ -314,9 +320,9 @@ export function Card({
       <div
         className={`relative overflow-hidden w-full @container ${imageLoaded ? "bg-transparent" : "bg-black"} ${sizeConfig[size].height} ${sizeConfig[size].radius}`}
       >
-        {image && (
+        {displayImage && (
           <img
-            src={image}
+            src={displayImage}
             alt={city ?? title ?? ""}
             className="absolute inset-0 size-full object-cover transition-transform duration-400 ease-in-out group-hover:scale-104"
             onLoad={() => setImageLoaded(true)}

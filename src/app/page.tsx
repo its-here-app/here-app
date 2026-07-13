@@ -13,6 +13,7 @@ import { upsertCityAction } from "@/lib/actions/cities";
 import { updateProfileCityAction } from "@/lib/actions/users";
 import { useRouter } from "next/navigation";
 import CityPickerModal from "@/components/modals/CityPickerModal";
+import { Skeleton } from "@/components/ui/Skeleton";
 import {
   YourPlaylistsSection,
   TodaysPickSection,
@@ -43,6 +44,7 @@ export default function HomePage() {
   const [cityPickerOpen, setCityPickerOpen] = useState(false);
   const [firstName, setFirstName] = useState<string | null>(null);
   const [weather, setWeather] = useState<Weather | null>(null);
+  const [greetingLoaded, setGreetingLoaded] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) router.push("/signin");
@@ -64,12 +66,15 @@ export default function HomePage() {
           .single();
         if (city) setCityName(formatCityDisplay(city.display_name, city.is_primary));
 
-        // Fetch weather (non-blocking, best-effort)
-        fetch(`/api/weather?cityId=${profile.city_id}`)
-          .then((res) => (res.ok ? res.json() : null))
-          .then((data) => { if (data?.temp != null) setWeather(data); })
-          .catch(() => {});
+        try {
+          const res = await fetch(`/api/weather?cityId=${profile.city_id}`);
+          const data = res.ok ? await res.json() : null;
+          if (data?.temp != null) setWeather(data);
+        } catch {
+          // best-effort
+        }
       }
+      setGreetingLoaded(true);
     });
   }, [user]);
 
@@ -96,22 +101,33 @@ export default function HomePage() {
       />
 
       {/* Desktop weather greeting */}
-      {firstName && weather && cityName && (
-        <div className="hidden lg:block mb-4">
-          <h1 className="text-display-radio-2 text-primary">
-            {getGreeting()}, {firstName}.
-          </h1>
-          <h1 className="text-display-radio-2 text-primary">
-            It&apos;s {weather.temp}° and {weather.condition} in{" "}
-            <button
-              onClick={() => setCityPickerOpen(true)}
-              className="underline underline-offset-4 cursor-pointer"
-            >
-              {cityName}
-            </button>{" "}
-            today.
-          </h1>
+      {!greetingLoaded ? (
+        <div className="hidden lg:flex flex-col mb-4">
+          <div className="h-[2.5625rem] flex items-center">
+            <Skeleton className="h-4 w-96 rounded-full" />
+          </div>
+          <div className="h-[2.5625rem] flex items-center">
+            <Skeleton className="h-4 w-80 rounded-full" />
+          </div>
         </div>
+      ) : (
+        firstName && weather && cityName && (
+          <div className="hidden lg:block mb-4">
+            <h1 className="text-display-radio-2 text-primary">
+              {getGreeting()}, {firstName}.
+            </h1>
+            <h1 className="text-display-radio-2 text-primary">
+              It&apos;s {weather.temp}° and {weather.condition} in{" "}
+              <button
+                onClick={() => setCityPickerOpen(true)}
+                className="underline underline-offset-4 text-bubble cursor-pointer"
+              >
+                {cityName}
+              </button>{" "}
+              today.
+            </h1>
+          </div>
+        )
       )}
 
       <div className="flex flex-col gap-12">

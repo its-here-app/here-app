@@ -31,10 +31,19 @@ export default function PlaylistOverlay({ playlist, isOwner, fromNew }: Props) {
   function dismiss(pushTo?: string) {
     if (pushTo) {
       router.push(pushTo);
-    } else if (fromNew) {
+    } else if (fromNew || !cameFromWithinApp()) {
       router.push(`/${playlist.profiles.username}`);
     } else {
       router.back();
+    }
+  }
+
+  function cameFromWithinApp() {
+    if (!document.referrer) return false;
+    try {
+      return new URL(document.referrer).origin === window.location.origin;
+    } catch {
+      return false;
     }
   }
 
