@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../../lib/authContext";
 import { createClient } from "../../lib/supabase/client";
@@ -22,8 +22,12 @@ import { CityAutocompleteInput } from "../../components/ui/inputs/CityAutocomple
 import { upsertCityAction } from "../../lib/actions/cities";
 import { updateProfileAction } from "../../lib/actions/users";
 import { getUserByUsername } from "../../lib/services/users";
-import { isValidInstagramHandle, sanitizeInstagramHandleInput } from "../../lib/isValidInstagramHandle";
+import {
+  isValidInstagramHandle,
+  sanitizeInstagramHandleInput,
+} from "../../lib/isValidInstagramHandle";
 import { useDebouncedValue } from "../../lib/useDebouncedValue";
+import { useAvatarUpload } from "../../lib/useAvatarUpload";
 
 type Step = "auth" | "profile";
 type UsernameStatus = "idle" | "too-short" | "checking" | "valid" | "taken";
@@ -54,31 +58,22 @@ export default function LoginPage() {
     display_name: string;
     is_primary?: boolean;
   } | null>(null);
-  const [profilePhoto, setProfilePhoto] = useState<File | null>(null);
-  const [photoPreview, setPhotoPreview] = useState<string>("");
   const [saving, setSaving] = useState(false);
-  const [isPhotoSheetOpen, setIsPhotoSheetOpen] = useState(false);
-  const [hasCamera, setHasCamera] = useState(false);
-  const uploadInputRef = useRef<HTMLInputElement>(null);
-  const captureInputRef = useRef<HTMLInputElement>(null);
-  const avatarRef = useRef<HTMLDivElement>(null);
-  const isInstagramValid = !instagramHandle || isValidInstagramHandle(instagramHandle);
-
-  useEffect(() => {
-    setHasCamera(window.matchMedia("(pointer: coarse)").matches);
-  }, []);
-
-  function handleAvatarClick() {
-    if (hasCamera || photoPreview) {
-      setIsPhotoSheetOpen((s) => !s);
-    } else {
-      uploadInputRef.current?.click();
-    }
-  }
-
-  function handleRemovePhoto() {
-    setPhotoPreview("");
-  }
+  const {
+    photoPreview,
+    hasCamera,
+    isPhotoSheetOpen,
+    setIsPhotoSheetOpen,
+    uploadInputRef,
+    captureInputRef,
+    avatarRef,
+    handlePhotoChange,
+    handleRemovePhoto,
+    handleAvatarClick,
+    upload: uploadAvatar,
+  } = useAvatarUpload();
+  const isInstagramValid =
+    !instagramHandle || isValidInstagramHandle(instagramHandle);
 
   // Handle returning from Google OAuth or already-authenticated users
   useEffect(() => {
@@ -139,7 +134,8 @@ export default function LoginPage() {
   }, [usernameStatus]);
 
   useEffect(() => {
-    if (!debouncedInstagramHandle || debouncedInstagramHandle.length >= 2) return;
+    if (!debouncedInstagramHandle || debouncedInstagramHandle.length >= 2)
+      return;
     toast({
       icon: <Error />,
       message: "Instagram handle must be at least 2 characters",
@@ -214,16 +210,6 @@ export default function LoginPage() {
     }
   }
 
-  function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (file) {
-      setProfilePhoto(file);
-      const reader = new FileReader();
-      reader.onloadend = () => setPhotoPreview(reader.result as string);
-      reader.readAsDataURL(file);
-    }
-  }
-
   async function handleCancel() {
     await supabase.auth.signOut();
     setStep("auth");
@@ -232,8 +218,7 @@ export default function LoginPage() {
     setBio("");
     setInstagramHandle("");
     setSelectedCity(null);
-    setProfilePhoto(null);
-    setPhotoPreview("");
+    handleRemovePhoto();
     setError("");
   }
 
@@ -245,24 +230,7 @@ export default function LoginPage() {
     setError("");
 
     try {
-      let photoUrl = null;
-
-      if (profilePhoto) {
-        const fileExt = profilePhoto.name.split(".").pop();
-        const fileName = `${user.id}-${Date.now()}.${fileExt}`;
-
-        const { error: uploadError } = await supabase.storage
-          .from("profile-photos")
-          .upload(fileName, profilePhoto);
-
-        if (uploadError) throw uploadError;
-
-        const {
-          data: { publicUrl },
-        } = supabase.storage.from("profile-photos").getPublicUrl(fileName);
-
-        photoUrl = publicUrl;
-      }
+      const photoUrl = (await uploadAvatar(user.id)) || null;
 
       const { error: dbError } = await supabase.from("profiles").upsert({
         id: user.id,
@@ -521,7 +489,7 @@ export default function LoginPage() {
                 }
                 required
                 maxLength={30}
-                placeholder="username"
+                placeholder="Username"
                 state={usernameStatus === "valid" ? "filled" : "default"}
                 rightSlot={
                   usernameStatus === "valid" ? (
@@ -555,9 +523,19 @@ export default function LoginPage() {
               <TextInput
                 focusBrand
                 aria-label="Instagram"
-                leftSlot={<span className="text-body-sm leading-none text-primary">@</span>}
+                leftSlot={
+                  instagramHandle ? (
+                    <span className="text-body-sm leading-none text-primary">
+                      @
+                    </span>
+                  ) : undefined
+                }
                 value={instagramHandle}
-                onChange={(e) => setInstagramHandle(sanitizeInstagramHandleInput(e.target.value))}
+                onChange={(e) =>
+                  setInstagramHandle(
+                    sanitizeInstagramHandleInput(e.target.value),
+                  )
+                }
                 maxLength={30}
                 placeholder="Instagram username (Optional)"
                 state={instagramHandle ? "filled" : "default"}
@@ -580,7 +558,12 @@ export default function LoginPage() {
                 size="lg"
                 darkTheme
                 softDisabled
-                disabled={saving || !name || usernameStatus !== "valid" || !isInstagramValid}
+                disabled={
+                  saving ||
+                  !name ||
+                  usernameStatus !== "valid" ||
+                  !isInstagramValid
+                }
                 className="w-full"
               >
                 {saving ? "Saving..." : "Done"}

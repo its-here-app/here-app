@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../../lib/authContext";
 import { Avatar } from "../ui/Avatar";
@@ -14,12 +14,12 @@ import { Button } from "../ui/Button";
 import {
   getProfile,
   getUserByUsername,
-  uploadProfilePhoto,
 } from "@/lib/services/users";
 import { updateProfileAction } from "@/lib/actions/users";
 import { upsertCityAction } from "@/lib/actions/cities";
 import { isValidInstagramHandle, sanitizeInstagramHandleInput } from "@/lib/isValidInstagramHandle";
 import { useDebouncedValue } from "@/lib/useDebouncedValue";
+import { useAvatarUpload } from "@/lib/useAvatarUpload";
 import { CityAutocompleteInput } from "../ui/inputs/CityAutocompleteInput";
 
 type UsernameStatus = "idle" | "too-short" | "checking" | "valid" | "taken";
@@ -52,39 +52,30 @@ export default function EditProfileModal({
     display_name: string;
     is_primary?: boolean;
   } | null>(null);
-  const [profilePhoto, setProfilePhoto] = useState<File | null>(null);
-  const [photoPreview, setPhotoPreview] = useState<string>("");
   const [currentPhotoUrl, setCurrentPhotoUrl] = useState<string>("");
-  const [isPhotoSheetOpen, setIsPhotoSheetOpen] = useState(false);
-  const [hasCamera, setHasCamera] = useState(false);
-  const uploadInputRef = useRef<HTMLInputElement>(null);
-  const captureInputRef = useRef<HTMLInputElement>(null);
+  const {
+    photoPreview,
+    hasCamera,
+    isPhotoSheetOpen,
+    setIsPhotoSheetOpen,
+    uploadInputRef,
+    captureInputRef,
+    avatarRef,
+    handlePhotoChange,
+    handleRemovePhoto,
+    handleAvatarClick,
+    upload: uploadAvatar,
+    reset: resetAvatar,
+  } = useAvatarUpload(currentPhotoUrl);
   const isInstagramValid = !instagramHandle || isValidInstagramHandle(instagramHandle);
-  const avatarRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (isOpen && user) {
+      resetAvatar();
       loadProfile();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, user]);
-
-  useEffect(() => {
-    setHasCamera(window.matchMedia("(pointer: coarse)").matches);
-  }, []);
-
-  function handleAvatarClick() {
-    if (hasCamera || photoPreview) {
-      setIsPhotoSheetOpen((s) => !s);
-    } else {
-      uploadInputRef.current?.click();
-    }
-  }
-
-  function handleRemovePhoto() {
-    setProfilePhoto(null);
-    setPhotoPreview("");
-    setCurrentPhotoUrl("");
-  }
 
   const debouncedUsername = useDebouncedValue(username, 800);
   const debouncedInstagramHandle = useDebouncedValue(instagramHandle, 800);
@@ -147,7 +138,6 @@ export default function EditProfileModal({
         setBio(profile.bio || "");
         setInstagramHandle(profile.instagram_handle || "");
         setCurrentPhotoUrl(profile.avatar_url || "");
-        setPhotoPreview(profile.avatar_url || "");
 
         if (profile.city_id) {
           const { createClient } = await import("@/lib/supabase/client");
@@ -173,16 +163,6 @@ export default function EditProfileModal({
     }
   }
 
-  function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (file) {
-      setProfilePhoto(file);
-      const reader = new FileReader();
-      reader.onloadend = () => setPhotoPreview(reader.result as string);
-      reader.readAsDataURL(file);
-    }
-  }
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!user) return;
@@ -190,15 +170,7 @@ export default function EditProfileModal({
     setSaving(true);
 
     try {
-      let photoUrl = currentPhotoUrl;
-
-      if (profilePhoto) {
-        photoUrl = await uploadProfilePhoto(
-          user.id,
-          profilePhoto,
-          currentPhotoUrl,
-        );
-      }
+      const photoUrl = await uploadAvatar(user.id);
 
       let cityId: string | null = null;
       if (selectedCity) {

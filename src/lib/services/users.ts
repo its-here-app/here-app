@@ -60,7 +60,8 @@ export async function updateProfile(
 
 export async function uploadProfilePhoto(
   userId: string,
-  file: File,
+  blob: Blob,
+  ext: string,
   currentUrl?: string
 ): Promise<string> {
   const supabase = createClient();
@@ -72,12 +73,11 @@ export async function uploadProfilePhoto(
     }
   }
 
-  const fileExt = file.name.split(".").pop();
-  const fileName = `${userId}-${Date.now()}.${fileExt}`;
+  const fileName = `${userId}-${Date.now()}.${ext}`;
 
   const { error: uploadError } = await supabase.storage
     .from("profile-photos")
-    .upload(fileName, file);
+    .upload(fileName, blob);
   if (uploadError) throw uploadError;
 
   const {

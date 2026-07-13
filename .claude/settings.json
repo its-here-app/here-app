@@ -29,7 +29,8 @@
       "Bash(mkdir -p /tmp/pw-test)",
       "Bash(npm init *)",
       "Bash(ps -p 85125 -o pid,ppid,command)",
-      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3000/signin)"
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3000/signin)",
+      "Bash(git stash *)"
     ],
     "additionalDirectories": [
       "/Users/emily/Dev/here-demo/src/app/[username]"

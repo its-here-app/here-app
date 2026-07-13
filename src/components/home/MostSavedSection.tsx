@@ -21,11 +21,15 @@ export function MostSavedSection() {
     });
   }, []);
 
+  if (loaded && mostSaved.length === 0) {
+    return null;
+  }
+
   return (
     <CardShelf title="Today's most saved">
       {!loaded ? (
         <SpotSkeletonList />
-      ) : mostSaved.length > 0 ? (
+      ) : (
         <div className="flex flex-col gap-4">
           {mostSaved.map(({ spot, save_count }) => (
             <SpotCard
@@ -36,10 +40,6 @@ export function MostSavedSection() {
             />
           ))}
         </div>
-      ) : (
-        <p className="text-body-xs text-tertiary py-4">
-          No spots saved yet today
-        </p>
       )}
     </CardShelf>
   );
