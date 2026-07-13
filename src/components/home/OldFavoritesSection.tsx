@@ -27,59 +27,61 @@ export function OldFavoritesSection({ userId }: { userId: string }) {
     });
   }, [userId, shouldLoad, loaded]);
 
+  if (loaded && favorites.length === 0) {
+    return null;
+  }
+
   return (
     <div ref={ref}>
-      {loaded && favorites.length === 0 ? null : (
-        <CardShelf
-          title="Revisit your old favorites"
-          titleRight={
-            loaded && favorites.length > 0 ? (
-              <CarouselArrows
-                canScrollPrev={canScrollPrev}
-                canScrollNext={canScrollNext}
-                scrollPrev={scrollPrev}
-                scrollNext={scrollNext}
-                scrollableOnDesktop={favorites.length > 4}
-              />
-            ) : undefined
-          }
-        >
-          {!loaded ? (
-            <div className="flex gap-2 overflow-hidden -mx-[var(--space-page-sm)] px-[var(--space-page-sm)] lg:mx-0 lg:px-0">
-              {[...Array(4)].map((_, i) => (
-                <Skeleton
-                  key={i}
-                  className="w-40 shrink-0 lg:w-[calc(25%-0.375rem)] aspect-square rounded-sm"
-                />
-              ))}
-            </div>
-          ) : (
-            <CarouselTrack
-              emblaRef={emblaRef}
-              items={favorites}
-              itemKey={({ spot }) => spot.id}
-              mobileWidthClass="w-40"
-              cardsPerView={4}
-              renderItem={({ spot, playlist_name }) => (
-                <Card
-                  size="md"
-                  image={spot.photo_url ?? undefined}
-                  scrim={false}
-                  metadata={{
-                    title: spot.name,
-                    subtitleText: playlist_name,
-                    rating: spot.rating,
-                    types: spot.types,
-                  }}
-                  metadataRow2={false}
-                  truncate
-                  metadataRight={<SpotBookmark spot={spot} variant="ghost" />}
-                />
-              )}
+      <CardShelf
+        title="Revisit your old favorites"
+        titleRight={
+          loaded && favorites.length > 0 ? (
+            <CarouselArrows
+              canScrollPrev={canScrollPrev}
+              canScrollNext={canScrollNext}
+              scrollPrev={scrollPrev}
+              scrollNext={scrollNext}
+              scrollableOnDesktop={favorites.length > 4}
             />
-          )}
-        </CardShelf>
-      )}
+          ) : undefined
+        }
+      >
+        {!loaded ? (
+          <div className="flex gap-2 overflow-hidden -mx-[var(--space-page-sm)] px-[var(--space-page-sm)] lg:mx-0 lg:px-0">
+            {[...Array(4)].map((_, i) => (
+              <Skeleton
+                key={i}
+                className="w-40 shrink-0 lg:w-[calc(25%-0.375rem)] aspect-square rounded-sm"
+              />
+            ))}
+          </div>
+        ) : (
+          <CarouselTrack
+            emblaRef={emblaRef}
+            items={favorites}
+            itemKey={({ spot }) => spot.id}
+            mobileWidthClass="w-40"
+            cardsPerView={4}
+            renderItem={({ spot, playlist_name }) => (
+              <Card
+                size="md"
+                image={spot.photo_url ?? undefined}
+                scrim={false}
+                metadata={{
+                  title: spot.name,
+                  subtitleText: playlist_name,
+                  rating: spot.rating,
+                  types: spot.types,
+                }}
+                metadataRow2={false}
+                truncate
+                metadataRight={<SpotBookmark spot={spot} variant="ghost" />}
+              />
+            )}
+          />
+        )}
+      </CardShelf>
     </div>
   );
 }

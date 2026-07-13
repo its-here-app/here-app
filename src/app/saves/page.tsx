@@ -317,9 +317,12 @@ export default function SavesPage() {
             {playlistsLoading ? (
               <p className="text-body-sm text-secondary">Loading…</p>
             ) : !savedPlaylists || savedPlaylists.length === 0 ? (
-              <p className="text-body-sm text-secondary">
-                No saved playlists yet.
-              </p>
+              <EmptyState
+                header="Nothing saved yet"
+                message="Save playlists you love to see them here."
+                actionLabel="Start exploring"
+                onAction={() => router.push("/")}
+              />
             ) : (
               <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
                 {savedPlaylists.map(({ id, playlist }) => (
