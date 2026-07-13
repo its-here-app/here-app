@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { CardShelf } from "@/components/ui/CardShelf";
-import SpotCard from "@/components/SpotCard";
-import { SpotSkeletonList } from "./SpotSkeleton";
+import { Card } from "@/components/Card";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { SpotBookmark } from "./SpotBookmark";
+import { useCarousel, CarouselArrows, CarouselTrack } from "./Carousel";
 import { useLazyLoad } from "./hooks";
 import { getOldFavoriteSpots } from "@/lib/services/saves";
 import type { Spot } from "@/types";
@@ -15,6 +16,8 @@ export function OldFavoritesSection({ userId }: { userId: string }) {
     { spot: Spot; playlist_name: string }[]
   >([]);
   const [loaded, setLoaded] = useState(false);
+
+  const { emblaRef, canScrollPrev, canScrollNext, scrollPrev, scrollNext } = useCarousel();
 
   useEffect(() => {
     if (!shouldLoad || loaded) return;
@@ -27,20 +30,53 @@ export function OldFavoritesSection({ userId }: { userId: string }) {
   return (
     <div ref={ref}>
       {loaded && favorites.length === 0 ? null : (
-        <CardShelf title="Revisit your old favorites">
+        <CardShelf
+          title="Revisit your old favorites"
+          titleRight={
+            loaded && favorites.length > 0 ? (
+              <CarouselArrows
+                canScrollPrev={canScrollPrev}
+                canScrollNext={canScrollNext}
+                scrollPrev={scrollPrev}
+                scrollNext={scrollNext}
+                scrollableOnDesktop={favorites.length > 4}
+              />
+            ) : undefined
+          }
+        >
           {!loaded ? (
-            <SpotSkeletonList />
-          ) : (
-            <div className="flex flex-col gap-4">
-              {favorites.map(({ spot, playlist_name }) => (
-                <SpotCard
-                  key={spot.id}
-                  spot={spot}
-                  subtitleText={`In your ${playlist_name} playlist`}
-                  bookmark={<SpotBookmark spot={spot} />}
+            <div className="flex gap-2 overflow-hidden -mx-[var(--space-page-sm)] px-[var(--space-page-sm)] lg:mx-0 lg:px-0">
+              {[...Array(4)].map((_, i) => (
+                <Skeleton
+                  key={i}
+                  className="w-40 shrink-0 lg:w-[calc(25%-0.375rem)] aspect-square rounded-sm"
                 />
               ))}
             </div>
+          ) : (
+            <CarouselTrack
+              emblaRef={emblaRef}
+              items={favorites}
+              itemKey={({ spot }) => spot.id}
+              mobileWidthClass="w-40"
+              cardsPerView={4}
+              renderItem={({ spot, playlist_name }) => (
+                <Card
+                  size="md"
+                  image={spot.photo_url ?? undefined}
+                  scrim={false}
+                  metadata={{
+                    title: spot.name,
+                    subtitleText: playlist_name,
+                    rating: spot.rating,
+                    types: spot.types,
+                  }}
+                  metadataRow2={false}
+                  truncate
+                  metadataRight={<SpotBookmark spot={spot} variant="ghost" />}
+                />
+              )}
+            />
           )}
         </CardShelf>
       )}

@@ -20,6 +20,7 @@ import {
   MostSavedSection,
   WantedToGoSection,
   OldFavoritesSection,
+  ExplorePlaylistsSection,
   RecommendedSection,
 } from "@/components/home";
 
@@ -114,12 +115,13 @@ export default function HomePage() {
       )}
 
       <div className="flex flex-col gap-12">
-        <YourPlaylistsSection userId={user.id} />
         <TodaysPickSection />
+        <YourPlaylistsSection userId={user.id} />
         <SharedRecentlySection userId={user.id} />
         <MostSavedSection />
         <WantedToGoSection userId={user.id} />
         <OldFavoritesSection userId={user.id} />
+        <ExplorePlaylistsSection userId={user.id} />
         <RecommendedSection userId={user.id} />
       </div>
 

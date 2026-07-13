@@ -19,7 +19,7 @@ import { SpotSearchPanel } from "@/components/SpotSearchPanel";
 import type { SearchResult } from "@/types";
 import { getDefaultCover } from "@/lib/playlist-covers";
 import { playlistUrl } from "@/lib/playlistUrl";
-import { PlaylistCard } from "@/components/PlaylistCard";
+import { Card } from "@/components/Card";
 import {
   SearchInput,
   type SearchInputState,
@@ -323,7 +323,7 @@ export default function SavesPage() {
             ) : (
               <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
                 {savedPlaylists.map(({ id, playlist }) => (
-                  <PlaylistCard
+                  <Card
                     key={id}
                     size="sm"
                     image={

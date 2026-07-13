@@ -432,7 +432,7 @@ export async function getRecommendedSpots(userId: string): Promise<Spot[]> {
       return { spotId, score };
     })
     .sort((a, b) => b.score - a.score)
-    .slice(0, 5);
+    .slice(0, 3);
 
   const spotIds = scored.map((s) => s.spotId);
   const { data: spots } = await supabase

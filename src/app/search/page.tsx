@@ -6,7 +6,7 @@ import { AppBarConfig } from "@/lib/appBarContext";
 import { SearchInput } from "@/components/ui/inputs/SearchInput";
 import type { SearchInputState } from "@/components/ui/inputs/SearchInput";
 import { Avatar } from "@/components/ui/Avatar";
-import { PlaylistCard } from "@/components/PlaylistCard";
+import { Card } from "@/components/Card";
 import { useAuth } from "@/lib/authContext";
 import {
   searchPeople,
@@ -142,7 +142,7 @@ export default function SearchPage() {
           </p>
           <div className="grid grid-cols-2 gap-2">
             {playlists.map((playlist) => (
-              <PlaylistCard
+              <Card
                 key={playlist.id}
                 size="sm"
                 city={playlist.city}

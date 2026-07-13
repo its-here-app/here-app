@@ -16,7 +16,7 @@ import { Lock } from "@/components/ui/icons/Lock";
 import { Photo } from "@/components/ui/icons/Photo";
 import { Trash } from "@/components/ui/icons/Trash";
 import { World } from "@/components/ui/icons/World";
-import { PlaylistCard } from "@/components/PlaylistCard";
+import { Card } from "@/components/Card";
 import { Avatar } from "@/components/ui/Avatar";
 import { IconButton } from "@/components/ui/IconButton";
 import { SlotRow } from "@/components/ui/SlotRow";
@@ -606,9 +606,9 @@ export function CreatePlaylistFlow() {
           }}
         >
           <div className="flex flex-col h-full lg:grid lg:grid-cols-2 lg:gap-6 lg:items-start">
-            {/* Left — PlaylistCard */}
+            {/* Left — Card */}
             <div className={`relative shrink-0 mb-4 lg:mb-0 lg:sticky lg:top-0 lg:h-[calc(100vh-2*var(--space-page-md))] ${!imported ? "lg:block" : ""}`}>
-              <PlaylistCard
+              <Card
                 className="h-[30rem] lg:h-full"
                 size="hero"
                 image={coverPreview || defaultCover}
@@ -768,7 +768,7 @@ export function CreatePlaylistFlow() {
           <div className="flex-1 flex flex-col items-center justify-center px-[var(--space-page-sm)] lg:px-[var(--space-page-md)]">
             {/* Card preview */}
             <div className="w-[clamp(15rem,11rem+17vw,22rem)]">
-              <PlaylistCard
+              <Card
                 size="md"
                 image={coverPreview || defaultCover}
                 city={displayCity}

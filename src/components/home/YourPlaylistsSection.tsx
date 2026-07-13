@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { CardShelf } from "@/components/ui/CardShelf";
-import { PlaylistCard } from "@/components/PlaylistCard";
+import { Card } from "@/components/Card";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { getPlaylistsByUser } from "@/lib/services/playlists";
 import { getUserUsername } from "@/lib/services/users";
@@ -34,7 +34,7 @@ export function YourPlaylistsSection({ userId }: { userId: string }) {
           </div>
         </div>
       ) : latestPlaylist && username ? (
-        <PlaylistCard
+        <Card
           size="xs"
           city={latestPlaylist.city}
           name={latestPlaylist.name}
@@ -43,7 +43,7 @@ export function YourPlaylistsSection({ userId }: { userId: string }) {
           href={playlistUrl(username, latestPlaylist.city, latestPlaylist.name, latestPlaylist.slug)}
         />
       ) : (
-        <PlaylistCard
+        <Card
           size="xs"
           city="Los Angeles"
           name="Create a playlist"

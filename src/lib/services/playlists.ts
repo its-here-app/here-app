@@ -17,7 +17,7 @@ export async function getRecentFollowingPlaylists(
   if (!followingIds.length) return [];
   const { data, error } = await supabase
     .from("playlists")
-    .select("*, profiles(username, avatar_url), cities!playlists_city_id_fkey(display_name, is_primary)")
+    .select("*, profiles(username, avatar_url), cities!playlists_city_id_fkey(display_name, is_primary), playlist_spots(count)")
     .in("user_id", followingIds)
     .eq("is_public", true)
     .order("created_at", { ascending: false })
@@ -30,8 +30,108 @@ export async function getRecentFollowingPlaylists(
       : p.city,
     username: p.profiles?.username ?? "",
     avatar_url: p.profiles?.avatar_url ?? null,
+    spot_count: p.playlist_spots?.[0]?.count ?? 0,
     cities: undefined,
     profiles: undefined,
+    playlist_spots: undefined,
+  }));
+}
+
+/**
+ * Discovery feed of public playlists from people the user doesn't follow yet, pulled from:
+ * - the user's own profile city
+ * - cities the user already has playlists in
+ * - people followed by people the user follows (2nd-degree network)
+ * A random 8 are sampled from the pooled candidates on every call.
+ */
+export async function getExplorePlaylists(
+  userId: string
+): Promise<(import("@/types").Playlist & { username: string; avatar_url: string | null })[]> {
+  const supabase = createClient();
+
+  const [{ data: profile }, { data: ownPlaylists }, { data: myFollowing }] = await Promise.all([
+    supabase.from("profiles").select("city_id").eq("id", userId).single(),
+    supabase.from("playlists").select("city_id").eq("user_id", userId),
+    supabase.from("follows").select("following_id").eq("follower_id", userId),
+  ]);
+
+  const followingIds = (myFollowing ?? []).map((f: any) => f.following_id);
+  const excludeIds = new Set([userId, ...followingIds]);
+
+  const cityIds = [
+    ...new Set(
+      [profile?.city_id, ...(ownPlaylists ?? []).map((p: any) => p.city_id)].filter(Boolean)
+    ),
+  ];
+
+  let mutualAuthorIds: string[] = [];
+  if (followingIds.length) {
+    const { data: theirFollowing } = await supabase
+      .from("follows")
+      .select("following_id")
+      .in("follower_id", followingIds);
+    mutualAuthorIds = [
+      ...new Set(
+        (theirFollowing ?? [])
+          .map((f: any) => f.following_id)
+          .filter((id: string) => !excludeIds.has(id))
+      ),
+    ];
+  }
+
+  const selectClause =
+    "*, profiles(username, avatar_url), cities!playlists_city_id_fkey(display_name, is_primary), playlist_spots(count)";
+
+  const [cityResult, mutualResult] = await Promise.all([
+    cityIds.length
+      ? supabase
+          .from("playlists")
+          .select(selectClause)
+          .in("city_id", cityIds)
+          .eq("is_public", true)
+          .limit(30)
+      : Promise.resolve({ data: [] as any[] }),
+    mutualAuthorIds.length
+      ? supabase
+          .from("playlists")
+          .select(selectClause)
+          .in("user_id", mutualAuthorIds)
+          .eq("is_public", true)
+          .limit(30)
+      : Promise.resolve({ data: [] as any[] }),
+  ]);
+
+  const pool = new Map<string, any>();
+  for (const p of [...(cityResult.data ?? []), ...(mutualResult.data ?? [])]) {
+    if (excludeIds.has(p.user_id)) continue;
+    pool.set(p.id, p);
+  }
+
+  // Backfill with playlists from anyone else if the targeted pool is short of 8.
+  if (pool.size < 8) {
+    const { data: fillerPlaylists } = await supabase
+      .from("playlists")
+      .select(selectClause)
+      .eq("is_public", true)
+      .limit(60);
+    for (const p of fillerPlaylists ?? []) {
+      if (excludeIds.has(p.user_id) || pool.has(p.id)) continue;
+      pool.set(p.id, p);
+    }
+  }
+
+  const shuffled = [...pool.values()].sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, 8).map((p: any) => ({
+    ...p,
+    city: p.cities?.display_name
+      ? formatCityDisplay(p.cities.display_name, p.cities.is_primary)
+      : p.city,
+    username: p.profiles?.username ?? "",
+    avatar_url: p.profiles?.avatar_url ?? null,
+    spot_count: p.playlist_spots?.[0]?.count ?? 0,
+    cities: undefined,
+    profiles: undefined,
+    playlist_spots: undefined,
   }));
 }
 

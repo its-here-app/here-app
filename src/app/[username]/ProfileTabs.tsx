@@ -14,7 +14,7 @@ import BookmarkButton from "@/components/BookmarkButton";
 import { useAuth } from "@/lib/authContext";
 import { useShare } from "@/lib/useShare";
 
-import { PlaylistCard } from "@/components/PlaylistCard";
+import { Card } from "@/components/Card";
 import EmptyState from "@/components/ui/EmptyState";
 import { playlistUrl } from "@/lib/playlistUrl";
 import { openCreatePlaylist } from "@/components/modals/CreatePlaylistFlow";
@@ -93,7 +93,7 @@ export default function ProfileTabs({
           {playlists.length > 0 ? (
             <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
               {playlists.map((playlist: Playlist) => (
-                <PlaylistCard
+                <Card
                   key={playlist.id}
                   size="lg"
                   image={playlist.cover_photo_url ?? undefined}

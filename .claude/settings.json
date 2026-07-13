@@ -21,7 +21,13 @@
       "Skill(run)",
       "Skill(run:*)",
       "Bash(npx --yes playwright --version)",
-      "Bash(npm root *)"
+      "Bash(npm root *)",
+      "Bash(npx --yes --package=playwright node -e ' *)",
+      "Bash(ls \"/Applications\" | grep -i chrom; ls -d ~/Library/Caches/ms-playwright 2>/dev/null; which chromium-cli chrome-cli 2>&1)",
+      "Read(//Applications/**)",
+      "Read(//Users/emily/Library/Caches/ms-playwright/**)",
+      "Bash(mkdir -p /tmp/pw-test)",
+      "Bash(npm init *)"
     ],
     "additionalDirectories": [
       "/Users/emily/Dev/here-demo/src/app/[username]"

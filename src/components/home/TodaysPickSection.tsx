@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CardShelf } from "@/components/ui/CardShelf";
-import SpotCard from "@/components/SpotCard";
+import { Card } from "@/components/Card";
 import { SpotSkeleton } from "./SpotSkeleton";
 import { SpotBookmark } from "./SpotBookmark";
 import { getTodaysPick } from "@/lib/services/playlists";
@@ -21,17 +20,22 @@ export function TodaysPickSection() {
 
   if (loaded && !pick) return null;
 
-  return (
-    <CardShelf title="Today's pick">
-      {!loaded ? (
-        <SpotSkeleton />
-      ) : (
-        <SpotCard
-          spot={pick!.spot}
-          subtitleText={`From ${pick!.playlist_name} by @${pick!.username}`}
-          bookmark={<SpotBookmark spot={pick!.spot} />}
-        />
-      )}
-    </CardShelf>
+  return !loaded ? (
+    <SpotSkeleton />
+  ) : (
+    <Card
+      size="featured"
+      image={pick!.spot.photo_url ?? undefined}
+      scrim={false}
+      sticker
+      metadata={{
+        title: pick!.spot.name,
+        subtitleText: `From ${pick!.playlist_name} by @${pick!.username}`,
+        rating: pick!.spot.rating,
+        types: pick!.spot.types,
+        city: pick!.playlist_city,
+      }}
+      metadataRight={<SpotBookmark spot={pick!.spot} />}
+    />
   );
 }

@@ -5,6 +5,10 @@ import Link from "next/link";
 import { ArrowRight } from "./ui/icons/ArrowRight";
 import { IconButton } from "./ui/IconButton";
 import { SlotRow } from "./ui/SlotRow";
+import { Badge } from "./ui/Badge";
+import { Rating } from "./ui/Rating";
+
+const FILTERED_METADATA_TYPES = new Set(["point_of_interest", "establishment"]);
 
 // ─── TextScrim ────────────────────────────────────────────────────────────────
 // Gradient overlay for text legibility on card images.
@@ -47,17 +51,33 @@ export function TextScrim({
   );
 }
 
-// ─── PlaylistCard ─────────────────────────────────────────────────────────────
+// ─── Card ─────────────────────────────────────────────────────────────
 
-export type PlaylistCardSize = "hero" | "lg" | "md" | "sm" | "xs" | "empty";
+export type CardSize = "hero" | "featured" | "lg" | "md" | "sm" | "xs" | "empty";
 
-interface PlaylistCardProps {
-  size?: PlaylistCardSize;
+interface CardProps {
+  size?: CardSize;
   image?: string;
   city?: string;
   name?: string;
   title?: string;
   subtitle?: string;
+  /** Info block rendered under the card, styled and formatted like SpotCard: title + 2 metadata rows */
+  metadata?: {
+    title: string;
+    subtitleText?: string;
+    rating?: number | null;
+    types?: string[] | null;
+    city?: string;
+  };
+  /** Set to false to hide metadata row 2 (badge/rating/city) */
+  metadataRow2?: boolean;
+  /** Slot rendered to the right of the metadata block, e.g. a bookmark button */
+  metadataRight?: ReactNode;
+  /** Shows the Today's Pick sticker in the upper-left corner of the cover */
+  sticker?: boolean;
+  /** Truncate the title to a single line with an ellipsis */
+  truncate?: boolean;
   /** Overlay action slots */
   topLeft?: ReactNode;
   topCenter?: ReactNode;
@@ -73,6 +93,8 @@ interface PlaylistCardProps {
   href?: string;
   onClick?: () => void;
   className?: string;
+  /** Set to false to hide the gradient scrim over the image */
+  scrim?: boolean;
 }
 
 function TopActions({
@@ -134,7 +156,7 @@ const cardDefaults: Omit<SizeConfig, "height" | "radius" | "nameOffset"> = {
   actionPadding: "p-[4cqw]",
 };
 
-const sizeConfig: Record<PlaylistCardSize, SizeConfig> = {
+const sizeConfig: Record<CardSize, SizeConfig> = {
   hero: {
     height: "h-[30rem] lg:h-full",
     radius: "rounded-lg",
@@ -145,6 +167,7 @@ const sizeConfig: Record<PlaylistCardSize, SizeConfig> = {
     namePadding: "px-8",
     actionPadding: "py-4 px-4 lg:p-6",
   },
+  featured: { ...cardDefaults, height: "aspect-square max-h-[31.25rem]", radius: "rounded-md", nameOffset: "" },
   lg:    { ...cardDefaults, height: "aspect-square", radius: "rounded-md", nameOffset: "" },
   md:    { ...cardDefaults, height: "aspect-square", radius: "rounded-sm", nameOffset: "" },
   sm:    { ...cardDefaults, height: "aspect-square", radius: "rounded-sm", nameOffset: "-mt-1" },
@@ -161,13 +184,18 @@ const sizeConfig: Record<PlaylistCardSize, SizeConfig> = {
   },
 };
 
-export function PlaylistCard({
+export function Card({
   size = "md",
   image,
   city,
   name,
   title,
   subtitle,
+  metadata,
+  metadataRight,
+  metadataRow2 = true,
+  sticker,
+  truncate,
   topLeft,
   topCenter,
   topRight,
@@ -181,7 +209,8 @@ export function PlaylistCard({
   href,
   onClick,
   className,
-}: PlaylistCardProps) {
+  scrim = true,
+}: CardProps) {
   const [imageLoaded, setImageLoaded] = useState(false);
 
   // ── Empty ─────────────────────────────────────────────────────────────────
@@ -196,7 +225,7 @@ export function PlaylistCard({
         </div>
         {(title || subtitle) && (
           <div className="flex flex-col gap-0.5 mt-3">
-            {title && <p className="text-display-golos-4">{title}</p>}
+            {title && <p className={`text-display-golos-4 ${truncate ? "truncate" : ""}`}>{title}</p>}
             {subtitle && (
               <p className="text-body-sm text-secondary">{subtitle}</p>
             )}
@@ -238,6 +267,10 @@ export function PlaylistCard({
     : onClick
       ? { onClick, role: "button" }
       : {};
+
+  const metadataFirstType = metadata?.types
+    ?.filter((t) => !FILTERED_METADATA_TYPES.has(t))
+    .map((t) => t.replace(/_/g, " "))[0];
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   useEffect(() => {
@@ -289,12 +322,19 @@ export function PlaylistCard({
             onLoad={() => setImageLoaded(true)}
           />
         )}
-        <div
-          className="absolute inset-0"
-          style={{
-            backgroundImage: sizeConfig[size].scrim,
-          }}
-        />
+        {sticker && (
+          <div className="absolute top-4 left-4">
+            <img src="/stickers/todays-pick.svg" alt="Today's pick" />
+          </div>
+        )}
+        {scrim && (
+          <div
+            className="absolute inset-0"
+            style={{
+              backgroundImage: sizeConfig[size].scrim,
+            }}
+          />
+        )}
         {city && (
           <div className={`absolute inset-x-0 bottom-1/3 top-1/3 flex flex-col items-center justify-center ${sizeConfig[size].namePadding} text-center text-brand overflow-visible`}>
             <p className={sizeConfig[size].cityText}>{city}</p>
@@ -331,9 +371,37 @@ export function PlaylistCard({
       </div>
       {(title || subtitle) && (
         <div className="flex flex-col gap-0.5">
-          {title && <p className="text-display-golos-4">{title}</p>}
+          {title && <p className={`text-display-golos-4 ${truncate ? "truncate" : ""}`}>{title}</p>}
           {subtitle && (
             <p className="text-body-sm text-secondary">{subtitle}</p>
+          )}
+        </div>
+      )}
+      {metadata && (
+        <div className="flex items-start gap-2">
+          <div className="flex-1 min-w-0">
+            <p className={`text-header-radio-2 lg:text-header-radio-1 mb-[2px] ${truncate ? "truncate" : ""}`}>
+              {metadata.title}
+            </p>
+            {metadata.subtitleText && (
+              <p className="text-body-xs text-secondary mb-1 line-clamp-1">
+                {metadata.subtitleText}
+              </p>
+            )}
+            {metadataRow2 && (metadata.rating != null || metadataFirstType || metadata.city) && (
+              <div className="flex items-center gap-1 mt-1 flex-wrap">
+                {metadataFirstType && <Badge>{metadataFirstType}</Badge>}
+                {metadata.rating != null && <Rating rating={metadata.rating} />}
+                {metadata.city && (
+                  <span className="text-body-xs text-secondary">{metadata.city}</span>
+                )}
+              </div>
+            )}
+          </div>
+          {metadataRight && (
+            <div className="flex-shrink-0 flex flex-col items-center gap-1">
+              {metadataRight}
+            </div>
           )}
         </div>
       )}

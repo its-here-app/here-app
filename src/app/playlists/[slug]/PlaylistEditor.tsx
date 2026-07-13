@@ -26,7 +26,7 @@ import { playlistUrl } from "@/lib/playlistUrl";
 import { playlistToText } from "@/lib/playlistText";
 import type { PlaylistSpot, SearchResult } from "@/types";
 import { Avatar } from "@/components/ui/Avatar";
-import { PlaylistCard } from "@/components/PlaylistCard";
+import { Card } from "@/components/Card";
 import { Button } from "@/components/ui/Button";
 import { IconButton } from "@/components/ui/IconButton";
 import { Close } from "@/components/ui/icons/Close";
@@ -400,7 +400,7 @@ export default function PlaylistEditor({ playlist, isOwner, onClose }: Props) {
     <div className="w-full lg:grid lg:grid-cols-2 lg:gap-6 lg:items-start">
       {/* Cover photo */}
       <div className="relative mb-4 lg:mb-0 lg:sticky lg:top-0 lg:h-[calc(100vh-2*var(--space-page-sm))]">
-        <PlaylistCard
+        <Card
           className="h-[30rem] lg:h-full"
           size="hero"
           image={coverUrl}

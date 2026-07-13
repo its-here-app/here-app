@@ -37,7 +37,9 @@ export function MostSavedSection() {
           ))}
         </div>
       ) : (
-        <p className="text-body-xs text-tertiary py-4">No saves yet today</p>
+        <p className="text-body-xs text-tertiary py-4">
+          No spots saved yet today
+        </p>
       )}
     </CardShelf>
   );

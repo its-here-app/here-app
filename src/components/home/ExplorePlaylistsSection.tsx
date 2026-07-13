@@ -6,11 +6,11 @@ import { Card } from "@/components/Card";
 import { Avatar } from "@/components/ui/Avatar";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useCarousel, CarouselArrows, CarouselTrack } from "./Carousel";
-import { getRecentFollowingPlaylists } from "@/lib/services/playlists";
+import { getExplorePlaylists } from "@/lib/services/playlists";
 import { playlistUrl } from "@/lib/playlistUrl";
 import type { Playlist } from "@/types";
 
-export function SharedRecentlySection({ userId }: { userId: string }) {
+export function ExplorePlaylistsSection({ userId }: { userId: string }) {
   const [playlists, setPlaylists] = useState<
     (Playlist & { username: string; avatar_url: string | null })[]
   >([]);
@@ -19,15 +19,17 @@ export function SharedRecentlySection({ userId }: { userId: string }) {
   const { emblaRef, canScrollPrev, canScrollNext, scrollPrev, scrollNext } = useCarousel();
 
   useEffect(() => {
-    getRecentFollowingPlaylists(userId).then((p) => {
+    getExplorePlaylists(userId).then((p) => {
       setPlaylists(p);
       setLoaded(true);
     });
   }, [userId]);
 
+  if (loaded && playlists.length === 0) return null;
+
   return (
     <CardShelf
-      title="Shared recently"
+      title="Explore playlists"
       titleRight={
         loaded && playlists.length > 0 ? (
           <CarouselArrows
@@ -49,7 +51,7 @@ export function SharedRecentlySection({ userId }: { userId: string }) {
             />
           ))}
         </div>
-      ) : playlists.length > 0 ? (
+      ) : (
         <CarouselTrack
           emblaRef={emblaRef}
           items={playlists}
@@ -82,10 +84,6 @@ export function SharedRecentlySection({ userId }: { userId: string }) {
             />
           )}
         />
-      ) : (
-        <p className="text-body-xs text-tertiary py-4">
-          Follow people to see their playlists here
-        </p>
       )}
     </CardShelf>
   );
