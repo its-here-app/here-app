@@ -16,6 +16,7 @@ import { Check } from "../../components/ui/icons/Check";
 import { Error } from "../../components/ui/icons/Error";
 import { FullLogo } from "../../components/ui/Logo";
 import { toast } from "../../components/ui/Toast";
+import { CoverPhotoRotator } from "../../components/ui/CoverPhotoRotator";
 
 import { CityAutocompleteInput } from "../../components/ui/inputs/CityAutocompleteInput";
 import { upsertCityAction } from "../../lib/actions/cities";
@@ -534,9 +535,8 @@ export default function LoginPage() {
 
               <CityAutocompleteInput
                 focusBrand
-                label="City"
                 value={selectedCity?.display_name ?? ""}
-                placeholder="Your city"
+                placeholder="City"
                 onSelect={(city) => setSelectedCity(city)}
                 onChange={() => setSelectedCity(null)}
               />
@@ -548,7 +548,7 @@ export default function LoginPage() {
                 value={bio}
                 onChange={(e) => setBio(e.target.value)}
                 maxLength={110}
-                placeholder="Tell us something about yourself... (Optional bio)"
+                placeholder="Tell us something about yourself... (Optional)"
                 state={bio ? "filled" : "default"}
               />
 
@@ -559,7 +559,7 @@ export default function LoginPage() {
                 value={instagramHandle}
                 onChange={(e) => setInstagramHandle(sanitizeInstagramHandleInput(e.target.value))}
                 maxLength={30}
-                placeholder="Instagram username (optional)"
+                placeholder="Instagram username (Optional)"
                 state={instagramHandle ? "filled" : "default"}
                 rightSlot={
                   !instagramHandle ? undefined : isInstagramValid ? (
@@ -593,7 +593,7 @@ export default function LoginPage() {
       {/* Right column — grows in horizontally at lg */}
       <div className="overflow-hidden shrink-0 h-full w-0 lg:w-[60%] transition-[width] duration-400 ease-out">
         <div className="h-full w-[60vw] py-[var(--space-page-sm)] pr-[var(--space-page-sm)]">
-          <div className="bg-grey-500/20 h-full w-full rounded-sm" />
+          <CoverPhotoRotator className="h-full w-full rounded-sm" />
         </div>
       </div>
     </main>

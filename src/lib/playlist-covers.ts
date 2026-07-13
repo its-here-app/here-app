@@ -50,6 +50,60 @@ const COVERS = [
 
 const COVER_URLS = COVERS.map((f) => gcs(`default-covers/${f}`));
 
+/** Display city name for each entry in COVERS, in the same order. */
+const COVER_CITIES: Record<(typeof COVERS)[number], string> = {
+  "los-angeles_generic-hike_griffith-park.webp": "Los Angeles",
+  "generic_dinner_los-angeles.webp": "Los Angeles",
+  "new-york_china-town_manhattan.webp": "New York",
+  "new-york_generic.webp": "New York",
+  "san-francisco_generic_fish-market.webp": "San Francisco",
+  "san-francisco_generic_dolores-park.webp": "San Francisco",
+  "steph.kotula_utah_hiking-nature_cover.webp": "Utah",
+  "new-york_williamsburg_generic.webp": "New York",
+  "maisieleung_los-angeles_ktown-faves_cover.webp": "Los Angeles",
+  "new-york_brooklyn_dumbo.webp": "New York",
+  "new-york_catskills_upstate_wine_bonfire.webp": "New York",
+  "new-york_downtown-brooklyn_generic-city.webp": "New York",
+  "wenju.tseng_London_bestmuseums_cover.webp": "London",
+  "new-york_les_generic-dessert.webp": "New York",
+  "new-york_williamsburg_generic_domino-park.webp": "New York",
+  "new-york_generic_2.webp": "New York",
+  "jessicastrelioff_austin_a-perfect-day_cover.webp": "Austin",
+  "los-angeles_generic_palmtrees.webp": "Los Angeles",
+  "weiweiyang_ho-chi-minh-city_best-restaurants-in-town_cover.webp": "Ho Chi Minh City",
+  "los-angeles_generic_japan-town.webp": "Los Angeles",
+  "new-york_generic-forest-hike_catskills.webp": "New York",
+  "new-york_generic_5.webp": "New York",
+  "portland_maine_generic.webp": "Portland, ME",
+  "los-angeles_venice-canals.webp": "Los Angeles",
+  "mexico_generic.webp": "Mexico",
+  "new-york_empire-state.webp": "New York",
+  "new-york_generic_4.webp": "New York",
+  "new-york_generic_asian-food.webp": "New York",
+  "new-york_generic-brunch.webp": "New York",
+  "portland_oregon_generic-park_generic.webp": "Portland, OR",
+  "san-francisco_generic_twin-peaks.webp": "San Francisco",
+  "los-angeles_larchmont_generic-market_fruits.webp": "Los Angeles",
+  "san-francisco_generic.webp": "San Francisco",
+  "new-york_generic_3.webp": "New York",
+  "new-york_generic_greek_brooklyn.webp": "New York",
+  "new-york_generic_wine.webp": "New York",
+  "new-york_west-village_cafe-tola.webp": "New York",
+  "japan_generic-asia.webp": "Japan",
+  "los-angeles_robata_generic-sushi.webp": "Los Angeles",
+  "new-york_manhattan_oculus.webp": "New York",
+};
+
+export interface DefaultCover {
+  url: string;
+  city: string;
+}
+
+/** All default cover photos, paired with their display city name. */
+export function getAllCovers(): DefaultCover[] {
+  return COVERS.map((f, i) => ({ url: COVER_URLS[i], city: COVER_CITIES[f] }));
+}
+
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                            */
 /* ------------------------------------------------------------------ */

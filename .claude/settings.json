@@ -27,7 +27,9 @@
       "Read(//Applications/**)",
       "Read(//Users/emily/Library/Caches/ms-playwright/**)",
       "Bash(mkdir -p /tmp/pw-test)",
-      "Bash(npm init *)"
+      "Bash(npm init *)",
+      "Bash(ps -p 85125 -o pid,ppid,command)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3000/signin)"
     ],
     "additionalDirectories": [
       "/Users/emily/Dev/here-demo/src/app/[username]"
