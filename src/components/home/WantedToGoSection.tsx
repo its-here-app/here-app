@@ -10,7 +10,13 @@ import { useLazyLoad, timeAgo } from "./hooks";
 import { getWantedToGoSpots } from "@/lib/services/saves";
 import type { Spot } from "@/types";
 
-export function WantedToGoSection({ userId }: { userId: string }) {
+export function WantedToGoSection({
+  userId,
+  cityId,
+}: {
+  userId: string;
+  cityId?: string | null;
+}) {
   const { ref, shouldLoad } = useLazyLoad();
   const [spots, setSpots] = useState<{ spot: Spot; saved_at: string }[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -18,12 +24,12 @@ export function WantedToGoSection({ userId }: { userId: string }) {
   const { emblaRef, canScrollPrev, canScrollNext, scrollPrev, scrollNext } = useCarousel();
 
   useEffect(() => {
-    if (!shouldLoad || loaded) return;
-    getWantedToGoSpots(userId).then((s) => {
+    if (!shouldLoad) return;
+    getWantedToGoSpots(userId, cityId).then((s) => {
       setSpots(s);
       setLoaded(true);
     });
-  }, [userId, shouldLoad, loaded]);
+  }, [userId, cityId, shouldLoad]);
 
   if (loaded && spots.length === 0) {
     return null;

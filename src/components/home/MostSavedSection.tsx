@@ -8,18 +8,18 @@ import { SpotBookmark } from "./SpotBookmark";
 import { getTodaysMostSavedSpots } from "@/lib/services/saves";
 import type { Spot } from "@/types";
 
-export function MostSavedSection() {
+export function MostSavedSection({ cityId }: { cityId?: string | null }) {
   const [mostSaved, setMostSaved] = useState<
     { spot: Spot; save_count: number }[]
   >([]);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    getTodaysMostSavedSpots().then((spots) => {
+    getTodaysMostSavedSpots(cityId).then((spots) => {
       setMostSaved(spots);
       setLoaded(true);
     });
-  }, []);
+  }, [cityId]);
 
   if (loaded && mostSaved.length === 0) {
     return null;

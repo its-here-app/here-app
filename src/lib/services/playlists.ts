@@ -2,6 +2,7 @@ import { createClient } from "../supabase/client";
 import { track } from "../analytics";
 import { getDefaultCover } from "../playlist-covers";
 import { formatCityDisplay } from "../cityDisplay";
+import { resolveCityIdFromAddress } from "./cities";
 import { toSlug } from "../playlistUrl";
 import { createImageDerivatives } from "../imageResize";
 import type { SearchResult, TodaysPick, Spot } from "@/types";
@@ -39,31 +40,46 @@ export async function getRecentFollowingPlaylists(
 }
 
 /**
- * Discovery feed of public playlists from people the user doesn't follow yet, pulled from:
- * - the user's own profile city
- * - cities the user already has playlists in
- * - people followed by people the user follows (2nd-degree network)
- * A random 8 are sampled from the pooled candidates on every call.
+ * Discovery feed of public playlists from people the user doesn't follow yet.
+ *
+ * When `cityId` is provided, the pool is strictly limited to public playlists
+ * in that city — playlists authored by the user's 2nd-degree network (people
+ * followed by people they follow) are ranked first as a tiebreak, but nothing
+ * outside the city is ever included, and no cross-city filler is used.
+ *
+ * When `cityId` is omitted, falls back to the legacy behavior: pulled from
+ * the user's own profile city, cities they already have playlists in, and
+ * their 2nd-degree network, backfilling with random public playlists if the
+ * pool is short of 8.
  */
 export async function getExplorePlaylists(
-  userId: string
+  userId: string,
+  cityId?: string | null
 ): Promise<(import("@/types").Playlist & { username: string; avatar_url: string | null })[]> {
   const supabase = createClient();
 
-  const [{ data: profile }, { data: ownPlaylists }, { data: myFollowing }] = await Promise.all([
-    supabase.from("profiles").select("city_id").eq("id", userId).single(),
-    supabase.from("playlists").select("city_id").eq("user_id", userId),
-    supabase.from("follows").select("following_id").eq("follower_id", userId),
-  ]);
+  const { data: myFollowing } = await supabase
+    .from("follows")
+    .select("following_id")
+    .eq("follower_id", userId);
 
   const followingIds = (myFollowing ?? []).map((f: any) => f.following_id);
   const excludeIds = new Set([userId, ...followingIds]);
 
-  const cityIds = [
-    ...new Set(
-      [profile?.city_id, ...(ownPlaylists ?? []).map((p: any) => p.city_id)].filter(Boolean)
-    ),
-  ];
+  let cityIds: string[];
+  if (cityId) {
+    cityIds = [cityId];
+  } else {
+    const [{ data: profile }, { data: ownPlaylists }] = await Promise.all([
+      supabase.from("profiles").select("city_id").eq("id", userId).single(),
+      supabase.from("playlists").select("city_id").eq("user_id", userId),
+    ]);
+    cityIds = [
+      ...new Set(
+        [profile?.city_id, ...(ownPlaylists ?? []).map((p: any) => p.city_id)].filter(Boolean)
+      ),
+    ];
+  }
 
   let mutualAuthorIds: string[] = [];
   if (followingIds.length) {
@@ -93,12 +109,16 @@ export async function getExplorePlaylists(
           .limit(30)
       : Promise.resolve({ data: [] as any[] }),
     mutualAuthorIds.length
-      ? supabase
-          .from("playlists")
-          .select(selectClause)
-          .in("user_id", mutualAuthorIds)
-          .eq("is_public", true)
-          .limit(30)
+      ? (() => {
+          let q = supabase
+            .from("playlists")
+            .select(selectClause)
+            .in("user_id", mutualAuthorIds)
+            .eq("is_public", true)
+            .limit(30);
+          if (cityId) q = q.eq("city_id", cityId);
+          return q;
+        })()
       : Promise.resolve({ data: [] as any[] }),
   ]);
 
@@ -108,8 +128,10 @@ export async function getExplorePlaylists(
     pool.set(p.id, p);
   }
 
-  // Backfill with playlists from anyone else if the targeted pool is short of 8.
-  if (pool.size < 8) {
+  // Backfill with playlists from anyone else if the targeted pool is short of
+  // 8 — but only when we're not strictly city-scoped, since cross-city filler
+  // would defeat the point of filtering by city.
+  if (!cityId && pool.size < 8) {
     const { data: fillerPlaylists } = await supabase
       .from("playlists")
       .select(selectClause)
@@ -121,7 +143,11 @@ export async function getExplorePlaylists(
     }
   }
 
-  const shuffled = [...pool.values()].sort(() => Math.random() - 0.5);
+  const inNetwork = new Set((mutualResult.data ?? []).map((p: any) => p.id));
+  const shuffled = [...pool.values()].sort((a, b) => {
+    const netDiff = (inNetwork.has(a.id) ? 0 : 1) - (inNetwork.has(b.id) ? 0 : 1);
+    return netDiff !== 0 ? netDiff : Math.random() - 0.5;
+  });
   return shuffled.slice(0, 8).map((p: any) => ({
     ...p,
     city: p.cities?.display_name
@@ -155,16 +181,18 @@ export async function getPlaylistsByUser(userId: string): Promise<import("@/type
   }));
 }
 
-export async function getTodaysPick(): Promise<TodaysPick | null> {
+export async function getTodaysPick(cityId?: string | null): Promise<TodaysPick | null> {
   const supabase = createClient();
 
-  const { data: psData } = await supabase
+  let query = supabase
     .from("playlist_spots")
     .select(
       "spot_id, playlists!inner(name, city, city_id, is_public, profiles!playlists_user_id_fkey(username), cities!playlists_city_id_fkey(display_name, is_primary))"
     )
     .eq("playlists.is_public", true)
     .limit(50);
+  if (cityId) query = query.eq("playlists.city_id", cityId);
+  const { data: psData } = await query;
 
   if (!psData || psData.length === 0) return null;
 
@@ -336,10 +364,11 @@ export async function upsertSpot(spot: {
   types?: string[] | null;
 }) {
   const supabase = createClient();
+  const city_id = await resolveCityIdFromAddress(spot.address);
   const { data, error } = await supabase
     .from("spots")
-    .upsert(spot, { onConflict: "google_place_id" })
-    .select("id, google_place_id, name, address, photo_url, rating, types")
+    .upsert({ ...spot, ...(city_id ? { city_id } : {}) }, { onConflict: "google_place_id" })
+    .select("id, google_place_id, name, address, photo_url, rating, types, city_id")
     .single();
   if (error) throw error;
   return data;

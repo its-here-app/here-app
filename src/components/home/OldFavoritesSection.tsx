@@ -10,7 +10,13 @@ import { useLazyLoad } from "./hooks";
 import { getOldFavoriteSpots } from "@/lib/services/saves";
 import type { Spot } from "@/types";
 
-export function OldFavoritesSection({ userId }: { userId: string }) {
+export function OldFavoritesSection({
+  userId,
+  cityId,
+}: {
+  userId: string;
+  cityId?: string | null;
+}) {
   const { ref, shouldLoad } = useLazyLoad();
   const [favorites, setFavorites] = useState<
     { spot: Spot; playlist_name: string }[]
@@ -20,12 +26,12 @@ export function OldFavoritesSection({ userId }: { userId: string }) {
   const { emblaRef, canScrollPrev, canScrollNext, scrollPrev, scrollNext } = useCarousel();
 
   useEffect(() => {
-    if (!shouldLoad || loaded) return;
-    getOldFavoriteSpots(userId).then((s) => {
+    if (!shouldLoad) return;
+    getOldFavoriteSpots(userId, cityId).then((s) => {
       setFavorites(s);
       setLoaded(true);
     });
-  }, [userId, shouldLoad, loaded]);
+  }, [userId, cityId, shouldLoad]);
 
   if (loaded && favorites.length === 0) {
     return null;

@@ -7,16 +7,16 @@ import { SpotBookmark } from "./SpotBookmark";
 import { getTodaysPick } from "@/lib/services/playlists";
 import type { TodaysPick } from "@/types";
 
-export function TodaysPickSection() {
+export function TodaysPickSection({ cityId }: { cityId?: string | null }) {
   const [pick, setPick] = useState<TodaysPick | null>(null);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    getTodaysPick().then((p) => {
+    getTodaysPick(cityId).then((p) => {
       setPick(p);
       setLoaded(true);
     });
-  }, []);
+  }, [cityId]);
 
   if (loaded && !pick) return null;
 

@@ -41,6 +41,7 @@ export default function HomePage() {
   const { user, loading } = useAuth();
   const router = useRouter();
   const [cityName, setCityName] = useState<string | null>(null);
+  const [cityId, setCityId] = useState<string | null>(null);
   const [cityPickerOpen, setCityPickerOpen] = useState(false);
   const [firstName, setFirstName] = useState<string | null>(null);
   const [weather, setWeather] = useState<Weather | null>(null);
@@ -58,6 +59,7 @@ export default function HomePage() {
         setFirstName(profile.full_name.split(" ")[0]);
       }
       if (profile?.city_id) {
+        setCityId(profile.city_id);
         const supabase = createClient();
         const { data: city } = await supabase
           .from("cities")
@@ -131,14 +133,14 @@ export default function HomePage() {
       )}
 
       <div className="flex flex-col gap-12">
-        <TodaysPickSection />
+        <TodaysPickSection key={`pick-${cityId}`} cityId={cityId} />
         <YourPlaylistsSection userId={user.id} />
         <SharedRecentlySection userId={user.id} />
-        <MostSavedSection />
-        <WantedToGoSection userId={user.id} />
-        <OldFavoritesSection userId={user.id} />
-        <ExplorePlaylistsSection userId={user.id} />
-        <RecommendedSection userId={user.id} />
+        <MostSavedSection key={`most-saved-${cityId}`} cityId={cityId} />
+        <WantedToGoSection key={`wanted-${cityId}`} userId={user.id} cityId={cityId} />
+        <OldFavoritesSection key={`old-favorites-${cityId}`} userId={user.id} cityId={cityId} />
+        <ExplorePlaylistsSection key={`explore-${cityId}`} userId={user.id} cityId={cityId} />
+        <RecommendedSection key={`recommended-${cityId}`} userId={user.id} cityId={cityId} />
       </div>
 
       <CityPickerModal
@@ -146,12 +148,13 @@ export default function HomePage() {
         onClose={() => setCityPickerOpen(false)}
         onSelect={async (city) => {
           setCityName(formatCityDisplay(city.display_name, city.is_primary));
-          const cityId = await upsertCityAction({
+          const newCityId = await upsertCityAction({
             google_place_id: city.google_place_id,
             display_name: city.display_name,
             is_primary: city.is_primary,
           });
-          await updateProfileCityAction(cityId);
+          await updateProfileCityAction(newCityId);
+          setCityId(newCityId);
         }}
       />
     </>

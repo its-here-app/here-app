@@ -6,6 +6,7 @@ export interface Spot {
   photo_url?: string | null;
   rating?: number | null;
   types?: string[] | null;
+  city_id?: string | null;
 }
 
 export interface PlaylistSpot {

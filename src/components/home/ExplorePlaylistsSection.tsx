@@ -10,7 +10,13 @@ import { getExplorePlaylists } from "@/lib/services/playlists";
 import { playlistUrl } from "@/lib/playlistUrl";
 import type { Playlist } from "@/types";
 
-export function ExplorePlaylistsSection({ userId }: { userId: string }) {
+export function ExplorePlaylistsSection({
+  userId,
+  cityId,
+}: {
+  userId: string;
+  cityId?: string | null;
+}) {
   const [playlists, setPlaylists] = useState<
     (Playlist & { username: string; avatar_url: string | null })[]
   >([]);
@@ -19,11 +25,11 @@ export function ExplorePlaylistsSection({ userId }: { userId: string }) {
   const { emblaRef, canScrollPrev, canScrollNext, scrollPrev, scrollNext } = useCarousel();
 
   useEffect(() => {
-    getExplorePlaylists(userId).then((p) => {
+    getExplorePlaylists(userId, cityId).then((p) => {
       setPlaylists(p);
       setLoaded(true);
     });
-  }, [userId]);
+  }, [userId, cityId]);
 
   if (loaded && playlists.length === 0) return null;
 

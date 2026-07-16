@@ -141,9 +141,9 @@ export async function unsavePlaylist(
 
 // ── Home page section queries ────────────────────────────────────────────────
 
-export async function getTodaysMostSavedSpots(): Promise<
-  { spot: Spot; save_count: number }[]
-> {
+export async function getTodaysMostSavedSpots(
+  cityId?: string | null
+): Promise<{ spot: Spot; save_count: number }[]> {
   const supabase = createClient();
   const today = new Date();
   today.setUTCHours(0, 0, 0, 0);
@@ -161,17 +161,17 @@ export async function getTodaysMostSavedSpots(): Promise<
     counts.set(row.spot_id, (counts.get(row.spot_id) ?? 0) + 1);
   }
 
-  const sorted = [...counts.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 3);
-
-  const spotIds = sorted.map(([id]) => id);
-  const { data: spots } = await supabase
-    .from("spots")
-    .select("*")
-    .in("id", spotIds);
+  const spotIds = [...counts.keys()];
+  let spotsQuery = supabase.from("spots").select("*").in("id", spotIds);
+  if (cityId) spotsQuery = spotsQuery.eq("city_id", cityId);
+  const { data: spots } = await spotsQuery;
 
   if (!spots) return [];
+
+  const sorted = [...counts.entries()]
+    .filter(([id]) => spots.some((s: Spot) => s.id === id))
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3);
 
   const spotMap = new Map(spots.map((s: Spot) => [s.id, s]));
   return sorted
@@ -183,7 +183,8 @@ export async function getTodaysMostSavedSpots(): Promise<
 }
 
 export async function getWantedToGoSpots(
-  userId: string
+  userId: string,
+  cityId?: string | null
 ): Promise<{ spot: Spot; saved_at: string }[]> {
   const supabase = createClient();
 
@@ -204,17 +205,14 @@ export async function getWantedToGoSpots(
     (playlistSpotsRes.data ?? []).map((r: any) => r.spot_id)
   );
 
-  const wanted = saved
-    .filter((r: any) => !inPlaylists.has(r.spot_id))
-    .slice(0, 5);
+  const wanted = saved.filter((r: any) => !inPlaylists.has(r.spot_id));
 
   if (wanted.length === 0) return [];
 
   const spotIds = wanted.map((r: any) => r.spot_id);
-  const { data: spots } = await supabase
-    .from("spots")
-    .select("*")
-    .in("id", spotIds);
+  let spotsQuery = supabase.from("spots").select("*").in("id", spotIds);
+  if (cityId) spotsQuery = spotsQuery.eq("city_id", cityId);
+  const { data: spots } = await spotsQuery;
 
   if (!spots) return [];
 
@@ -224,20 +222,24 @@ export async function getWantedToGoSpots(
       spot: spotMap.get(r.spot_id)!,
       saved_at: r.created_at,
     }))
-    .filter((r) => r.spot);
+    .filter((r) => r.spot)
+    .slice(0, 5);
 }
 
 export async function getOldFavoriteSpots(
-  userId: string
+  userId: string,
+  cityId?: string | null
 ): Promise<{ spot: Spot; playlist_name: string }[]> {
   const supabase = createClient();
 
-  const { data } = await supabase
+  let query = supabase
     .from("playlist_spots")
-    .select("spot_id, created_at, playlists!inner(user_id, name)")
+    .select("spot_id, created_at, playlists!inner(user_id, name, city_id)")
     .eq("playlists.user_id", userId)
     .order("created_at", { ascending: true })
     .limit(30);
+  if (cityId) query = query.eq("playlists.city_id", cityId);
+  const { data } = await query;
 
   if (!data || data.length === 0) return [];
 
@@ -368,7 +370,10 @@ export async function getSpotMentionsForSpots(
   return result;
 }
 
-export async function getRecommendedSpots(userId: string): Promise<Spot[]> {
+export async function getRecommendedSpots(
+  userId: string,
+  cityId?: string | null
+): Promise<Spot[]> {
   const supabase = createClient();
 
   // Step 1: Get followed user IDs
@@ -381,18 +386,21 @@ export async function getRecommendedSpots(userId: string): Promise<Spot[]> {
   if (followingIds.length === 0) return [];
 
   // Step 2: In parallel, get user's spots (to exclude) and followed users' spots
+  let theirSpotsQuery = supabase
+    .from("playlist_spots")
+    .select("spot_id, created_at, playlists!inner(user_id, is_public, city_id)")
+    .in("playlists.user_id", followingIds)
+    .eq("playlists.is_public", true)
+    .limit(200);
+  if (cityId) theirSpotsQuery = theirSpotsQuery.eq("playlists.city_id", cityId);
+
   const [savedRes, myPlaylistSpotsRes, theirSpotsRes] = await Promise.all([
     supabase.from("saved_spots").select("spot_id").eq("user_id", userId),
     supabase
       .from("playlist_spots")
       .select("spot_id, playlists!inner(user_id)")
       .eq("playlists.user_id", userId),
-    supabase
-      .from("playlist_spots")
-      .select("spot_id, created_at, playlists!inner(user_id, is_public)")
-      .in("playlists.user_id", followingIds)
-      .eq("playlists.is_public", true)
-      .limit(200),
+    theirSpotsQuery,
   ]);
 
   // Build exclusion set

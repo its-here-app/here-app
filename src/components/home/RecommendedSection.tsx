@@ -9,18 +9,24 @@ import { useLazyLoad } from "./hooks";
 import { getRecommendedSpots } from "@/lib/services/saves";
 import type { Spot } from "@/types";
 
-export function RecommendedSection({ userId }: { userId: string }) {
+export function RecommendedSection({
+  userId,
+  cityId,
+}: {
+  userId: string;
+  cityId?: string | null;
+}) {
   const { ref, shouldLoad } = useLazyLoad();
   const [spots, setSpots] = useState<Spot[]>([]);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    if (!shouldLoad || loaded) return;
-    getRecommendedSpots(userId).then((s) => {
+    if (!shouldLoad) return;
+    getRecommendedSpots(userId, cityId).then((s) => {
       setSpots(s);
       setLoaded(true);
     });
-  }, [userId, shouldLoad, loaded]);
+  }, [userId, cityId, shouldLoad]);
 
   return (
     <div ref={ref}>

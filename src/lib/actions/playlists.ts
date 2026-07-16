@@ -80,6 +80,7 @@ export async function createPlaylistAction(params: {
           photo_url: spot.photo_url ?? null,
           rating: spot.rating ?? null,
           types: spot.types ?? null,
+          ...(params.city_id ? { city_id: params.city_id } : {}),
         },
         { onConflict: "google_place_id" }
       )
