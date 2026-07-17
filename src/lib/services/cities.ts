@@ -27,6 +27,23 @@ export async function getCityIdByGooglePlaceId(
  * extracted city names contain diacritics that a raw prefix match on the
  * stored (unaccented) `display_name` would silently fail to find.
  */
+function matchByCityState(
+  data: { id: string; display_name: string }[],
+  city: string,
+  state: string,
+  segmentCount: number,
+  country?: string
+) {
+  return data.find((c: any) => {
+    const segments = c.display_name.split(",").map((s: string) => s.trim());
+    if (segments.length !== segmentCount) return false;
+    if (normalizeForMatch(segments[0]) !== normalizeForMatch(city)) return false;
+    if (segments[1].toUpperCase() !== state) return false;
+    if (country && canonicalizeCountry(segments[segments.length - 1]) !== country) return false;
+    return true;
+  });
+}
+
 export async function resolveCityIdFromAddress(address: string): Promise<string | null> {
   const parsed = parseAddressLocation(address);
   if (!parsed) return null;
@@ -36,16 +53,11 @@ export async function resolveCityIdFromAddress(address: string): Promise<string 
   if (!data) return null;
 
   if (parsed.kind === "us") {
-    const match = data.find((c: any) => {
-      const segments = c.display_name.split(",").map((s: string) => s.trim());
-      if (segments.length !== 2) return false;
-      const [cityPart, statePart] = segments;
-      return (
-        normalizeForMatch(cityPart) === normalizeForMatch(parsed.city) &&
-        statePart.toUpperCase() === parsed.state
-      );
-    });
-    return match?.id ?? null;
+    return matchByCityState(data, parsed.city, parsed.state, 2)?.id ?? null;
+  }
+
+  if (parsed.kind === "au") {
+    return matchByCityState(data, parsed.city, parsed.state, 3, "australia")?.id ?? null;
   }
 
   const match = data.find((c: any) => {

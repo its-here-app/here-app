@@ -133,7 +133,7 @@ export default function HomePage() {
       )}
 
       <div className="flex flex-col gap-12">
-        <TodaysPickSection key={`pick-${cityId}`} cityId={cityId} />
+        <TodaysPickSection key={`pick-${cityId}`} userId={user.id} cityId={cityId} />
         <YourPlaylistsSection userId={user.id} />
         <SharedRecentlySection userId={user.id} />
         <MostSavedSection key={`most-saved-${cityId}`} cityId={cityId} />

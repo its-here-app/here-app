@@ -67,6 +67,8 @@ interface CardProps {
   metadata?: {
     title: string;
     subtitleText?: string;
+    /** Rich subtitle (e.g. avatar + text) rendered instead of subtitleText when provided */
+    subtitleContent?: ReactNode;
     rating?: number | null;
     types?: string[] | null;
     city?: string;
@@ -389,10 +391,16 @@ export function Card({
             <p className={`text-header-radio-2 lg:text-header-radio-1 mb-[2px] ${truncate ? "truncate" : ""}`}>
               {metadata.title}
             </p>
-            {metadata.subtitleText && (
-              <p className="text-body-xs text-secondary mb-1 line-clamp-1">
-                {metadata.subtitleText}
-              </p>
+            {metadata.subtitleContent ? (
+              <div className="text-body-xs text-secondary mb-1 flex items-center gap-1">
+                {metadata.subtitleContent}
+              </div>
+            ) : (
+              metadata.subtitleText && (
+                <p className="text-body-xs text-secondary mb-1 line-clamp-1">
+                  {metadata.subtitleText}
+                </p>
+              )
             )}
             {metadataRow2 && (metadata.rating != null || metadataFirstType || metadata.city) && (
               <div className="flex items-center gap-1 mt-1 flex-wrap">

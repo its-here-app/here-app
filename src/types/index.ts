@@ -61,9 +61,15 @@ export interface SearchResult {
 
 export interface TodaysPick {
   spot: Spot;
-  playlist_name: string;
-  playlist_city: string;
-  username: string;
+  city: string;
+  mentionedBy: {
+    playlistName: string;
+    username: string;
+    avatarUrl: string | null;
+    slug: string;
+    city: string;
+    count: number;
+  } | null;
 }
 
 // A Google Places result before it's been saved to the spots table

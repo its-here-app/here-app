@@ -148,10 +148,19 @@ export async function GET(request: NextRequest) {
       const baseKey = normalizeBaseName(baseName);
       const isUS = terms[terms.length - 1]?.value === "USA";
 
-      // Full canonical name: US cities drop "USA" suffix, others keep full description.
+      // Full canonical name: built from Google's `terms` (already split into
+      // city / region / country) rather than the raw `description` field.
+      // `description` smashes some locales' city+region together with no
+      // separator (e.g. Australia: "Sydney NSW, Australia" instead of
+      // "Sydney, NSW, Australia"), while `terms` stays cleanly split for
+      // every locale — joining it reproduces `description` exactly
+      // everywhere else, and additionally fixes Australia/similar cases.
+      // US cities drop the trailing "USA" term (stored as bare "City, ST").
       const display_name = isUS
         ? terms.slice(0, -1).map((t) => t.value).join(", ")
-        : (p.description ?? baseName);
+        : terms.length > 0
+          ? terms.map((t) => t.value).join(", ")
+          : (p.description ?? baseName);
 
       // Primary = the most popular city for this base name.
       // - If duplicates exist in results, the first one wins (Google ranks by popularity).

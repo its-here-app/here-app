@@ -36,22 +36,35 @@ interface SpotRow {
   city_id: string | null;
 }
 
+function matchByCityState(
+  cities: CityRow[],
+  city: string,
+  state: string,
+  segmentCount: number,
+  country?: string
+): CityRow | null {
+  return (
+    cities.find((c) => {
+      const segments = c.display_name.split(",").map((s) => s.trim());
+      if (segments.length !== segmentCount) return false;
+      if (normalizeForMatch(segments[0]) !== normalizeForMatch(city)) return false;
+      if (segments[1].toUpperCase() !== state) return false;
+      if (country && canonicalizeCountry(segments[segments.length - 1]) !== country) return false;
+      return true;
+    }) ?? null
+  );
+}
+
 function findCityId(address: string, cities: CityRow[]): CityRow | null {
   const parsed = parseAddressLocation(address);
   if (!parsed) return null;
 
   if (parsed.kind === "us") {
-    return (
-      cities.find((c) => {
-        const segments = c.display_name.split(",").map((s) => s.trim());
-        if (segments.length !== 2) return false;
-        const [cityPart, statePart] = segments;
-        return (
-          normalizeForMatch(cityPart) === normalizeForMatch(parsed.city) &&
-          statePart.toUpperCase() === parsed.state
-        );
-      }) ?? null
-    );
+    return matchByCityState(cities, parsed.city, parsed.state, 2);
+  }
+
+  if (parsed.kind === "au") {
+    return matchByCityState(cities, parsed.city, parsed.state, 3, "australia");
   }
 
   return (

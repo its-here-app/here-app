@@ -181,29 +181,43 @@ export async function getPlaylistsByUser(userId: string): Promise<import("@/type
   }));
 }
 
-export async function getTodaysPick(cityId?: string | null): Promise<TodaysPick | null> {
+/**
+ * Today's featured spot — pulled directly from `spots` (any seeded spot with
+ * a photo), not gated on being in a public playlist. Excludes spots the
+ * user already has a relationship with (saved directly, or added to one of
+ * their own playlists), so it doesn't recommend something they already know.
+ */
+export async function getTodaysPick(
+  userId?: string | null,
+  cityId?: string | null
+): Promise<TodaysPick | null> {
   const supabase = createClient();
 
+  const excludeIds = new Set<string>();
+  if (userId) {
+    const [{ data: saved }, { data: mine }] = await Promise.all([
+      supabase.from("saved_spots").select("spot_id").eq("user_id", userId),
+      supabase
+        .from("playlist_spots")
+        .select("spot_id, playlists!inner(user_id)")
+        .eq("playlists.user_id", userId),
+    ]);
+    for (const r of saved ?? []) excludeIds.add(r.spot_id);
+    for (const r of (mine ?? []) as any[]) excludeIds.add(r.spot_id);
+  }
+
   let query = supabase
-    .from("playlist_spots")
-    .select(
-      "spot_id, playlists!inner(name, city, city_id, is_public, profiles!playlists_user_id_fkey(username), cities!playlists_city_id_fkey(display_name, is_primary))"
-    )
-    .eq("playlists.is_public", true)
-    .limit(50);
-  if (cityId) query = query.eq("playlists.city_id", cityId);
-  const { data: psData } = await query;
-
-  if (!psData || psData.length === 0) return null;
-
-  const spotIds = [...new Set(psData.map((r: any) => r.spot_id))];
-  const { data: spots } = await supabase
     .from("spots")
-    .select("*")
-    .in("id", spotIds)
-    .not("photo_url", "is", null);
+    .select("*, cities!spots_city_id_fkey(display_name, is_primary)")
+    .not("photo_url", "is", null)
+    .limit(200);
+  if (cityId) query = query.eq("city_id", cityId);
+  const { data: spots } = await query;
 
   if (!spots || spots.length === 0) return null;
+
+  const candidates = (spots as any[]).filter((s) => !excludeIds.has(s.id));
+  if (candidates.length === 0) return null;
 
   // Deterministic daily pick using date as seed
   const seed = new Date()
@@ -211,19 +225,52 @@ export async function getTodaysPick(cityId?: string | null): Promise<TodaysPick 
     .slice(0, 10)
     .split("")
     .reduce((a, c) => a + c.charCodeAt(0), 0);
-  const pick = spots[seed % spots.length] as Spot;
+  const pick = candidates[seed % candidates.length];
 
-  // Find the playlist info for this spot
-  const entry = psData.find((r: any) => r.spot_id === pick.id);
-  const playlist = (entry as any)?.playlists;
+  const { data: mentionRows } = await supabase
+    .from("playlist_spots")
+    .select(
+      "playlists!inner(name, slug, city, city_id, user_id, is_public, profiles!playlists_user_id_fkey(username, avatar_url), cities!playlists_city_id_fkey(display_name, is_primary))"
+    )
+    .eq("spot_id", pick.id)
+    .eq("playlists.is_public", true);
+
+  const mentioners = new Map<
+    string,
+    { username: string; avatarUrl: string | null; playlistName: string; slug: string; city: string }
+  >();
+  for (const row of (mentionRows ?? []) as any[]) {
+    const p = row.playlists;
+    const username = p?.profiles?.username;
+    const avatarUrl = p?.profiles?.avatar_url ?? null;
+    const playlistName = p?.name;
+    const slug = p?.slug;
+    const city = p?.cities?.display_name
+      ? formatCityDisplay(p.cities.display_name, p.cities.is_primary)
+      : p?.city;
+    const mentionUserId = p?.user_id;
+    if (mentionUserId && username && playlistName && slug && city) {
+      mentioners.set(mentionUserId, { username, avatarUrl, playlistName, slug, city });
+    }
+  }
+  const mentionList = [...mentioners.values()];
 
   return {
-    spot: pick,
-    playlist_name: playlist?.name ?? "",
-    playlist_city: playlist?.cities?.display_name
-      ? formatCityDisplay(playlist.cities.display_name, playlist.cities.is_primary)
-      : (playlist?.city ?? ""),
-    username: playlist?.profiles?.username ?? "",
+    spot: { ...pick, cities: undefined } as Spot,
+    mentionedBy:
+      mentionList.length > 0
+        ? {
+            playlistName: mentionList[0].playlistName,
+            username: mentionList[0].username,
+            avatarUrl: mentionList[0].avatarUrl,
+            slug: mentionList[0].slug,
+            city: mentionList[0].city,
+            count: mentionList.length,
+          }
+        : null,
+    city: pick.cities?.display_name
+      ? formatCityDisplay(pick.cities.display_name, pick.cities.is_primary)
+      : "",
   };
 }
 

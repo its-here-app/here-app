@@ -1,10 +1,14 @@
 /**
  * Address -> city/state/country extraction used to resolve a `cities` row for
- * a spot. Split into two shapes because that's how Google formats addresses
- * (and how the `cities` table itself is inconsistently populated per locale):
+ * a spot. Split into shapes because that's how Google formats addresses (and
+ * how the `cities` table itself is inconsistently populated per locale):
  *
  * - US addresses end in a 2-letter state code (+ optional ZIP), and `cities`
  *   stores them as bare "City, ST" rows with no country segment at all.
+ * - Australian addresses jam city+state into one token with no separator
+ *   (e.g. "Sydney NSW 2000"); `cities` stores these as "City, ST, Australia"
+ *   (3-part, matching the Canada convention) so same-named towns in
+ *   different states stay distinguishable.
  * - Everything else ends in a country name, and `cities` stores those as
  *   "City, Country" or "City, Region, Country" — we only ever compare the
  *   first and last comma segments, ignoring any region in between.
@@ -29,6 +33,8 @@ const US_STATE_ABBR: Record<string, string> = {
   "district of columbia": "DC",
 };
 const US_STATE_ABBR_SET = new Set(Object.values(US_STATE_ABBR));
+
+const AU_STATE_ABBR_SET = new Set(["NSW", "VIC", "QLD", "WA", "SA", "TAS", "NT", "ACT"]);
 
 const COUNTRY_ALIASES: Record<string, string> = {
   usa: "usa",
@@ -107,14 +113,22 @@ function extractSpain(parts: string[]): string | null {
   return null;
 }
 
-function extractAustralia(parts: string[]): string | null {
+/**
+ * Australian addresses jam city+state into one segment with no comma, e.g.
+ * "Sydney NSW 2000". `cities` stores these as "City, ST, Australia" (3-part,
+ * matching the Canada convention) rather than keeping city+state combined —
+ * combining them would make same-named towns in different states (e.g.
+ * "Woodside, SA" vs "Woodside, VIC") collide into one ambiguous entry.
+ */
+function extractAustralia(parts: string[]): { city: string; state: string } | null {
   const seg = parts[parts.length - 2];
   if (!seg) return null;
-  // strip a trailing 4-digit postcode but keep the state abbreviation, e.g.
-  // "Sydney NSW 2000" -> "Sydney NSW" (the `cities` table stores AU rows
-  // with city+state combined in the first segment, no comma between them).
-  const cleaned = seg.replace(/\s*\d{4}$/, "").trim();
-  return cleaned || null;
+  const cleaned = seg.replace(/\s*\d{4}$/, "").trim(); // strip trailing postcode
+  const m = cleaned.match(/^(.+?)\s+([A-Z]{2,3})$/);
+  if (m && AU_STATE_ABBR_SET.has(m[2])) {
+    return { city: m[1].trim(), state: m[2] };
+  }
+  return null;
 }
 
 function extractNetherlands(parts: string[]): string | null {
@@ -136,7 +150,6 @@ function extractVietnam(parts: string[]): string | null {
 const COUNTRY_RULES: Record<string, (parts: string[]) => string | null> = {
   uk: extractUk,
   spain: extractSpain,
-  australia: extractAustralia,
   netherlands: extractNetherlands,
   vietnam: extractVietnam,
 };
@@ -159,12 +172,14 @@ function genericFallback(parts: string[]): string | null {
 
 export type ParsedLocation =
   | { kind: "us"; city: string; state: string }
+  | { kind: "au"; city: string; state: string }
   | { kind: "intl"; citySegment: string; country: string };
 
 /**
- * Parse a Google-formatted address into either a US { city, state } pair or
- * an international { citySegment, country } pair. Returns null if the
- * address doesn't fit any known shape — deliberately does not guess.
+ * Parse a Google-formatted address into a US { city, state } pair, an
+ * Australian { city, state } pair, or an international { citySegment,
+ * country } pair. Returns null if the address doesn't fit any known shape —
+ * deliberately does not guess.
  */
 export function parseAddressLocation(address: string): ParsedLocation | null {
   const parts = address
@@ -178,6 +193,12 @@ export function parseAddressLocation(address: string): ParsedLocation | null {
   if (country === "usa") {
     const us = parseUsShape(parts);
     if (us) return { kind: "us", ...us };
+  }
+
+  if (country === "australia") {
+    const au = extractAustralia(parts);
+    if (au) return { kind: "au", ...au };
+    return null;
   }
 
   const rule = COUNTRY_RULES[country];
