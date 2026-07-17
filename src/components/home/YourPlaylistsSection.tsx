@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CardShelf } from "@/components/ui/CardShelf";
 import { Card } from "@/components/Card";
 import { IconButton } from "@/components/ui/IconButton";
@@ -10,6 +10,7 @@ import { getPlaylistsByUser } from "@/lib/services/playlists";
 import { getUserUsername } from "@/lib/services/users";
 import { playlistUrl } from "@/lib/playlistUrl";
 import { formatCityDisplay } from "@/lib/cityDisplay";
+import { getDefaultCover } from "@/lib/playlist-covers";
 import { openCreatePlaylist } from "@/components/modals/CreatePlaylistFlow";
 import type { Playlist } from "@/types";
 
@@ -32,6 +33,7 @@ export function YourPlaylistsSection({
   const [username, setUsername] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
   const displayCityName = city ? formatCityDisplay(city.display_name, city.is_primary) : undefined;
+  const emptyStateCover = useMemo(() => getDefaultCover(displayCityName ?? ""), [displayCityName]);
 
   useEffect(() => {
     getUserUsername(userId).then(setUsername);
@@ -87,6 +89,7 @@ export function YourPlaylistsSection({
           size="xs"
           city={displayCityName}
           name="Create a playlist"
+          image={emptyStateCover}
           onClick={() => openCreatePlaylist(city ?? undefined)}
         />
       )}

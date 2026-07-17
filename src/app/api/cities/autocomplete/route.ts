@@ -125,16 +125,26 @@ export async function GET(request: NextRequest) {
 
     const predictions = data.predictions ?? [];
 
-    // First pass: find which base names (first term) appear more than once.
+    // First pass: find which base names (first term) appear more than once
+    // *within the same country*. Scoping by country too (not just base name)
+    // means "Brayton, UK" and "Brayton, Australia" each get to be primary
+    // independently instead of competing — a same-named town on the other
+    // side of the world shouldn't force a qualified "Brayton, NSW, Australia"
+    // display. Real same-country collisions (e.g. "Portland, OR" vs
+    // "Portland, ME", or "Woodside, SA" vs "Woodside, VIC" in Australia)
+    // still disambiguate correctly since they share both base name and country.
     // Normalize diacritics so "Los Angeles" and "Los Ángeles" are treated as the same base.
     const baseNameFirstSeen = new Map<string, number>();
     const baseNameDupes = new Set<string>();
     for (let i = 0; i < predictions.length; i++) {
-      const base = normalizeBaseName(predictions[i].terms?.[0]?.value ?? "");
-      if (baseNameFirstSeen.has(base)) {
-        baseNameDupes.add(base);
+      const terms = predictions[i].terms ?? [];
+      const base = normalizeBaseName(terms[0]?.value ?? "");
+      const country = normalizeBaseName(terms[terms.length - 1]?.value ?? "");
+      const key = `${base}|${country}`;
+      if (baseNameFirstSeen.has(key)) {
+        baseNameDupes.add(key);
       } else {
-        baseNameFirstSeen.set(base, i);
+        baseNameFirstSeen.set(key, i);
       }
     }
 
@@ -146,6 +156,8 @@ export async function GET(request: NextRequest) {
       const terms = p.terms ?? [];
       const baseName = terms[0]?.value ?? p.description ?? "";
       const baseKey = normalizeBaseName(baseName);
+      const countryKey = normalizeBaseName(terms[terms.length - 1]?.value ?? "");
+      const dedupeKey = `${baseKey}|${countryKey}`;
       const isUS = terms[terms.length - 1]?.value === "USA";
 
       // Full canonical name: built from Google's `terms` (already split into
@@ -162,14 +174,14 @@ export async function GET(request: NextRequest) {
           ? terms.map((t) => t.value).join(", ")
           : (p.description ?? baseName);
 
-      // Primary = the most popular city for this base name.
-      // - If duplicates exist in results, the first one wins (Google ranks by popularity).
-      // - If unique in results, only mark primary if the user's query is roughly
+      // Primary = the most popular city for this base name *within its country*.
+      // - If same-country duplicates exist in results, the first one wins (Google ranks by popularity).
+      // - If unique within its country, only mark primary if the user's query is roughly
       //   just the city name (not qualified with a country/state like "los angeles chile").
       //   The +2 accounts for trailing spaces or 1-2 extra chars mid-typing.
       const queryIsGeneric = query.length <= baseKey.length + 2;
-      const is_primary = baseNameDupes.has(baseKey)
-        ? baseNameFirstSeen.get(baseKey) === i
+      const is_primary = baseNameDupes.has(dedupeKey)
+        ? baseNameFirstSeen.get(dedupeKey) === i
         : queryIsGeneric;
 
       return {
