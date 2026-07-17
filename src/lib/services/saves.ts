@@ -370,6 +370,13 @@ export async function getSpotMentionsForSpots(
   return result;
 }
 
+/**
+ * Spots you might like: scored from what people you follow have saved or
+ * added to public playlists (optionally scoped to a city). When that yields
+ * nothing — no follows, or followed users have nothing in this city — falls
+ * back to generally popular spots in the city (ranked by how many public
+ * playlists include them), so the section isn't just empty for new users.
+ */
 export async function getRecommendedSpots(
   userId: string,
   cityId?: string | null
@@ -383,16 +390,18 @@ export async function getRecommendedSpots(
     .eq("follower_id", userId);
 
   const followingIds = (followData ?? []).map((f: any) => f.following_id);
-  if (followingIds.length === 0) return [];
 
   // Step 2: In parallel, get user's spots (to exclude) and followed users' spots
-  let theirSpotsQuery = supabase
-    .from("playlist_spots")
-    .select("spot_id, created_at, playlists!inner(user_id, is_public, city_id)")
-    .in("playlists.user_id", followingIds)
-    .eq("playlists.is_public", true)
-    .limit(200);
-  if (cityId) theirSpotsQuery = theirSpotsQuery.eq("playlists.city_id", cityId);
+  let theirSpotsQuery: any = null;
+  if (followingIds.length) {
+    theirSpotsQuery = supabase
+      .from("playlist_spots")
+      .select("spot_id, created_at, playlists!inner(user_id, is_public, city_id)")
+      .in("playlists.user_id", followingIds)
+      .eq("playlists.is_public", true)
+      .limit(200);
+    if (cityId) theirSpotsQuery = theirSpotsQuery.eq("playlists.city_id", cityId);
+  }
 
   const [savedRes, myPlaylistSpotsRes, theirSpotsRes] = await Promise.all([
     supabase.from("saved_spots").select("spot_id").eq("user_id", userId),
@@ -400,7 +409,7 @@ export async function getRecommendedSpots(
       .from("playlist_spots")
       .select("spot_id, playlists!inner(user_id)")
       .eq("playlists.user_id", userId),
-    theirSpotsQuery,
+    theirSpotsQuery ?? Promise.resolve({ data: [] as any[] }),
   ]);
 
   // Build exclusion set
@@ -409,7 +418,7 @@ export async function getRecommendedSpots(
   for (const r of (myPlaylistSpotsRes.data ?? []) as any[])
     excluded.add(r.spot_id);
 
-  // Step 3: Score spots
+  // Step 3: Score spots from the follow network
   const spotScores = new Map<
     string,
     { users: Set<string>; latestDate: string }
@@ -429,28 +438,62 @@ export async function getRecommendedSpots(
     }
   }
 
-  if (spotScores.size === 0) return [];
+  if (spotScores.size > 0) {
+    const now = Date.now();
+    const scored = [...spotScores.entries()]
+      .map(([spotId, { users, latestDate }]) => {
+        const daysSince =
+          (now - new Date(latestDate).getTime()) / (1000 * 60 * 60 * 24);
+        const score = users.size * 3 + Math.max(0, 10 - daysSince / 7);
+        return { spotId, score };
+      })
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 3);
 
-  const now = Date.now();
-  const scored = [...spotScores.entries()]
-    .map(([spotId, { users, latestDate }]) => {
-      const daysSince =
-        (now - new Date(latestDate).getTime()) / (1000 * 60 * 60 * 24);
-      const score = users.size * 3 + Math.max(0, 10 - daysSince / 7);
-      return { spotId, score };
-    })
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 3);
+    const spotIds = scored.map((s) => s.spotId);
+    const { data: spots } = await supabase
+      .from("spots")
+      .select("*")
+      .in("id", spotIds);
 
-  const spotIds = scored.map((s) => s.spotId);
-  const { data: spots } = await supabase
+    if (spots) {
+      const spotMap = new Map(spots.map((s: Spot) => [s.id, s]));
+      const result = scored.map((s) => spotMap.get(s.spotId)!).filter(Boolean);
+      if (result.length > 0) return result;
+    }
+  }
+
+  // Fallback: no network-based recommendations available. Surface generally
+  // popular spots in the city instead, ranked by how many public playlists
+  // include them (mirrors getPopularSpotsForCity's ranking).
+  if (!cityId) return [];
+
+  const { data: popularRows } = await supabase
+    .from("playlist_spots")
+    .select("spot_id, playlists!inner(city_id, is_public)")
+    .eq("playlists.city_id", cityId)
+    .eq("playlists.is_public", true);
+
+  const counts = new Map<string, number>();
+  for (const row of (popularRows ?? []) as { spot_id: string }[]) {
+    if (excluded.has(row.spot_id)) continue;
+    counts.set(row.spot_id, (counts.get(row.spot_id) ?? 0) + 1);
+  }
+  if (counts.size === 0) return [];
+
+  const { data: popularSpots } = await supabase
     .from("spots")
     .select("*")
-    .in("id", spotIds);
+    .in("id", [...counts.keys()]);
+  if (!popularSpots) return [];
 
-  if (!spots) return [];
-
-  // Preserve score ordering
-  const spotMap = new Map(spots.map((s: Spot) => [s.id, s]));
-  return scored.map((s) => spotMap.get(s.spotId)!).filter(Boolean);
+  return (popularSpots as Spot[])
+    .sort((a, b) => {
+      const countDiff = (counts.get(b.id) ?? 0) - (counts.get(a.id) ?? 0);
+      if (countDiff !== 0) return countDiff;
+      const ratingDiff = (b.rating ?? -1) - (a.rating ?? -1);
+      if (ratingDiff !== 0) return ratingDiff;
+      return a.name.localeCompare(b.name);
+    })
+    .slice(0, 3);
 }
