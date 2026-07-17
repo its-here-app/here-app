@@ -162,13 +162,18 @@ export async function getExplorePlaylists(
   }));
 }
 
-export async function getPlaylistsByUser(userId: string): Promise<import("@/types").Playlist[]> {
+export async function getPlaylistsByUser(
+  userId: string,
+  cityId?: string | null
+): Promise<import("@/types").Playlist[]> {
   const supabase = createClient();
-  const { data, error } = await supabase
+  let query = supabase
     .from("playlists")
     .select("*, playlist_spots(count), cities!playlists_city_id_fkey(display_name, is_primary)")
     .eq("user_id", userId)
     .order("created_at", { ascending: false });
+  if (cityId) query = query.eq("city_id", cityId);
+  const { data, error } = await query;
   if (error) return [];
   return data.map((p: any) => ({
     ...p,

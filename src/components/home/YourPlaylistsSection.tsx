@@ -9,21 +9,37 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { getPlaylistsByUser } from "@/lib/services/playlists";
 import { getUserUsername } from "@/lib/services/users";
 import { playlistUrl } from "@/lib/playlistUrl";
+import { formatCityDisplay } from "@/lib/cityDisplay";
 import { openCreatePlaylist } from "@/components/modals/CreatePlaylistFlow";
 import type { Playlist } from "@/types";
 
-export function YourPlaylistsSection({ userId }: { userId: string }) {
+interface CityForCreate {
+  google_place_id: string;
+  display_name: string;
+  is_primary?: boolean;
+}
+
+export function YourPlaylistsSection({
+  userId,
+  cityId,
+  city,
+}: {
+  userId: string;
+  cityId?: string | null;
+  city?: CityForCreate | null;
+}) {
   const [latestPlaylist, setLatestPlaylist] = useState<Playlist | null>(null);
   const [username, setUsername] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const displayCityName = city ? formatCityDisplay(city.display_name, city.is_primary) : undefined;
 
   useEffect(() => {
     getUserUsername(userId).then(setUsername);
-    getPlaylistsByUser(userId).then((playlists) => {
+    getPlaylistsByUser(userId, cityId).then((playlists) => {
       setLatestPlaylist(playlists[0] ?? null);
       setLoaded(true);
     });
-  }, [userId]);
+  }, [userId, cityId]);
 
   return (
     <CardShelf title="Your playlists">
@@ -47,7 +63,7 @@ export function YourPlaylistsSection({ userId }: { userId: string }) {
           />
           <div
             role="button"
-            onClick={openCreatePlaylist}
+            onClick={() => openCreatePlaylist(city ?? undefined)}
             className="hidden lg:flex items-center gap-2 bg-transparent border border-grey-300 rounded-sm py-2 px-4 w-full overflow-hidden text-left cursor-pointer"
           >
             <div className="flex-1 min-w-0">
@@ -61,7 +77,7 @@ export function YourPlaylistsSection({ userId }: { userId: string }) {
               label="Start a new playlist"
               onClick={(e) => {
                 e.stopPropagation();
-                openCreatePlaylist();
+                openCreatePlaylist(city ?? undefined);
               }}
             />
           </div>
@@ -69,9 +85,9 @@ export function YourPlaylistsSection({ userId }: { userId: string }) {
       ) : (
         <Card
           size="xs"
-          city="Los Angeles"
+          city={displayCityName}
           name="Create a playlist"
-          onClick={openCreatePlaylist}
+          onClick={() => openCreatePlaylist(city ?? undefined)}
         />
       )}
     </CardShelf>

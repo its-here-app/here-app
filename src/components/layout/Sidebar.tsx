@@ -77,7 +77,7 @@ export default function Sidebar() {
         <div className="border-t border-subtle w-full" />
 
         <button
-          onClick={openCreatePlaylist}
+          onClick={() => openCreatePlaylist()}
           className="flex items-center gap-5 cursor-pointer"
         >
           <Add className="size-8 shrink-0" />

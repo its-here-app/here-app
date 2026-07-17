@@ -42,6 +42,11 @@ export default function HomePage() {
   const router = useRouter();
   const [cityName, setCityName] = useState<string | null>(null);
   const [cityId, setCityId] = useState<string | null>(null);
+  const [cityForCreate, setCityForCreate] = useState<{
+    google_place_id: string;
+    display_name: string;
+    is_primary?: boolean;
+  } | null>(null);
   const [cityPickerOpen, setCityPickerOpen] = useState(false);
   const [firstName, setFirstName] = useState<string | null>(null);
   const [weather, setWeather] = useState<Weather | null>(null);
@@ -63,10 +68,13 @@ export default function HomePage() {
         const supabase = createClient();
         const { data: city } = await supabase
           .from("cities")
-          .select("display_name, is_primary")
+          .select("google_place_id, display_name, is_primary")
           .eq("id", profile.city_id)
           .single();
-        if (city) setCityName(formatCityDisplay(city.display_name, city.is_primary));
+        if (city) {
+          setCityName(formatCityDisplay(city.display_name, city.is_primary));
+          setCityForCreate(city);
+        }
 
         try {
           const res = await fetch(`/api/weather?cityId=${profile.city_id}`);
@@ -134,7 +142,12 @@ export default function HomePage() {
 
       <div className="flex flex-col gap-12">
         <TodaysPickSection key={`pick-${cityId}`} userId={user.id} cityId={cityId} />
-        <YourPlaylistsSection userId={user.id} />
+        <YourPlaylistsSection
+          key={`your-playlists-${cityId}`}
+          userId={user.id}
+          cityId={cityId}
+          city={cityForCreate}
+        />
         <SharedRecentlySection userId={user.id} />
         <MostSavedSection key={`most-saved-${cityId}`} cityId={cityId} />
         <WantedToGoSection key={`wanted-${cityId}`} userId={user.id} cityId={cityId} />
@@ -148,6 +161,7 @@ export default function HomePage() {
         onClose={() => setCityPickerOpen(false)}
         onSelect={async (city) => {
           setCityName(formatCityDisplay(city.display_name, city.is_primary));
+          setCityForCreate(city);
           const newCityId = await upsertCityAction({
             google_place_id: city.google_place_id,
             display_name: city.display_name,

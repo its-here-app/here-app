@@ -55,11 +55,22 @@ import type { DraftSpot, SearchResult } from "@/types";
 
 // ─── Imperative trigger ───────────────────────────────────────────────────────
 
-type OpenListener = () => void;
+export interface InitialCity {
+  google_place_id: string;
+  display_name: string;
+  is_primary?: boolean;
+}
+
+type OpenListener = (initialCity?: InitialCity) => void;
 const listeners: OpenListener[] = [];
 
-export function openCreatePlaylist() {
-  listeners.forEach((fn) => fn());
+/**
+ * Opens the create-playlist flow. Pass `initialCity` when the city is
+ * already known from context (e.g. the home page's city filter) to skip
+ * straight past the "Which city are you making a playlist for?" step.
+ */
+export function openCreatePlaylist(initialCity?: InitialCity) {
+  listeners.forEach((fn) => fn(initialCity));
 }
 
 // ─── Shared form body ────────────────────────────────────────────────────────
@@ -283,9 +294,17 @@ export function CreatePlaylistFlow() {
     return () => clearTimeout(t);
   }, [overlayOpen, city, draftName]);
 
-  // Listen for imperative open calls
+  // Listen for imperative open calls. When an initialCity is provided (e.g.
+  // from the home page's city filter), pre-fill the city step instead of
+  // making the user pick it again.
   useEffect(() => {
-    const listener: OpenListener = () => setPanelOpen(true);
+    const listener: OpenListener = (initialCity) => {
+      if (initialCity) {
+        setCity(initialCity.display_name);
+        setSelectedCity(initialCity);
+      }
+      setPanelOpen(true);
+    };
     listeners.push(listener);
     return () => {
       listeners.splice(listeners.indexOf(listener), 1);
@@ -575,7 +594,7 @@ export function CreatePlaylistFlow() {
       >
         <CityAutocompleteInput
           variant="ghost"
-          value={city}
+          value={displayCity}
           onSelect={(c) => {
             setCity(c.display_name);
             setSelectedCity(c);
