@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/authContext";
-import { signOut, getUserUsername, getProfile } from "@/lib/services/users";
+import { signOut, getUserUsername } from "@/lib/services/users";
 import { FullLogo } from "../ui/Logo";
 import { Add } from "../ui/icons/Add";
 import { openCreatePlaylist } from "@/components/modals/CreatePlaylistFlow";
@@ -15,16 +15,14 @@ import { Logout } from "../ui/icons/Logout";
 import { Avatar } from "../ui/Avatar";
 
 export default function Sidebar() {
-  const { user, loading } = useAuth();
+  const { user, loading, avatarUrl } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const [username, setUsername] = useState<string | null>(null);
-  const [avatarUrl, setAvatarUrl] = useState<string>("");
 
   useEffect(() => {
     if (!user) return;
     getUserUsername(user.id).then(setUsername);
-    getProfile(user.id).then((p) => setAvatarUrl(p?.avatar_url || ""));
   }, [user]);
 
   if (loading || !user || pathname.startsWith("/signin")) return null;

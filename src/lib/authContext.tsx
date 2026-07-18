@@ -3,20 +3,26 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { User } from "@supabase/supabase-js";
 import { createClient } from "./supabase/client";
+import { getProfile } from "./services/users";
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
+  avatarUrl: string;
+  setAvatarUrl: (url: string) => void;
 }
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
+  avatarUrl: "",
+  setAvatarUrl: () => {},
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [avatarUrl, setAvatarUrl] = useState("");
   const supabase = createClient();
 
   useEffect(() => {
@@ -36,8 +42,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, [supabase]);
 
+  useEffect(() => {
+    if (!user) {
+      setAvatarUrl("");
+      return;
+    }
+    getProfile(user.id).then((p) => setAvatarUrl(p?.avatar_url || ""));
+  }, [user]);
+
   return (
-    <AuthContext.Provider value={{ user, loading }}>
+    <AuthContext.Provider value={{ user, loading, avatarUrl, setAvatarUrl }}>
       {children}
     </AuthContext.Provider>
   );

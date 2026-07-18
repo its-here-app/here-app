@@ -35,7 +35,7 @@ export default function EditProfileModal({
   onClose,
   onSuccess,
 }: EditProfileModalProps) {
-  const { user } = useAuth();
+  const { user, setAvatarUrl: setSharedAvatarUrl } = useAuth();
   const router = useRouter();
 
   const [loading, setLoading] = useState(true);
@@ -190,6 +190,8 @@ export default function EditProfileModal({
         city_id: cityId,
         previousUsername: initialUsername,
       });
+
+      setSharedAvatarUrl(photoUrl);
 
       if (username !== initialUsername) {
         router.push(`/${username}`);

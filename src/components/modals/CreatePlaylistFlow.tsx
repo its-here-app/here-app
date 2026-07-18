@@ -88,7 +88,6 @@ function PlaylistFormBody({
   foundSpots,
   onImport,
   onOpenSearch,
-  onDone,
   onRemoveFoundSpot,
   onFoundSpotNotesChange,
   reorderMode,
@@ -106,7 +105,6 @@ function PlaylistFormBody({
   foundSpots: DraftSpot[];
   onImport: () => void;
   onOpenSearch: () => void;
-  onDone: () => void;
   onRemoveFoundSpot: (placeId: string) => void;
   onFoundSpotNotesChange: (placeId: string, notes: string) => void;
   reorderMode: boolean;
@@ -134,8 +132,6 @@ function PlaylistFormBody({
             heightClassName={spotsHeightClassName}
             value={spotsInput}
             onChange={onSpotsInputChange}
-            onImport={onImport}
-            onDone={onDone}
             placeholder={spotsPlaceholder}
           />
         </div>
@@ -169,12 +165,16 @@ function PlaylistFormBody({
       )}
 
       {/* Bottom action */}
-      <AddSpotSection
-        spotCount={foundSpots.length}
-        reorderMode={reorderMode}
-        onToggleReorder={onToggleReorder}
-        onOpenSearch={onOpenSearch}
-      />
+      <div className={imported ? "pb-[var(--space-page-sm)]" : undefined}>
+        <AddSpotSection
+          spotCount={foundSpots.length}
+          reorderMode={reorderMode}
+          onToggleReorder={onToggleReorder}
+          onOpenSearch={onOpenSearch}
+          showImport={!imported && spotsInput.trim().length > 0}
+          onImport={onImport}
+        />
+      </div>
     </>
   );
 }
@@ -619,14 +619,20 @@ export function CreatePlaylistFlow() {
       {/* Steps 3–5 — Create Overlay */}
       {overlayOpen && (
         <div
-          className="fixed inset-0 z-50 bg-white overflow-y-auto p-[var(--space-page-sm)] lg:p-[var(--space-page-md)] lg:pb-0"
+          className="fixed inset-0 z-50 bg-white overflow-y-auto p-[var(--space-page-sm)] lg:pb-0"
           style={{
             animation: `${overlayClosing ? "fadeOut" : "fadeIn"} 250ms ease forwards`,
           }}
         >
-          <div className="flex flex-col h-full lg:grid lg:grid-cols-2 lg:gap-6 lg:items-start">
-            {/* Left — Card */}
-            <div className={`relative shrink-0 mb-4 lg:mb-0 lg:sticky lg:top-0 lg:h-[calc(100vh-2*var(--space-page-md))] ${!imported ? "lg:block" : ""}`}>
+          <div
+            className="flex flex-col h-full lg:block"
+            style={{ ["--col-w" as string]: "calc((100vw - 2*var(--space-page-sm) - 1.5rem) / 2)" }}
+          >
+            {/* Left — Card. Desktop: position:fixed (not sticky) so it's pinned to the
+                viewport regardless of how tall the right column's content is — sticky's
+                containing block is the row it shares with the right column, so it would
+                detach/scroll once that row's height caught up to the right column's. */}
+            <div className={`relative shrink-0 mb-4 lg:mb-0 lg:fixed lg:top-[var(--space-page-sm)] lg:left-[var(--space-page-sm)] lg:w-[var(--col-w)] lg:h-[calc(100vh-2*var(--space-page-sm))] ${!imported ? "lg:block" : ""}`}>
               <Card
                 className="h-[30rem] lg:h-full"
                 size="hero"
@@ -674,82 +680,92 @@ export function CreatePlaylistFlow() {
               />
             </div>
 
-            {/* Right — Form or Search (desktop) */}
-            <div className="flex-1 min-h-0 flex flex-col overflow-y-auto lg:h-[calc(100vh-2*var(--space-page-md))]">
-              {/* Desktop: normal form, CSS-hidden (not unmounted) while search is open */}
-              <div className={spotSearchOpen ? "hidden" : "hidden lg:flex lg:flex-col lg:h-full"}>
-                <SlotRow
-                  className="mb-6"
-                  left={
-                    <Button variant="text" size="md" onClick={() => setConfirmCancelOpen(true)}>
-                      Cancel
-                    </Button>
-                  }
-                  center={<p className="text-body-sm-bold text-primary">Create playlist</p>}
-                  right={
-                    <Button
-                      variant="text"
-                      size="md"
-                      onClick={imported ? () => setShareOpen(true) : handleContinue}
-                    >
-                      {imported ? "Done" : "Continue"}
-                    </Button>
-                  }
+            {/* Right — Form or Search (desktop). lg:ml matches the fixed left column's
+                width + gap, since it's no longer a grid sibling that reserves that space. */}
+            <div className={`relative flex-1 min-h-0 flex flex-col lg:ml-[calc(var(--col-w)+1.5rem)] ${!imported ? "lg:h-[calc(100vh-2*var(--space-page-sm))]" : ""}`}>
+              {/* Desktop: importing overlay, scoped to this column (mobile uses the full-screen one above).
+                  Positioned against this non-scrolling wrapper (not the scrollable box below) so its
+                  inset-0 always matches the full rounded box, top and bottom. */}
+              {importing && (
+                <div className="hidden lg:flex absolute inset-0 z-10 bg-black rounded-lg items-center justify-center">
+                  <p className="text-display-crimson-3 text-white">{importStatus}</p>
+                </div>
+              )}
+
+              <div className="relative flex-1 min-h-0 flex flex-col overflow-y-auto">
+                {/* Desktop: normal form, CSS-hidden (not unmounted) while search is open */}
+                <div className={spotSearchOpen ? "hidden" : "hidden lg:flex lg:flex-col lg:h-full"}>
+                  <SlotRow
+                    className="mb-6"
+                    left={
+                      <Button variant="text" size="md" onClick={() => setConfirmCancelOpen(true)}>
+                        Cancel
+                      </Button>
+                    }
+                    center={<p className="text-body-sm-bold text-primary">Create playlist</p>}
+                    right={
+                      <Button
+                        variant="text"
+                        size="md"
+                        onClick={imported ? () => setShareOpen(true) : handleContinue}
+                      >
+                        {imported ? "Done" : "Continue"}
+                      </Button>
+                    }
+                  />
+
+                  <PlaylistFormBody
+                    description={description}
+                    onDescriptionChange={setDescription}
+                    spotsInput={spotsInput}
+                    onSpotsInputChange={setSpotsInput}
+                    imported={imported}
+                    foundSpots={foundSpots}
+                    onImport={handleImport}
+                    onOpenSearch={() => setSpotSearchOpen(true)}
+                    onRemoveFoundSpot={handleRemoveFoundSpot}
+                    onFoundSpotNotesChange={handleFoundSpotNotesChange}
+                    reorderMode={reorderMode}
+                    onToggleReorder={() => setReorderMode((r) => !r)}
+                    onReorder={handleReorder}
+                    sensors={sensors}
+                    spotsHeightClassName="h-full min-h-0"
+                  />
+                </div>
+
+                <SpotSearchPanel
+                  isOpen={spotSearchOpen}
+                  onClose={() => {
+                    setSpotSearchOpen(false);
+                    if (foundSpots.length > 0) setImported(true);
+                  }}
+                  city={city}
+                  cityId={cityId}
+                  addedPlaceIds={addedPlaceIds}
+                  onSelect={handleAddSpotFromSearch}
                 />
 
-                <PlaylistFormBody
-                  description={description}
-                  onDescriptionChange={setDescription}
-                  spotsInput={spotsInput}
-                  onSpotsInputChange={setSpotsInput}
-                  imported={imported}
-                  foundSpots={foundSpots}
-                  onImport={handleImport}
-                  onOpenSearch={() => setSpotSearchOpen(true)}
-                  onDone={() => setShareOpen(true)}
-                  onRemoveFoundSpot={handleRemoveFoundSpot}
-                  onFoundSpotNotesChange={handleFoundSpotNotesChange}
-                  reorderMode={reorderMode}
-                  onToggleReorder={() => setReorderMode((r) => !r)}
-                  onReorder={handleReorder}
-                  sensors={sensors}
-                  spotsHeightClassName="h-full min-h-0"
-                />
-              </div>
-
-              <SpotSearchPanel
-                isOpen={spotSearchOpen}
-                onClose={() => {
-                  setSpotSearchOpen(false);
-                  if (foundSpots.length > 0) setImported(true);
-                }}
-                city={city}
-                cityId={cityId}
-                addedPlaceIds={addedPlaceIds}
-                onSelect={handleAddSpotFromSearch}
-              />
-
-              {/* Mobile — always show form (search is a separate overlay) */}
-              <div className="lg:hidden flex-1 min-h-0 flex flex-col">
-                <PlaylistFormBody
-                  description={description}
-                  onDescriptionChange={setDescription}
-                  spotsInput={spotsInput}
-                  onSpotsInputChange={setSpotsInput}
-                  imported={imported}
-                  foundSpots={foundSpots}
-                  onImport={handleImport}
-                  onOpenSearch={() => setSpotSearchOpen(true)}
-                  onDone={() => setShareOpen(true)}
-                  onRemoveFoundSpot={handleRemoveFoundSpot}
-                  onFoundSpotNotesChange={handleFoundSpotNotesChange}
-                  reorderMode={reorderMode}
-                  onToggleReorder={() => setReorderMode((r) => !r)}
-                  onReorder={handleReorder}
-                  sensors={sensors}
-                  spotsHeightClassName="h-full min-h-0"
-                  spotsPlaceholder={SPOTS_PLACEHOLDER_MOBILE}
-                />
+                {/* Mobile — always show form (search is a separate overlay) */}
+                <div className="lg:hidden flex-1 min-h-0 flex flex-col">
+                  <PlaylistFormBody
+                    description={description}
+                    onDescriptionChange={setDescription}
+                    spotsInput={spotsInput}
+                    onSpotsInputChange={setSpotsInput}
+                    imported={imported}
+                    foundSpots={foundSpots}
+                    onImport={handleImport}
+                    onOpenSearch={() => setSpotSearchOpen(true)}
+                    onRemoveFoundSpot={handleRemoveFoundSpot}
+                    onFoundSpotNotesChange={handleFoundSpotNotesChange}
+                    reorderMode={reorderMode}
+                    onToggleReorder={() => setReorderMode((r) => !r)}
+                    onReorder={handleReorder}
+                    sensors={sensors}
+                    spotsHeightClassName="h-full min-h-0"
+                    spotsPlaceholder={SPOTS_PLACEHOLDER_MOBILE}
+                  />
+                </div>
               </div>
             </div>
           </div>

@@ -15,23 +15,34 @@ export function AddSpotSection({
   reorderMode,
   onToggleReorder,
   onOpenSearch,
+  showImport,
+  onImport,
 }: {
   spotCount: number;
   reorderMode: boolean;
   onToggleReorder: () => void;
   onOpenSearch: () => void;
+  /** Shows a black "Import" button in place of "Add a spot" (e.g. while the list-paste textarea has content) */
+  showImport?: boolean;
+  onImport?: () => void;
 }) {
   return (
     <div className="flex gap-2">
-      <Button
-        size="lg"
-        variant="tonal"
-        leftIcon={<Add className="size-5" />}
-        className="flex-1"
-        onClick={onOpenSearch}
-      >
-        Add a spot
-      </Button>
+      {showImport ? (
+        <Button size="lg" variant="filled" className="flex-1" onClick={onImport}>
+          Import
+        </Button>
+      ) : (
+        <Button
+          size="lg"
+          variant="tonal"
+          leftIcon={<Add className="size-5" />}
+          className="flex-1"
+          onClick={onOpenSearch}
+        >
+          Add a spot
+        </Button>
+      )}
       {spotCount > 1 && (
         <Button
           size="lg"

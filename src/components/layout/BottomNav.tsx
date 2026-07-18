@@ -12,7 +12,7 @@ import { openCreatePlaylist } from "@/components/modals/CreatePlaylistFlow";
 import type { Profile } from "@/types";
 
 export default function BottomNav() {
-  const { user, loading } = useAuth();
+  const { user, loading, avatarUrl } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -51,7 +51,7 @@ export default function BottomNav() {
     <div className="fixed bottom-0 left-0 right-0 z-50 bg-surface-base pb-[env(safe-area-inset-bottom)] lg:translate-y-[100%] transition-transform duration-400 will-change-transform">
       <BottomNavigation
         activeTab={activeTab}
-        avatarUrl={profile?.avatar_url ?? undefined}
+        avatarUrl={avatarUrl || undefined}
         onTabChange={handleTabChange}
         onAdd={openCreatePlaylist}
       />
