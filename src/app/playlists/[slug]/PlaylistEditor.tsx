@@ -340,6 +340,7 @@ export default function PlaylistEditor({ playlist, isOwner, onClose }: Props) {
         );
       }
       setSpots(finalSpots);
+      setPendingAdds([]);
 
       // Notes
       for (const s of finalSpots) {
@@ -354,7 +355,6 @@ export default function PlaylistEditor({ playlist, isOwner, onClose }: Props) {
       window.dispatchEvent(new Event("playlist-saved"));
       setSavedAt(Date.now());
       setEditMode(false);
-      setPendingAdds([]);
       setPendingRemoveIds(new Set());
       setStagedCoverFile(null);
       editStartRef.current = null;
