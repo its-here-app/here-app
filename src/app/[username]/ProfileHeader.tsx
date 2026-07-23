@@ -257,7 +257,7 @@ export default function ProfileHeader({ profile }: ProfileHeaderProps) {
         username={profile.username}
         bio={profile.bio ?? undefined}
         avatarSrc={profile.avatar_url ?? undefined}
-        instagramHandle={profile.instagram_handle ?? undefined}
+        instagramHandle={user ? profile.instagram_handle ?? undefined : undefined}
         followsYou={relationship?.followedBy ?? false}
         followerCount={counts?.followers ?? 0}
         followingCount={counts?.following ?? 0}
