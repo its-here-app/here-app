@@ -545,7 +545,7 @@ export default function PlaylistEditor({ playlist, isOwner, onClose }: Props) {
         <input
           ref={coverInputRef}
           type="file"
-          accept="image/*"
+          accept="image/*,.heic,.heif"
           className="sr-only"
           onChange={handleCoverSelect}
         />

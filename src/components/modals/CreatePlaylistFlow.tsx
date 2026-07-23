@@ -674,7 +674,7 @@ export function CreatePlaylistFlow() {
               <input
                 ref={coverInputRef}
                 type="file"
-                accept="image/*"
+                accept="image/*,.heic,.heif"
                 className="sr-only"
                 onChange={handleCoverChange}
               />

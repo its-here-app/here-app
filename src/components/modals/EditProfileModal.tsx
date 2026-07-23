@@ -227,14 +227,14 @@ export default function EditProfileModal({
         <input
           ref={uploadInputRef}
           type="file"
-          accept="image/*"
+          accept="image/*,.heic,.heif"
           onChange={handlePhotoChange}
           className="hidden"
         />
         <input
           ref={captureInputRef}
           type="file"
-          accept="image/*"
+          accept="image/*,.heic,.heif"
           capture="user"
           onChange={handlePhotoChange}
           className="hidden"

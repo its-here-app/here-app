@@ -17,8 +17,8 @@ export function useCoverPhotoUpload(onSelect: (file: File) => void) {
     if (!file) return;
 
     try {
-      await validateImageFile(file, COVER_MAX_BYTES);
-      onSelect(file);
+      const validatedFile = await validateImageFile(file, COVER_MAX_BYTES);
+      onSelect(validatedFile);
     } catch (err) {
       if (err instanceof InvalidImageError) {
         toast({ icon: <ErrorIcon />, message: err.message });
