@@ -13,6 +13,8 @@ import type { SpotMention } from "@/lib/spotMentions";
 import { formatSpotMentionText, getFeaturedSaver } from "@/lib/spotMentions";
 import { parseCityFromAddress } from "@/lib/cityDisplay";
 import SpotCard from "@/components/SpotCard";
+import { SpotSkeletonList } from "@/components/home/SpotSkeleton";
+import { Skeleton } from "@/components/ui/Skeleton";
 import EmptyState from "@/components/ui/EmptyState";
 import BookmarkButton from "@/components/BookmarkButton";
 import { SpotSearchPanel } from "@/components/SpotSearchPanel";
@@ -45,12 +47,7 @@ const SORT_ORDER_LABELS: Record<SortOrder, string> = {
 
 export default function SavesPage() {
   const { user, loading: authLoading } = useAuth();
-  const {
-    savedSpots,
-    loading: savesLoading,
-    optimisticRemove,
-    restoreSpot,
-  } = useSaves();
+  const { savedSpots, loading: savesLoading } = useSaves();
   const router = useRouter();
 
   const searchParams = useSearchParams();
@@ -129,7 +126,7 @@ export default function SavesPage() {
       })
     : sortedSpots;
 
-  if (authLoading || savesLoading) {
+  if (authLoading) {
     return (
       <main className="flex min-h-screen items-center justify-center">
         <p>Loading...</p>
@@ -251,11 +248,17 @@ export default function SavesPage() {
                 }}
               />
             </div>
-            <p className="text-body-sm text-secondary py-1 mb-4">
-              {displayedSpots.length}{" "}
-              {displayedSpots.length === 1 ? "spot" : "spots"}
-            </p>
-            {savedSpots.length === 0 ? (
+            {savesLoading ? (
+              <Skeleton className="h-[1em] w-20 rounded-full py-1 mb-4" />
+            ) : (
+              <p className="text-body-sm text-secondary py-1 mb-4">
+                {displayedSpots.length}{" "}
+                {displayedSpots.length === 1 ? "spot" : "spots"}
+              </p>
+            )}
+            {savesLoading ? (
+              <SpotSkeletonList />
+            ) : savedSpots.length === 0 ? (
               <EmptyState
                 header="Nothing saved yet"
                 message="Save spots you love to see them here."
@@ -288,15 +291,7 @@ export default function SavesPage() {
                           )?.username ?? null,
                         ) ?? ""
                       }
-                      bookmark={
-                        <BookmarkButton
-                          spot={spot}
-                          onRemove={() =>
-                            optimisticRemove(spot.google_place_id)
-                          }
-                          onRestore={() => restoreSpot(spot)}
-                        />
-                      }
+                      bookmark={<BookmarkButton spot={spot} />}
                     />
                   </div>
                 ))}
@@ -308,14 +303,22 @@ export default function SavesPage() {
         {/* Playlists tab */}
         {tab === "playlists" && (
           <div>
-            {savedPlaylists !== null && (
-              <p className="text-body-sm text-secondary py-1 mb-4">
-                {savedPlaylists.length}{" "}
-                {savedPlaylists.length === 1 ? "playlist" : "playlists"}
-              </p>
+            {playlistsLoading ? (
+              <Skeleton className="h-[1em] w-24 rounded-full py-1 mb-4" />
+            ) : (
+              savedPlaylists !== null && (
+                <p className="text-body-sm text-secondary py-1 mb-4">
+                  {savedPlaylists.length}{" "}
+                  {savedPlaylists.length === 1 ? "playlist" : "playlists"}
+                </p>
+              )
             )}
             {playlistsLoading ? (
-              <p className="text-body-sm text-secondary">Loading…</p>
+              <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
+                {Array.from({ length: 6 }, (_, i) => (
+                  <Skeleton key={i} className="aspect-square w-full rounded-sm" />
+                ))}
+              </div>
             ) : !savedPlaylists || savedPlaylists.length === 0 ? (
               <EmptyState
                 header="Nothing saved yet"
@@ -390,7 +393,11 @@ export default function SavesPage() {
       >
         <SpotSearchPanel
           isOpen={spotSearchOpen}
-          onClose={() => setSpotSearchOpen(false)}
+          onClose={() => {
+            setSpotSearchOpen(false);
+            setSearchQuery("");
+            setSearchInputState("default");
+          }}
           onSelect={() => {}}
           initialQuery={searchQuery}
           contentClassName="mt-2"

@@ -15,7 +15,7 @@ type SpotProps = { spot: DraftSpot; playlistId?: never; variant?: IconButtonVari
 type PlaylistProps = { playlistId: string; spot?: never; variant?: IconButtonVariant; className?: string; onRemove?: () => void; onRestore?: () => void };
 
 export default function BookmarkButton({ spot, playlistId, variant = "ghost", className, onRemove, onRestore }: SpotProps | PlaylistProps) {
-  const { isSaved, toggle } = useSaves();
+  const { isSaved, savedSpots, addSpot, removeSpot } = useSaves();
   const { user } = useAuth();
   const [mounted, setMounted] = useState(false);
   const [playlistSaved, setPlaylistSaved] = useState(false);
@@ -39,17 +39,25 @@ export default function BookmarkButton({ spot, playlistId, variant = "ghost", cl
     if (playlistSaved) {
       setPlaylistSaved(false);
       onRemove?.();
+      try {
+        await unsavePlaylist(user.id, playlistId);
+      } catch {
+        setPlaylistSaved(true);
+        onRestore?.();
+        return;
+      }
       snackbar({
         icon: <Info />,
         message: "Playlist removed from saves",
         actionLabel: "Undo",
-        onAction: () => { setPlaylistSaved(true); onRestore?.(); },
-        onDismiss: async () => {
+        onAction: async () => {
+          setPlaylistSaved(true);
+          onRestore?.();
           try {
-            await unsavePlaylist(user.id, playlistId);
+            await savePlaylist(user.id, playlistId);
           } catch {
-            setPlaylistSaved(true);
-            onRestore?.();
+            setPlaylistSaved(false);
+            onRemove?.();
           }
         },
       });
@@ -96,30 +104,25 @@ export default function BookmarkButton({ spot, playlistId, variant = "ghost", cl
     );
   }
 
-  function handleSpotClick() {
+  async function handleSpotClick() {
     if (saved) {
-      if (onRemove) {
-        setSavedOverride(false);
-        onRemove();
-        snackbar({
-          icon: <Info />,
-          message: "Spot removed from saves",
-          actionLabel: "Undo",
-          onAction: () => { setSavedOverride(null); onRestore?.(); },
-          onDismiss: () => { toggle(spot!); setSavedOverride(null); },
-        });
-      } else {
-        setSavedOverride(false);
-        snackbar({
-          icon: <Info />,
-          message: "Spot removed from saves",
-          actionLabel: "Undo",
-          onAction: () => setSavedOverride(null),
-          onDismiss: () => { toggle(spot!); setSavedOverride(null); },
-        });
-      }
+      const existing = savedSpots.find(
+        (s) => s.google_place_id === spot!.google_place_id
+      );
+      if (!existing) return;
+      setSavedOverride(false);
+      await removeSpot(existing);
+      snackbar({
+        icon: <Info />,
+        message: "Spot removed from saves",
+        actionLabel: "Undo",
+        onAction: async () => {
+          setSavedOverride(null);
+          await addSpot(spot!);
+        },
+      });
     } else {
-      toggle(spot!);
+      addSpot(spot!);
     }
   }
 

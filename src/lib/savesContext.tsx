@@ -15,6 +15,8 @@ interface SavesContextType {
   savedSpots: Spot[];
   isSaved: (googlePlaceId: string) => boolean;
   toggle: (spot: DraftSpot) => Promise<void>;
+  addSpot: (spot: DraftSpot) => Promise<void>;
+  removeSpot: (spot: Spot) => Promise<void>;
   optimisticRemove: (googlePlaceId: string) => void;
   restoreSpot: (spot: Spot) => void;
   loading: boolean;
@@ -25,6 +27,8 @@ const SavesContext = createContext<SavesContextType>({
   savedSpots: [],
   isSaved: () => false,
   toggle: async () => {},
+  addSpot: async () => {},
+  removeSpot: async () => {},
   optimisticRemove: () => {},
   restoreSpot: () => {},
   loading: true,
@@ -43,6 +47,7 @@ export function SavesProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
       return;
     }
+    setLoading(true);
     getSavedSpots(user.id).then((spots) => {
       setSavedSpots(spots);
       setLoading(false);
@@ -55,43 +60,53 @@ export function SavesProvider({ children }: { children: React.ReactNode }) {
     [savedSpots]
   );
 
-  const toggle = useCallback(
+  const addSpot = useCallback(
     async (draft: DraftSpot) => {
       if (!user) return;
       setError(null);
+      try {
+        const newSpot = await saveSpot(user.id, {
+          spot_id: draft.google_place_id,
+          name: draft.name,
+          address: draft.address,
+          photo_url: draft.photo_url,
+          rating: draft.rating,
+          types: draft.types,
+        });
+        setSavedSpots((prev) => [newSpot, ...prev]);
+      } catch (e) {
+        console.error("saveSpot failed:", e);
+        setError(String(e));
+      }
+    },
+    [user]
+  );
+
+  const removeSpot = useCallback(
+    async (existing: Spot) => {
+      if (!user) return;
+      setError(null);
+      setSavedSpots((prev) => prev.filter((s) => s.id !== existing.id));
+      try {
+        await unsaveSpot(user.id, existing.id);
+      } catch (e) {
+        console.error("unsaveSpot failed:", e);
+        setError(String(e));
+        setSavedSpots((prev) => [existing, ...prev]);
+      }
+    },
+    [user]
+  );
+
+  const toggle = useCallback(
+    async (draft: DraftSpot) => {
       const existing = savedSpots.find(
         (s) => s.google_place_id === draft.google_place_id
       );
-
-      if (existing) {
-        setSavedSpots((prev) =>
-          prev.filter((s) => s.google_place_id !== draft.google_place_id)
-        );
-        try {
-          await unsaveSpot(user.id, existing.id);
-        } catch (e) {
-          console.error("unsaveSpot failed:", e);
-          setError(String(e));
-          setSavedSpots((prev) => [existing, ...prev]);
-        }
-      } else {
-        try {
-          const newSpot = await saveSpot(user.id, {
-            spot_id: draft.google_place_id,
-            name: draft.name,
-            address: draft.address,
-            photo_url: draft.photo_url,
-            rating: draft.rating,
-            types: draft.types,
-          });
-          setSavedSpots((prev) => [newSpot, ...prev]);
-        } catch (e) {
-          console.error("saveSpot failed:", e);
-          setError(String(e));
-        }
-      }
+      if (existing) await removeSpot(existing);
+      else await addSpot(draft);
     },
-    [user, savedSpots]
+    [savedSpots, removeSpot, addSpot]
   );
 
   const optimisticRemove = useCallback((googlePlaceId: string) => {
@@ -103,7 +118,7 @@ export function SavesProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <SavesContext.Provider value={{ savedSpots, isSaved, toggle, optimisticRemove, restoreSpot, loading, error }}>
+    <SavesContext.Provider value={{ savedSpots, isSaved, toggle, addSpot, removeSpot, optimisticRemove, restoreSpot, loading, error }}>
       {children}
     </SavesContext.Provider>
   );
