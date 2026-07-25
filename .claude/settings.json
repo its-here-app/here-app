@@ -17,7 +17,7 @@
       "Bash(curl -s \"http://localhost:3000/ekin?back=1\")",
       "Bash(node -e ' *)",
       "Bash(grep -rniE \"portland|97[0-9]{3}|,\\\\s*[A-Z]{2}\\\\s+[0-9]{5}|USA\" --include=\"*.ts\" --include=\"*.tsx\" --include=\"*.json\" --include=\"*.sql\" .)",
-      "Bash(rm \"/Users/emily/Dev/here-demo/src/app/[username]/ProfileEmptyState.tsx\" \"/Users/emily/Dev/here-demo/src/app/[username]/ProfileMessage.tsx\" *)",
+      "Bash(rm \"/Users/emily/Dev/here-app/src/app/[username]/ProfileEmptyState.tsx\" \"/Users/emily/Dev/here-app/src/app/[username]/ProfileMessage.tsx\" *)",
       "Skill(run)",
       "Skill(run:*)",
       "Bash(npx --yes playwright --version)",
@@ -33,7 +33,7 @@
       "Bash(git stash *)"
     ],
     "additionalDirectories": [
-      "/Users/emily/Dev/here-demo/src/app/[username]"
+      "/Users/emily/Dev/here-app/src/app/[username]"
     ]
   }
 }
