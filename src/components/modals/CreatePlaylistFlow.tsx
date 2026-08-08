@@ -7,7 +7,7 @@ import { BottomPanel } from "@/components/ui/BottomPanel";
 import { CityAutocompleteInput } from "@/components/ui/inputs/CityAutocompleteInput";
 import { Button } from "@/components/ui/Button";
 import { ConfirmSheet } from "@/components/ui/Sheet";
-import { snackbar } from "@/components/ui/Snackbar";
+import { snackbar, dismissAllSnackbars } from "@/components/ui/Snackbar";
 import { Add } from "@/components/ui/icons/Add";
 import { ArrowLeft } from "@/components/ui/icons/ArrowLeft";
 import { CheckCircle } from "@/components/ui/icons/CheckCircle";
@@ -625,7 +625,7 @@ export function CreatePlaylistFlow() {
           }}
         >
           <div
-            className="flex flex-col h-full lg:block"
+            className={`flex flex-col ${imported ? "" : "h-full"} lg:h-full lg:block`}
             style={{ ["--col-w" as string]: "calc((100vw - 2*var(--space-page-sm) - 1.5rem) / 2)" }}
           >
             {/* Left — Card. Desktop: position:fixed (not sticky) so it's pinned to the
@@ -682,7 +682,7 @@ export function CreatePlaylistFlow() {
 
             {/* Right — Form or Search (desktop). lg:ml matches the fixed left column's
                 width + gap, since it's no longer a grid sibling that reserves that space. */}
-            <div className={`relative flex-1 min-h-0 flex flex-col lg:ml-[calc(var(--col-w)+1.5rem)] ${!imported ? "lg:h-[calc(100vh-2*var(--space-page-sm))]" : ""}`}>
+            <div className={`relative flex flex-col ${!imported ? "flex-1 min-h-0" : ""} lg:flex-1 lg:min-h-0 lg:ml-[calc(var(--col-w)+1.5rem)] ${!imported ? "lg:h-[calc(100vh-2*var(--space-page-sm))]" : ""}`}>
               {/* Desktop: importing overlay, scoped to this column (mobile uses the full-screen one above).
                   Positioned against this non-scrolling wrapper (not the scrollable box below) so its
                   inset-0 always matches the full rounded box, top and bottom. */}
@@ -692,7 +692,7 @@ export function CreatePlaylistFlow() {
                 </div>
               )}
 
-              <div className="relative flex-1 min-h-0 flex flex-col overflow-y-auto">
+              <div className={`relative flex flex-col ${!imported ? "flex-1 min-h-0 overflow-y-auto" : ""} lg:flex-1 lg:min-h-0 lg:overflow-y-auto`}>
                 {/* Desktop: normal form, CSS-hidden (not unmounted) while search is open */}
                 <div className={spotSearchOpen ? "hidden" : "hidden lg:flex lg:flex-col lg:h-full"}>
                   <SlotRow
@@ -736,6 +736,7 @@ export function CreatePlaylistFlow() {
                 <SpotSearchPanel
                   isOpen={spotSearchOpen}
                   onClose={() => {
+                    dismissAllSnackbars();
                     setSpotSearchOpen(false);
                     if (foundSpots.length > 0) setImported(true);
                   }}

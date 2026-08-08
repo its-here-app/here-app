@@ -42,7 +42,7 @@ import { CheckCircle } from "@/components/ui/icons/CheckCircle";
 import { Trash } from "@/components/ui/icons/Trash";
 import { World } from "@/components/ui/icons/World";
 import { Sheet, ConfirmSheet } from "@/components/ui/Sheet";
-import { snackbar, dismissSnackbar } from "@/components/ui/Snackbar";
+import { snackbar, dismissSnackbar, dismissAllSnackbars } from "@/components/ui/Snackbar";
 import { toast } from "@/components/ui/Toast";
 import { Error as ErrorIcon } from "@/components/ui/icons/Error";
 import type { SheetItem } from "@/components/ui/Sheet";
@@ -282,6 +282,7 @@ export default function PlaylistEditor({ playlist, isOwner, onClose }: Props) {
   }
 
   async function handleDone() {
+    dismissAllSnackbars();
     setSaving(true);
     try {
       // Cover
@@ -684,7 +685,10 @@ export default function PlaylistEditor({ playlist, isOwner, onClose }: Props) {
       {editMode && (
         <SpotSearchPanel
           isOpen={isAddSpotOpen}
-          onClose={() => setIsAddSpotOpen(false)}
+          onClose={() => {
+            dismissAllSnackbars();
+            setIsAddSpotOpen(false);
+          }}
           city={playlist.city}
           cityId={playlist.city_id ?? undefined}
           addedPlaceIds={existingPlaceIds}

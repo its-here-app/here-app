@@ -30,7 +30,9 @@
       "Bash(npm init *)",
       "Bash(ps -p 85125 -o pid,ppid,command)",
       "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3000/signin)",
-      "Bash(git stash *)"
+      "Bash(git stash *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3000)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3001)"
     ],
     "additionalDirectories": [
       "/Users/emily/Dev/here-app/src/app/[username]"

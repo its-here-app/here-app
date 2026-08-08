@@ -5,7 +5,7 @@ import { Add } from "@/components/ui/icons/Add";
 import { Arrows } from "@/components/ui/icons/Arrows";
 
 /**
- * Just the "Add a spot" + "Reorder" button row — deliberately does not also
+ * Just the add-spot + "Reorder" button row — deliberately does not also
  * render SpotSearchPanel, since some callers (e.g. CreatePlaylistFlow) render
  * this row twice (once per breakpoint) but must mount the panel exactly once.
  * Mount SpotSearchPanel separately alongside this component.
@@ -22,7 +22,7 @@ export function AddSpotSection({
   reorderMode: boolean;
   onToggleReorder: () => void;
   onOpenSearch: () => void;
-  /** Shows a black "Import" button in place of "Add a spot" (e.g. while the list-paste textarea has content) */
+  /** Shows a black "Import" button in place of the add-spot button (e.g. while the list-paste textarea has content) */
   showImport?: boolean;
   onImport?: () => void;
 }) {
@@ -40,7 +40,7 @@ export function AddSpotSection({
           className="flex-1"
           onClick={onOpenSearch}
         >
-          Add a spot
+          Search spots
         </Button>
       )}
       {spotCount > 1 && (
