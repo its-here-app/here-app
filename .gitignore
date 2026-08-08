@@ -43,5 +43,5 @@ next-env.d.ts
 # one-off scripts (backfills, migrations run manually)
 /scripts/one-off/
 
-# personal Claude Code overrides (never shared)
-/.claude/settings.local.json
+# Claude Code local config (never shared)
+/.claude/

@@ -865,8 +865,8 @@ export function CreatePlaylistFlow() {
             We couldn&apos;t find a few of the spots
           </p>
           <ul className="text-primary text-body-sm list-disc pl-4">
-            {unfoundSpots.map((name) => (
-              <li key={name}>{name}</li>
+            {unfoundSpots.map((name, idx) => (
+              <li key={`${name}-${idx}`}>{name}</li>
             ))}
           </ul>
           <Button
