@@ -3,8 +3,21 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createUser, getUserByUsername } from "@/lib/services/users";
+import {
+  hasConsecutivePeriods,
+  hasEdgePeriod,
+  isValidUsername,
+  sanitizeUsernameInput,
+} from "@/lib/isValidUsername";
 
-type UsernameStatus = "idle" | "too-short" | "checking" | "valid" | "taken";
+type UsernameStatus =
+  | "idle"
+  | "too-short"
+  | "edge-period"
+  | "consecutive-periods"
+  | "checking"
+  | "valid"
+  | "taken";
 
 export default function NewUserPage() {
   const router = useRouter();
@@ -21,6 +34,11 @@ export default function NewUserPage() {
     }
     if (username.length < 3) {
       const timer = setTimeout(() => setUsernameStatus("too-short"), 800);
+      return () => clearTimeout(timer);
+    }
+    if (!isValidUsername(username)) {
+      const status = hasEdgePeriod(username) ? "edge-period" : "consecutive-periods";
+      const timer = setTimeout(() => setUsernameStatus(status), 800);
       return () => clearTimeout(timer);
     }
     setUsernameStatus("checking");
@@ -52,6 +70,8 @@ export default function NewUserPage() {
   const saveDisabled =
     loading ||
     usernameStatus === "too-short" ||
+    usernameStatus === "edge-period" ||
+    usernameStatus === "consecutive-periods" ||
     usernameStatus === "taken" ||
     usernameStatus === "checking";
 
@@ -84,7 +104,7 @@ export default function NewUserPage() {
               type="text"
               id="username"
               value={username}
-              onChange={(e) => setUserName(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
+              onChange={(e) => setUserName(sanitizeUsernameInput(e.target.value))}
               required
               minLength={3}
               maxLength={30}
@@ -93,6 +113,16 @@ export default function NewUserPage() {
             />
             {usernameStatus === "too-short" && (
               <p className="text-xs text-red-500 mt-1">Username must be at least 3 characters</p>
+            )}
+            {usernameStatus === "edge-period" && (
+              <p className="text-xs text-red-500 mt-1">
+                Username can&apos;t start or end with a period
+              </p>
+            )}
+            {usernameStatus === "consecutive-periods" && (
+              <p className="text-xs text-red-500 mt-1">
+                Username can&apos;t contain consecutive periods
+              </p>
             )}
             {usernameStatus === "taken" && (
               <p className="text-xs text-red-500 mt-1">Username already taken, please try another</p>

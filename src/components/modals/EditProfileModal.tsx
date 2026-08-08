@@ -18,11 +18,19 @@ import {
 import { updateProfileAction } from "@/lib/actions/users";
 import { upsertCityAction } from "@/lib/actions/cities";
 import { isValidInstagramHandle, sanitizeInstagramHandleInput } from "@/lib/isValidInstagramHandle";
+import { hasEdgePeriod, isValidUsername, sanitizeUsernameInput } from "@/lib/isValidUsername";
 import { useDebouncedValue } from "@/lib/useDebouncedValue";
 import { useAvatarUpload } from "@/lib/useAvatarUpload";
 import { CityAutocompleteInput } from "../ui/inputs/CityAutocompleteInput";
 
-type UsernameStatus = "idle" | "too-short" | "checking" | "valid" | "taken";
+type UsernameStatus =
+  | "idle"
+  | "too-short"
+  | "edge-period"
+  | "consecutive-periods"
+  | "checking"
+  | "valid"
+  | "taken";
 
 interface EditProfileModalProps {
   isOpen: boolean;
@@ -98,6 +106,10 @@ export default function EditProfileModal({
       setUsernameStatus("valid");
       return;
     }
+    if (!isValidUsername(debouncedUsername)) {
+      setUsernameStatus(hasEdgePeriod(debouncedUsername) ? "edge-period" : "consecutive-periods");
+      return;
+    }
     getUserByUsername(debouncedUsername).then((existing) => {
       setUsernameStatus(existing ? "taken" : "valid");
     });
@@ -113,6 +125,16 @@ export default function EditProfileModal({
       toast({
         icon: <Error />,
         message: "Username unavailable",
+      });
+    } else if (usernameStatus === "edge-period") {
+      toast({
+        icon: <Error />,
+        message: "Username can't start or end with a period",
+      });
+    } else if (usernameStatus === "consecutive-periods") {
+      toast({
+        icon: <Error />,
+        message: "Username can't contain consecutive periods",
       });
     }
   }, [usernameStatus]);
@@ -292,9 +314,7 @@ export default function EditProfileModal({
         focusBrand
         label="Username"
         value={username}
-        onChange={(e) =>
-          setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))
-        }
+        onChange={(e) => setUsername(sanitizeUsernameInput(e.target.value))}
         required
         minLength={3}
         maxLength={30}
@@ -303,7 +323,10 @@ export default function EditProfileModal({
         rightSlot={
           usernameStatus === "valid" ? (
             <Check focus className="text-brand" />
-          ) : usernameStatus === "too-short" || usernameStatus === "taken" ? (
+          ) : usernameStatus === "too-short" ||
+            usernameStatus === "edge-period" ||
+            usernameStatus === "consecutive-periods" ||
+            usernameStatus === "taken" ? (
             <Error className="text-brand" />
           ) : undefined
         }
@@ -373,7 +396,7 @@ export default function EditProfileModal({
           variant="tonal"
           size="md"
           darkTheme
-          disabled={saving || usernameStatus === "too-short" || usernameStatus === "taken" || usernameStatus === "checking" || !isInstagramValid}
+          disabled={saving || usernameStatus === "too-short" || usernameStatus === "edge-period" || usernameStatus === "consecutive-periods" || usernameStatus === "taken" || usernameStatus === "checking" || !isInstagramValid}
           className="w-full"
         >
           {saving ? "Saving..." : "Save"}
@@ -386,7 +409,7 @@ export default function EditProfileModal({
           variant="tonal"
           size="lg"
           darkTheme
-          disabled={saving || usernameStatus === "too-short" || usernameStatus === "taken" || usernameStatus === "checking" || !isInstagramValid}
+          disabled={saving || usernameStatus === "too-short" || usernameStatus === "edge-period" || usernameStatus === "consecutive-periods" || usernameStatus === "taken" || usernameStatus === "checking" || !isInstagramValid}
         >
           {saving ? "Saving..." : "Save"}
         </Button>
