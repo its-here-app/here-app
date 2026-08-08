@@ -56,7 +56,6 @@ export function BottomPanel({
   const [dragY, setDragY] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
-  const [viewportRect, setViewportRect] = useState<{ top: number; height: number } | null>(null);
   const touchStartY = useRef(0);
 
   function handleTouchStart(e: React.TouchEvent) {
@@ -83,35 +82,33 @@ export function BottomPanel({
     function handleEscape(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
     }
-    if (isOpen) {
-      document.addEventListener("keydown", handleEscape);
-      document.body.style.overflow = "hidden";
-    }
-    return () => {
-      document.removeEventListener("keydown", handleEscape);
-      document.body.style.overflow = "unset";
-    };
+    if (isOpen) document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
   }, [isOpen, onClose]);
 
-  // iOS Safari shrinks the visual viewport (without resizing the layout viewport)
-  // and pans it when the on-screen keyboard opens, which drags "fixed" elements
-  // along with it since they're positioned relative to the layout viewport. Track
-  // the visual viewport's own top/height and pin the sheet to those instead, so it
-  // stays flush with the bottom of the visible area above the keyboard.
+  // Plain `overflow: hidden` on the body doesn't stop iOS Safari from scrolling
+  // the page (and panning fixed-position elements along with it) when a focused
+  // input needs to be brought above the keyboard. Taking the body out of the
+  // scrollable flow entirely with `position: fixed` denies iOS anything to pan,
+  // so the sheet — a real `position: fixed` element — stays pinned to the true
+  // bottom of the screen regardless of the keyboard. Scroll position is restored
+  // on close since this technique resets it.
   useEffect(() => {
     if (!isOpen) return;
-    const viewport = window.visualViewport;
-    if (!viewport) return;
-    function syncViewport() {
-      setViewportRect({ top: viewport!.offsetTop, height: viewport!.height });
-    }
-    syncViewport();
-    viewport.addEventListener("resize", syncViewport);
-    viewport.addEventListener("scroll", syncViewport);
+    const scrollY = window.scrollY;
+    const { position, top, left, right, width } = document.body.style;
+    document.body.style.position = "fixed";
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.left = "0";
+    document.body.style.right = "0";
+    document.body.style.width = "100%";
     return () => {
-      viewport.removeEventListener("resize", syncViewport);
-      viewport.removeEventListener("scroll", syncViewport);
-      setViewportRect(null);
+      document.body.style.position = position;
+      document.body.style.top = top;
+      document.body.style.left = left;
+      document.body.style.right = right;
+      document.body.style.width = width;
+      window.scrollTo(0, scrollY);
     };
   }, [isOpen]);
 
@@ -201,13 +198,7 @@ export function BottomPanel({
       )}
 
       {/* Mobile: bottom sheet */}
-      <div
-        className="fixed left-0 right-0 z-[60] lg:hidden flex flex-col justify-end"
-        style={{
-          top: viewportRect ? viewportRect.top : 0,
-          height: viewportRect ? viewportRect.height : "100%",
-        }}
-      >
+      <div className="fixed inset-0 z-[60] lg:hidden flex flex-col justify-end">
         <Scrim visible={isAnimating} onClick={onClose} />
         <div
           className={`relative bg-surface-base dark rounded-t-[1.5rem] flex flex-col gap-5 px-6 pt-6 pb-[calc(2.25rem+env(safe-area-inset-bottom))] overflow-x-hidden ${handle && isDragging ? "" : "transition-[transform,height]"} duration-300`}
@@ -259,24 +250,6 @@ export function BottomPanel({
           </div>
           {footer && <div className="pt-3 flex justify-center">{footer}</div>}
         </div>
-
-        {/*
-          The panel stops exactly at the bottom of the tracked viewport (the top
-          of the keyboard). If the OS keyboard's slide-up animation hasn't
-          finished by the time visualViewport reports its final size, there's a
-          brief window where the panel has already shrunk but the keyboard
-          hasn't fully covered the space below it — this independent, fixed
-          filler sits right where the panel ends and extends well past any
-          possible keyboard height, so that gap is always this background
-          color, never the page behind it. It's a sibling (not nested inside
-          the panel) so it can't turn the panel into a scroll container.
-        */}
-        {viewportRect && (
-          <div
-            className="fixed left-0 right-0 z-[60] lg:hidden h-[100vh] bg-surface-base pointer-events-none"
-            style={{ top: viewportRect.top + viewportRect.height }}
-          />
-        )}
       </div>
     </>
   );
