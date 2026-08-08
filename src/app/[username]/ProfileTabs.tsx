@@ -21,6 +21,7 @@ import { openCreatePlaylist } from "@/components/modals/CreatePlaylistFlow";
 import type { Playlist, Spot } from "@/types";
 import SpotCard from "@/components/SpotCard";
 import { playlistDocTitle } from "@/lib/playlistDocTitle";
+import { parseCityFromAddress } from "@/lib/cityDisplay";
 
 interface ProfileTabsProps {
   playlists: Playlist[];
@@ -197,7 +198,13 @@ export default function ProfileTabs({
         <div className="flex flex-col gap-2 py-2">
           {spots.length > 0 ? (
             spots.map((spot) => (
-              <SpotCard key={spot.id} spot={spot} subtitleText="" bookmark={<BookmarkButton spot={spot} />} />
+              <SpotCard
+                key={spot.id}
+                spot={spot}
+                subtitleText=""
+                bookmark={<BookmarkButton spot={spot} />}
+                city={parseCityFromAddress(spot.address) ?? undefined}
+              />
             ))
           ) : (
             <EmptyState

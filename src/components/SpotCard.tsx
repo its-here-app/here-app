@@ -76,6 +76,9 @@ export default function SpotCard({
               <div className="flex items-center gap-1 mt-1 flex-wrap">
                 {firstType && <Badge>{firstType}</Badge>}
                 {spot.rating != null && <Rating rating={spot.rating} />}
+                {spot.rating != null && city && (
+                  <span className="text-body-xs text-secondary">·</span>
+                )}
                 {city && (
                   <span className="text-body-xs text-secondary">{city}</span>
                 )}
@@ -111,6 +114,9 @@ export default function SpotCard({
               <div className="flex items-center gap-1 mt-1 flex-wrap">
                 {firstType && <Badge>{firstType}</Badge>}
                 {spot.rating != null && <Rating rating={spot.rating} />}
+                {spot.rating != null && city && (
+                  <span className="text-body-xs text-secondary">·</span>
+                )}
                 {city && (
                   <span className="text-body-xs text-secondary">{city}</span>
                 )}
