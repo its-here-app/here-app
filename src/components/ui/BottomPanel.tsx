@@ -226,6 +226,15 @@ export function BottomPanel({
               }
             : {})}
         >
+          {/*
+            The panel's own height only covers the content above the keyboard.
+            iOS pans/resizes the visual viewport as the keyboard animates in, which
+            can momentarily desync from our tracked viewportRect and expose whatever
+            is beneath the panel. This filler extends the same background straight
+            down past any possible keyboard height so that gap is always black,
+            never the page behind it.
+          */}
+          <div className="absolute top-full inset-x-0 h-[100vh] bg-surface-base pointer-events-none" />
           {handle && (
             <div
               className="flex justify-center cursor-pointer py-4 -mt-7 -mb-4 touch-none"
