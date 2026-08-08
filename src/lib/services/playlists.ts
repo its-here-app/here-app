@@ -398,14 +398,20 @@ export async function resolveSpot(
 }
 
 // Returns a slug unique to this user, appending -2, -3, etc. if needed.
-export async function resolveUniqueSlug(userId: string, name: string): Promise<string> {
+export async function resolveUniqueSlug(
+  userId: string,
+  name: string,
+  excludePlaylistId?: string
+): Promise<string> {
   const baseSlug = toSlug(name);
   const supabase = createClient();
-  const { data } = await supabase
+  let query = supabase
     .from("playlists")
     .select("slug")
     .eq("user_id", userId)
     .like("slug", `${baseSlug}%`);
+  if (excludePlaylistId) query = query.neq("id", excludePlaylistId);
+  const { data } = await query;
 
   const existing = new Set((data ?? []).map((p: any) => p.slug));
   if (!existing.has(baseSlug)) return baseSlug;
@@ -505,14 +511,17 @@ export async function touchPlaylist(playlistId: string) {
 
 export async function updatePlaylistName(
   playlistId: string,
+  userId: string,
   name: string
-) {
+): Promise<string> {
   const supabase = createClient();
+  const slug = await resolveUniqueSlug(userId, name, playlistId);
   const { error } = await supabase
     .from("playlists")
-    .update({ name })
+    .update({ name, slug })
     .eq("id", playlistId);
   if (error) throw error;
+  return slug;
 }
 
 export async function updatePlaylistDescription(

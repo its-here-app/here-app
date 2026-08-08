@@ -315,7 +315,12 @@ export default function PlaylistEditor({ playlist, isOwner, onClose }: Props) {
         if (trimmedName !== name) setName(trimmedName);
         lastNameRef.current = trimmedName;
         if (trimmedName !== editStartRef.current?.name) {
-          await updatePlaylistName(playlist.id, trimmedName);
+          const newSlug = await updatePlaylistName(playlist.id, playlist.user_id, trimmedName);
+          if (newSlug !== playlist.slug) {
+            router.replace(
+              playlistUrl(playlist.profiles.username, playlist.city, trimmedName, newSlug)
+            );
+          }
         }
       }
 
