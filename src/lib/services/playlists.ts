@@ -43,10 +43,10 @@ export async function getRecentFollowingPlaylists(
  * Discovery feed of public playlists from people the user doesn't follow yet.
  *
  * When `cityId` is provided, the pool is limited to public playlists in that
- * city — playlists authored by the user's 2nd-degree network (people
- * followed by people they follow) are ranked first as a tiebreak. If no
- * playlists exist in that city at all, falls back to random public
- * playlists from any city rather than showing an empty feed.
+ * city, with the user's 2nd-degree network (people followed by people they
+ * follow) ranked first as a tiebreak. If that local pool doesn't have enough
+ * to fill the carousel (8), it's backfilled with random public playlists
+ * from other cities — local results are still ranked ahead of the filler.
  *
  * When `cityId` is omitted, falls back to the legacy behavior: pulled from
  * the user's own profile city, cities they already have playlists in, and
@@ -129,10 +129,15 @@ export async function getExplorePlaylists(
     pool.set(p.id, p);
   }
 
-  // Backfill with playlists from anyone else if the targeted pool is short of
-  // 8 — but only when we're not strictly city-scoped, since cross-city filler
-  // would defeat the point of filtering by city.
-  if (!cityId && pool.size < 8) {
+  // Track which playlists came from the targeted (local) pool before mixing
+  // in cross-city filler, so local results can still be ranked first.
+  const localIds = new Set(pool.keys());
+
+  // Backfill with playlists from anywhere else if the pool doesn't have
+  // enough to fill the carousel (8) — this covers both the "no local
+  // playlists at all" case and the "some local playlists but not enough"
+  // case, for both city-scoped and unscoped requests.
+  if (pool.size < 8) {
     const { data: fillerPlaylists } = await supabase
       .from("playlists")
       .select(selectClause)
@@ -144,22 +149,10 @@ export async function getExplorePlaylists(
     }
   }
 
-  // If a city was requested but has no playlists at all, show random public
-  // playlists from any city rather than an empty feed.
-  if (cityId && pool.size === 0) {
-    const { data: randomPlaylists } = await supabase
-      .from("playlists")
-      .select(selectClause)
-      .eq("is_public", true)
-      .limit(60);
-    for (const p of randomPlaylists ?? []) {
-      if (excludeIds.has(p.user_id)) continue;
-      pool.set(p.id, p);
-    }
-  }
-
   const inNetwork = new Set((mutualResult.data ?? []).map((p: any) => p.id));
   const shuffled = [...pool.values()].sort((a, b) => {
+    const localDiff = (localIds.has(a.id) ? 0 : 1) - (localIds.has(b.id) ? 0 : 1);
+    if (localDiff !== 0) return localDiff;
     const netDiff = (inNetwork.has(a.id) ? 0 : 1) - (inNetwork.has(b.id) ? 0 : 1);
     return netDiff !== 0 ? netDiff : Math.random() - 0.5;
   });

@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import PlaylistEditor from "./PlaylistEditor";
+import { dismissAllSnackbars } from "@/components/ui/Snackbar";
 
 interface Props {
   playlist: any;
@@ -18,6 +19,10 @@ export default function PlaylistOverlay({ playlist, isOwner, fromNew }: Props) {
     return () => {
       document.body.style.overflow = "";
     };
+  }, []);
+
+  useEffect(() => {
+    dismissAllSnackbars();
   }, []);
 
   useEffect(() => {

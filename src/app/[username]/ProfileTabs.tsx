@@ -60,6 +60,14 @@ export default function ProfileTabs({
 
   const tabIndex = { playlists: 0, cities: 1, spots: 2 }[activeTab];
 
+  function handleTabClick(tab: "playlists" | "cities" | "spots") {
+    if (!user) {
+      router.push("/signin");
+      return;
+    }
+    setActiveTab(tab);
+  }
+
   const playlistCount = playlists.length;
   const cityCount = new Set(playlists.map((p) => p.city)).size;
   const spotCount = spots.length;
@@ -70,19 +78,19 @@ export default function ProfileTabs({
         <Tab
           title={isActualOwner && playlistCount === 0 ? "Playlists" : `${playlistCount} ${playlistCount === 1 ? "playlist" : "playlists"}`}
           active={activeTab === "playlists"}
-          onClick={() => setActiveTab("playlists")}
+          onClick={() => handleTabClick("playlists")}
           icon={<List />}
         />
         <Tab
           title={isActualOwner && playlistCount === 0 ? "Cities" : `${cityCount} ${cityCount === 1 ? "city" : "cities"}`}
           active={activeTab === "cities"}
-          onClick={() => setActiveTab("cities")}
+          onClick={() => handleTabClick("cities")}
           icon={<Map />}
         />
         <Tab
           title={isActualOwner && playlistCount === 0 ? "Spots" : `${spotCount} ${spotCount === 1 ? "spot" : "spots"}`}
           active={activeTab === "spots"}
-          onClick={() => setActiveTab("spots")}
+          onClick={() => handleTabClick("spots")}
           icon={<Spots />}
         />
       </Tabs>

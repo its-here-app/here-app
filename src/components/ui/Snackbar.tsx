@@ -5,6 +5,11 @@ import { createPortal } from "react-dom";
 
 interface SnackbarData {
   id: string;
+  /** When set, a new snackbar sharing this key replaces any existing one
+   * with the same key synchronously, instead of stacking (used for
+   * persistent nudges that could otherwise be triggered by more than one
+   * mounted instance of the same component at once). */
+  key?: string;
   icon: React.ReactNode;
   message: string;
   duration?: number;
@@ -18,6 +23,7 @@ const listeners: Listener[] = [];
 const dismissHandlers = new Map<string, () => void>();
 
 export function snackbar({
+  key,
   icon,
   message,
   duration,
@@ -27,13 +33,17 @@ export function snackbar({
 }: Omit<SnackbarData, "id">) {
   const id = Math.random().toString(36).slice(2);
   listeners.forEach((fn) =>
-    fn({ id, icon, message, duration, actionLabel, onAction, onDismiss }),
+    fn({ id, key, icon, message, duration, actionLabel, onAction, onDismiss }),
   );
   return id;
 }
 
 export function dismissSnackbar(id: string) {
   dismissHandlers.get(id)?.();
+}
+
+export function dismissAllSnackbars() {
+  for (const dismiss of dismissHandlers.values()) dismiss();
 }
 
 function SnackbarItem({
@@ -106,7 +116,10 @@ export function Snackbar() {
 
   useEffect(() => {
     const listener: Listener = (s) =>
-      setSnackbars((prev) => [...prev.slice(-2), s]);
+      setSnackbars((prev) => [
+        ...prev.filter((x) => !(s.key && x.key === s.key)).slice(-2),
+        s,
+      ]);
     listeners.push(listener);
     return () => {
       listeners.splice(listeners.indexOf(listener), 1);

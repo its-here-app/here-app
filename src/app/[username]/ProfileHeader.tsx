@@ -40,7 +40,7 @@ interface ProfileHeaderProps {
 }
 
 export default function ProfileHeader({ profile }: ProfileHeaderProps) {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const isOwnProfile = user?.id === profile.id;
@@ -78,6 +78,23 @@ export default function ProfileHeader({ profile }: ProfileHeaderProps) {
     if (!user || isOwnProfile) return;
     getRelationship(user.id, profile.id).then(setRelationship);
   }, [user, profile.id, isOwnProfile]);
+
+  useEffect(() => {
+    if (authLoading || user) return;
+    // Closing a playlist overlay can re-navigate to this profile page while
+    // a background instance of this component (behind the modal the whole
+    // time) is still mounted, so more than one instance can fire this at
+    // once — `key` makes a new call replace any existing one synchronously
+    // instead of stacking, since duration: 0 means it never auto-dismisses.
+    snackbar({
+      key: "signed-out-profile-nudge",
+      icon: null,
+      message: "Create your own playlists on Here*",
+      duration: 0,
+      actionLabel: "Sign up",
+      onAction: () => router.push("/signin"),
+    });
+  }, [authLoading, user, router]);
 
   function handleEditSuccess() {
     router.refresh();

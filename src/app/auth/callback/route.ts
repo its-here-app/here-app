@@ -37,19 +37,31 @@ export async function GET(request: NextRequest) {
       } = await supabase.auth.getUser();
 
       if (user) {
-        const { data: existingProfile } = await supabase
+        const { data: existingProfile, error: profileError } = await supabase
           .from("profiles")
           .select("username")
           .eq("id", user.id)
           .single();
 
+        if (profileError && profileError.code !== "PGRST116") {
+          console.error("Profile lookup failed:", profileError);
+        }
+
         if (!existingProfile || !existingProfile.username) {
-          await supabase.from("profiles").insert({
-            id: user.id,
-            email: user.email,
-            name:
-              user.user_metadata?.full_name || user.user_metadata?.name || null,
-          });
+          const { error: upsertError } = await supabase
+            .from("profiles")
+            .upsert({
+              id: user.id,
+              email: user.email,
+              name:
+                user.user_metadata?.full_name ||
+                user.user_metadata?.name ||
+                null,
+            });
+
+          if (upsertError) {
+            console.error("Profile upsert failed:", upsertError);
+          }
 
           return NextResponse.redirect(new URL("/signin", request.url));
         }
