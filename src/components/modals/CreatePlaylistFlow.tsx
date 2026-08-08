@@ -626,7 +626,7 @@ export function CreatePlaylistFlow() {
         >
           <div
             className={`flex flex-col ${imported ? "" : "h-full"} lg:h-full lg:block`}
-            style={{ ["--col-w" as string]: "calc((100vw - 2*var(--space-page-sm) - 1.5rem) / 2)" }}
+            style={{ ["--col-w" as string]: "calc((100vw - 2*var(--space-page-sm) - var(--space-page-sm)) / 2)" }}
           >
             {/* Left — Card. Desktop: position:fixed (not sticky) so it's pinned to the
                 viewport regardless of how tall the right column's content is — sticky's
@@ -682,7 +682,7 @@ export function CreatePlaylistFlow() {
 
             {/* Right — Form or Search (desktop). lg:ml matches the fixed left column's
                 width + gap, since it's no longer a grid sibling that reserves that space. */}
-            <div className={`relative flex flex-col ${!imported ? "flex-1 min-h-0" : ""} lg:flex-1 lg:min-h-0 lg:ml-[calc(var(--col-w)+1.5rem)] ${!imported ? "lg:h-[calc(100vh-2*var(--space-page-sm))]" : ""}`}>
+            <div className={`relative flex flex-col ${!imported ? "flex-1 min-h-0" : ""} lg:flex-1 lg:min-h-0 lg:ml-[calc(var(--col-w)+var(--space-page-sm))] lg:pl-[calc(1.5rem-var(--space-page-sm))] ${!imported ? "lg:h-[calc(100vh-2*var(--space-page-sm))]" : ""}`}>
               {/* Desktop: importing overlay, scoped to this column (mobile uses the full-screen one above).
                   Positioned against this non-scrolling wrapper (not the scrollable box below) so its
                   inset-0 always matches the full rounded box, top and bottom. */}
