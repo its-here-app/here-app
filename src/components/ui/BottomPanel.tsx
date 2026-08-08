@@ -92,6 +92,24 @@ export function BottomPanel({
     };
   }, [isOpen, onClose]);
 
+  // iOS Safari scrolls the page (and any fixed-position elements with it) when the
+  // on-screen keyboard opens, to keep the focused input visible. Reset the scroll
+  // position so the fixed sheet doesn't appear to drag/scroll behind the keyboard.
+  useEffect(() => {
+    if (!isOpen) return;
+    const viewport = window.visualViewport;
+    if (!viewport) return;
+    function resetScroll() {
+      window.scrollTo(0, 0);
+    }
+    viewport.addEventListener("resize", resetScroll);
+    viewport.addEventListener("scroll", resetScroll);
+    return () => {
+      viewport.removeEventListener("resize", resetScroll);
+      viewport.removeEventListener("scroll", resetScroll);
+    };
+  }, [isOpen]);
+
   if (!isVisible) return null;
 
   const fadeIn = isAnimating ? "opacity-100" : "opacity-0";
