@@ -57,6 +57,7 @@ export function BottomPanel({
   const [isDragging, setIsDragging] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const touchStartY = useRef(0);
+  const scrollableRef = useRef<HTMLDivElement>(null);
 
   function handleTouchStart(e: React.TouchEvent) {
     touchStartY.current = e.touches[0].clientY;
@@ -110,6 +111,21 @@ export function BottomPanel({
       document.body.style.width = width;
       window.scrollTo(0, scrollY);
     };
+  }, [isOpen]);
+
+  // iOS still lets a touchmove drag rubber-band/scroll the document underneath
+  // a `position: fixed` overlay even once body scroll is locked above — the fixed
+  // positioning stops it from staying scrolled, but not from visibly moving
+  // during the drag. Block touchmove everywhere except inside the panel's own
+  // scrollable content, which still needs to scroll normally.
+  useEffect(() => {
+    if (!isOpen) return;
+    function blockScroll(e: TouchEvent) {
+      if (scrollableRef.current?.contains(e.target as Node)) return;
+      e.preventDefault();
+    }
+    document.addEventListener("touchmove", blockScroll, { passive: false });
+    return () => document.removeEventListener("touchmove", blockScroll);
   }, [isOpen]);
 
   if (!isVisible) return null;
@@ -201,6 +217,7 @@ export function BottomPanel({
       <div className="fixed inset-0 z-[60] lg:hidden flex flex-col justify-end">
         <Scrim visible={isAnimating} onClick={onClose} />
         <div
+          ref={scrollableRef}
           className={`relative bg-surface-base dark rounded-t-[1.5rem] flex flex-col gap-5 px-6 pt-6 pb-[calc(2.25rem+env(safe-area-inset-bottom))] overflow-x-hidden ${handle && isDragging ? "" : "transition-[transform,height]"} duration-300`}
           style={{
             height:
