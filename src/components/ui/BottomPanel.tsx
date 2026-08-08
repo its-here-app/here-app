@@ -56,6 +56,7 @@ export function BottomPanel({
   const [dragY, setDragY] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [viewportRect, setViewportRect] = useState<{ top: number; height: number } | null>(null);
   const touchStartY = useRef(0);
 
   function handleTouchStart(e: React.TouchEvent) {
@@ -92,21 +93,25 @@ export function BottomPanel({
     };
   }, [isOpen, onClose]);
 
-  // iOS Safari scrolls the page (and any fixed-position elements with it) when the
-  // on-screen keyboard opens, to keep the focused input visible. Reset the scroll
-  // position so the fixed sheet doesn't appear to drag/scroll behind the keyboard.
+  // iOS Safari shrinks the visual viewport (without resizing the layout viewport)
+  // and pans it when the on-screen keyboard opens, which drags "fixed" elements
+  // along with it since they're positioned relative to the layout viewport. Track
+  // the visual viewport's own top/height and pin the sheet to those instead, so it
+  // stays flush with the bottom of the visible area above the keyboard.
   useEffect(() => {
     if (!isOpen) return;
     const viewport = window.visualViewport;
     if (!viewport) return;
-    function resetScroll() {
-      window.scrollTo(0, 0);
+    function syncViewport() {
+      setViewportRect({ top: viewport!.offsetTop, height: viewport!.height });
     }
-    viewport.addEventListener("resize", resetScroll);
-    viewport.addEventListener("scroll", resetScroll);
+    syncViewport();
+    viewport.addEventListener("resize", syncViewport);
+    viewport.addEventListener("scroll", syncViewport);
     return () => {
-      viewport.removeEventListener("resize", resetScroll);
-      viewport.removeEventListener("scroll", resetScroll);
+      viewport.removeEventListener("resize", syncViewport);
+      viewport.removeEventListener("scroll", syncViewport);
+      setViewportRect(null);
     };
   }, [isOpen]);
 
@@ -196,7 +201,13 @@ export function BottomPanel({
       )}
 
       {/* Mobile: bottom sheet */}
-      <div className="fixed inset-0 z-[60] lg:hidden flex flex-col justify-end">
+      <div
+        className="fixed left-0 right-0 z-[60] lg:hidden flex flex-col justify-end"
+        style={{
+          top: viewportRect ? viewportRect.top : 0,
+          height: viewportRect ? viewportRect.height : "100%",
+        }}
+      >
         <Scrim visible={isAnimating} onClick={onClose} />
         <div
           className={`relative bg-surface-base dark rounded-t-[1.5rem] flex flex-col gap-5 px-6 pt-6 pb-[calc(2.25rem+env(safe-area-inset-bottom))] overflow-x-hidden ${handle && isDragging ? "" : "transition-[transform,height]"} duration-300`}
