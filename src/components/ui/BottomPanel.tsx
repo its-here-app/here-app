@@ -56,7 +56,6 @@ export function BottomPanel({
   const [dragY, setDragY] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
-  const [keyboardPanOffset, setKeyboardPanOffset] = useState(0);
   const touchStartY = useRef(0);
   const scrollableRef = useRef<HTMLDivElement>(null);
 
@@ -127,30 +126,6 @@ export function BottomPanel({
     }
     document.addEventListener("touchmove", blockScroll, { passive: false });
     return () => document.removeEventListener("touchmove", blockScroll);
-  }, [isOpen]);
-
-  // The scroll lock above stops *touch-driven* scrolling, but iOS separately
-  // auto-pans the visual viewport — independent of the (now unscrollable)
-  // document — to bring a focused input above the keyboard. `position: fixed`
-  // elements are anchored to the layout viewport, not the visual viewport, so
-  // that pan visibly drags them along with it (this is what looked like "the
-  // page scrolling behind the panel"). Counter-translate the sheet by the pan
-  // amount so it stays visually pinned to the true bottom regardless.
-  useEffect(() => {
-    if (!isOpen) return;
-    const viewport = window.visualViewport;
-    if (!viewport) return;
-    function syncPan() {
-      setKeyboardPanOffset(viewport!.offsetTop);
-    }
-    syncPan();
-    viewport.addEventListener("resize", syncPan);
-    viewport.addEventListener("scroll", syncPan);
-    return () => {
-      viewport.removeEventListener("resize", syncPan);
-      viewport.removeEventListener("scroll", syncPan);
-      setKeyboardPanOffset(0);
-    };
   }, [isOpen]);
 
   if (!isVisible) return null;
@@ -239,10 +214,7 @@ export function BottomPanel({
       )}
 
       {/* Mobile: bottom sheet */}
-      <div
-        className="fixed inset-0 z-[60] lg:hidden flex flex-col justify-end"
-        style={{ transform: `translateY(${keyboardPanOffset}px)` }}
-      >
+      <div className="fixed inset-0 z-[60] lg:hidden flex flex-col justify-end">
         <Scrim visible={isAnimating} onClick={onClose} />
         <div
           ref={scrollableRef}
