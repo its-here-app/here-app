@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useShare } from "@/lib/useShare";
 import { playlistDocTitle } from "@/lib/playlistDocTitle";
 import { useRouter } from "next/navigation";
@@ -42,7 +42,7 @@ import { CheckCircle } from "@/components/ui/icons/CheckCircle";
 import { Trash } from "@/components/ui/icons/Trash";
 import { World } from "@/components/ui/icons/World";
 import { Sheet, ConfirmSheet } from "@/components/ui/Sheet";
-import { snackbar } from "@/components/ui/Snackbar";
+import { snackbar, dismissSnackbar } from "@/components/ui/Snackbar";
 import { toast } from "@/components/ui/Toast";
 import { Error as ErrorIcon } from "@/components/ui/icons/Error";
 import type { SheetItem } from "@/components/ui/Sheet";
@@ -97,8 +97,29 @@ function timeAgo(dateStr: string): string {
 
 
 export default function PlaylistEditor({ playlist, isOwner, onClose }: Props) {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const router = useRouter();
+  const signupSnackbarIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (authLoading || user) return;
+    const timer = setTimeout(() => {
+      signupSnackbarIdRef.current = snackbar({
+        icon: null,
+        message: "Love this list? Save spots on Here*",
+        duration: 0,
+        actionLabel: "Sign up",
+        onAction: () => router.push("/signin"),
+      });
+    }, 4000);
+    return () => clearTimeout(timer);
+  }, [authLoading, user, router]);
+
+  function closePlaylist(pushTo?: string) {
+    if (signupSnackbarIdRef.current) dismissSnackbar(signupSnackbarIdRef.current);
+    if (onClose) onClose(pushTo);
+    else router.push(`/${playlist.profiles.username}`);
+  }
 
   const [editMode, setEditMode] = useState(false);
   const [reorderMode, setReorderMode] = useState(false);
@@ -378,7 +399,7 @@ export default function PlaylistEditor({ playlist, isOwner, onClose }: Props) {
     );
 
     sessionStorage.setItem("deletingPlaylistId", playlistId);
-    onClose?.(`/${username}`);
+    closePlaylist(`/${username}`);
 
     let undone = false;
 
@@ -441,11 +462,7 @@ export default function PlaylistEditor({ playlist, isOwner, onClose }: Props) {
                 variant="overlay"
                 icon={<Close />}
                 label="Close"
-                onClick={() =>
-                  onClose
-                    ? onClose()
-                    : router.push(`/${playlist.profiles.username}`)
-                }
+                onClick={() => closePlaylist()}
               />
             )
           }

@@ -70,8 +70,8 @@ export default function SavesPage() {
   >(new Map());
 
   useEffect(() => {
-    if (!authLoading && !user) router.push("/signin");
-  }, [user, authLoading]);
+    if (!authLoading && !user) router.replace("/signin");
+  }, [user?.id, authLoading]);
 
   useEffect(() => {
     if (!user || savedSpots.length === 0) return;

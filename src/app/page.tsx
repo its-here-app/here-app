@@ -53,8 +53,8 @@ export default function HomePage() {
   const [greetingLoaded, setGreetingLoaded] = useState(false);
 
   useEffect(() => {
-    if (!loading && !user) router.push("/signin");
-  }, [user, loading]);
+    if (!loading && !user) router.replace("/signin");
+  }, [user?.id, loading]);
 
   // Load user profile: city + name + weather
   useEffect(() => {

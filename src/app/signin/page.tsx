@@ -86,7 +86,7 @@ export default function LoginPage() {
       .single()
       .then(({ data: profile }) => {
         if (profile?.username) {
-          router.push("/");
+          router.replace("/");
         } else {
           if (user.user_metadata?.full_name || user.user_metadata?.name) {
             setName(user.user_metadata.full_name ?? user.user_metadata.name);
@@ -188,15 +188,21 @@ export default function LoginPage() {
       }
 
       if (signInError?.message.includes("Invalid login credentials")) {
-        const { error: signUpError } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            emailRedirectTo: `${window.location.origin}/auth/callback`,
-          },
-        });
+        const { data: signUpData, error: signUpError } =
+          await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+              emailRedirectTo: `${window.location.origin}/auth/callback`,
+            },
+          });
 
         if (signUpError) throw signUpError;
+
+        if (!signUpData.session) {
+          setError("Check your email to confirm your account before continuing.");
+          return;
+        }
 
         setStep("profile");
         return;
@@ -224,7 +230,14 @@ export default function LoginPage() {
 
   async function handleProfileSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!user) return;
+    if (!user) {
+      toast({
+        icon: <Error />,
+        message: "Your session expired, please sign in again.",
+      });
+      setStep("auth");
+      return;
+    }
 
     setSaving(true);
     setError("");
@@ -540,9 +553,7 @@ export default function LoginPage() {
                 placeholder="Instagram username (Optional)"
                 state={instagramHandle ? "filled" : "default"}
                 rightSlot={
-                  !instagramHandle ? undefined : isInstagramValid ? (
-                    <Check focus className="text-brand" />
-                  ) : (
+                  !instagramHandle || isInstagramValid ? undefined : (
                     <Error className="text-brand" />
                   )
                 }

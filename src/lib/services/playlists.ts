@@ -42,10 +42,11 @@ export async function getRecentFollowingPlaylists(
 /**
  * Discovery feed of public playlists from people the user doesn't follow yet.
  *
- * When `cityId` is provided, the pool is strictly limited to public playlists
- * in that city — playlists authored by the user's 2nd-degree network (people
- * followed by people they follow) are ranked first as a tiebreak, but nothing
- * outside the city is ever included, and no cross-city filler is used.
+ * When `cityId` is provided, the pool is limited to public playlists in that
+ * city — playlists authored by the user's 2nd-degree network (people
+ * followed by people they follow) are ranked first as a tiebreak. If no
+ * playlists exist in that city at all, falls back to random public
+ * playlists from any city rather than showing an empty feed.
  *
  * When `cityId` is omitted, falls back to the legacy behavior: pulled from
  * the user's own profile city, cities they already have playlists in, and
@@ -139,6 +140,20 @@ export async function getExplorePlaylists(
       .limit(60);
     for (const p of fillerPlaylists ?? []) {
       if (excludeIds.has(p.user_id) || pool.has(p.id)) continue;
+      pool.set(p.id, p);
+    }
+  }
+
+  // If a city was requested but has no playlists at all, show random public
+  // playlists from any city rather than an empty feed.
+  if (cityId && pool.size === 0) {
+    const { data: randomPlaylists } = await supabase
+      .from("playlists")
+      .select(selectClause)
+      .eq("is_public", true)
+      .limit(60);
+    for (const p of randomPlaylists ?? []) {
+      if (excludeIds.has(p.user_id)) continue;
       pool.set(p.id, p);
     }
   }

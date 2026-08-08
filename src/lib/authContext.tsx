@@ -36,7 +36,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
+      const nextUser = session?.user ?? null;
+      // Events like TOKEN_REFRESHED fire a new user object with the same id;
+      // only update state when the actual user changes, so effects keyed on
+      // `user` (e.g. sign-in redirects) don't re-fire and cause a nav loop.
+      setUser((prev) => (prev?.id === nextUser?.id ? prev : nextUser));
     });
 
     return () => subscription.unsubscribe();

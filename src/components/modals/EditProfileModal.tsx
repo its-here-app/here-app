@@ -339,9 +339,7 @@ export default function EditProfileModal({
         placeholder="username"
         state={instagramHandle ? "filled" : "default"}
         rightSlot={
-          !instagramHandle ? undefined : isInstagramValid ? (
-            <Check focus className="text-brand" />
-          ) : (
+          !instagramHandle || isInstagramValid ? undefined : (
             <Error className="text-brand" />
           )
         }
