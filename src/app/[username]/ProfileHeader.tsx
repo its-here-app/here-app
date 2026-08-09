@@ -40,7 +40,7 @@ interface ProfileHeaderProps {
 }
 
 export default function ProfileHeader({ profile }: ProfileHeaderProps) {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, signingOut, setSigningOut } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const isOwnProfile = user?.id === profile.id;
@@ -80,7 +80,7 @@ export default function ProfileHeader({ profile }: ProfileHeaderProps) {
   }, [user, profile.id, isOwnProfile]);
 
   useEffect(() => {
-    if (authLoading || user) return;
+    if (authLoading || user || signingOut) return;
     // Closing a playlist overlay can re-navigate to this profile page while
     // a background instance of this component (behind the modal the whole
     // time) is still mounted, so more than one instance can fire this at
@@ -165,6 +165,7 @@ export default function ProfileHeader({ profile }: ProfileHeaderProps) {
   }
 
   async function handleSignOut() {
+    setSigningOut(true);
     await signOut();
     router.push("/signin");
   }

@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { User } from "@supabase/supabase-js";
 import { createClient } from "./supabase/client";
 import { getProfile } from "./services/users";
@@ -10,6 +11,8 @@ interface AuthContextType {
   loading: boolean;
   avatarUrl: string;
   setAvatarUrl: (url: string) => void;
+  signingOut: boolean;
+  setSigningOut: (signingOut: boolean) => void;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -17,13 +20,24 @@ const AuthContext = createContext<AuthContextType>({
   loading: true,
   avatarUrl: "",
   setAvatarUrl: () => {},
+  signingOut: false,
+  setSigningOut: () => {},
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [avatarUrl, setAvatarUrl] = useState("");
+  const [signingOut, setSigningOut] = useState(false);
   const supabase = createClient();
+  const pathname = usePathname();
+
+  useEffect(() => {
+    // Once the route has actually changed away from the page that triggered
+    // sign-out, the ProfileHeader instance racing against the auth-state
+    // update has unmounted, so it's safe to clear the flag for future visits.
+    setSigningOut(false);
+  }, [pathname]);
 
   useEffect(() => {
     // Get initial session
@@ -55,7 +69,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [user]);
 
   return (
-    <AuthContext.Provider value={{ user, loading, avatarUrl, setAvatarUrl }}>
+    <AuthContext.Provider
+      value={{ user, loading, avatarUrl, setAvatarUrl, signingOut, setSigningOut }}
+    >
       {children}
     </AuthContext.Provider>
   );

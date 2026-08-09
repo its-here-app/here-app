@@ -15,7 +15,7 @@ import { Logout } from "../ui/icons/Logout";
 import { Avatar } from "../ui/Avatar";
 
 export default function Sidebar() {
-  const { user, loading, avatarUrl } = useAuth();
+  const { user, loading, avatarUrl, setSigningOut } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const [username, setUsername] = useState<string | null>(null);
@@ -28,6 +28,7 @@ export default function Sidebar() {
   if (loading || !user || pathname.startsWith("/signin")) return null;
 
   async function handleSignOut() {
+    setSigningOut(true);
     await signOut();
     router.push("/signin");
   }
