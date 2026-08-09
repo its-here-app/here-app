@@ -16,7 +16,12 @@ export async function generateMetadata({
   const { username } = await params;
   const profile = await getUserByUsername(username);
   const name = profile?.full_name;
-  return { title: `${name ? `${name} ` : ""}(@${username}) • Here*` };
+  const image = profile?.avatar_url ?? "/og.png";
+  return {
+    title: `${name ? `${name} ` : ""}(@${username}) • Here*`,
+    openGraph: { images: [{ url: image }] },
+    twitter: { card: "summary_large_image", images: [image] },
+  };
 }
 
 export default async function UserProfilePage({
