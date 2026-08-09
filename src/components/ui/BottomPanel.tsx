@@ -243,39 +243,43 @@ export function BottomPanel({
               : "translateY(100%)",
           }}
         >
-          {handle && (
-            <div
-              className="shrink-0 flex justify-center cursor-pointer py-4 -mt-7 -mb-4 touch-none"
-              onPointerDown={handlePointerDown}
-              onPointerMove={handlePointerMove}
-              onPointerUp={handlePointerUp}
-              onPointerCancel={handlePointerUp}
-            >
-              <div className="w-12 h-1 rounded-full bg-white/20" />
-            </div>
-          )}
-          <div className="relative shrink-0">
-            <div
-              className={`flex flex-col ${centerHeader ? "items-center px-8" : "pr-8"}`}
-            >
-              <p className="text-body-sm-bold text-primary">{header}</p>
-            </div>
-            {subheader && (
-              <p
-                className={`text-body-sm-bold text-secondary ${centerHeader ? "text-center px-8" : "pr-8"}`}
+          {/* Header: stays put while the body below scrolls */}
+          <div className="shrink-0 flex flex-col gap-5">
+            {handle && (
+              <div
+                className="flex justify-center cursor-pointer py-4 -mt-7 -mb-4 touch-none"
+                onPointerDown={handlePointerDown}
+                onPointerMove={handlePointerMove}
+                onPointerUp={handlePointerUp}
+                onPointerCancel={handlePointerUp}
               >
-                {subheader}
-              </p>
+                <div className="w-12 h-1 rounded-full bg-white/20" />
+              </div>
             )}
-            <div className="absolute top-0 right-0">{closeBtn}</div>
+            <div className="relative">
+              <div
+                className={`flex flex-col ${centerHeader ? "items-center px-8" : "pr-8"}`}
+              >
+                <p className="text-body-sm-bold text-primary">{header}</p>
+              </div>
+              {subheader && (
+                <p
+                  className={`text-body-sm-bold text-secondary ${centerHeader ? "text-center px-8" : "pr-8"}`}
+                >
+                  {subheader}
+                </p>
+              )}
+              <div className="absolute top-0 right-0">{closeBtn}</div>
+            </div>
           </div>
+          {/* Body: scrollable, includes footer so it never blocks header/content */}
           <div
             ref={scrollableRef}
             className={`flex flex-col gap-4 min-h-0 overflow-y-auto ${mobileHeight || centerBody ? "flex-1" : ""} ${centerBody ? "justify-center" : ""}`}
           >
             {children}
+            {footer && <div className="pt-3 flex justify-center">{footer}</div>}
           </div>
-          {footer && <div className="shrink-0 pt-3 flex justify-center">{footer}</div>}
         </div>
       </div>
     </>
