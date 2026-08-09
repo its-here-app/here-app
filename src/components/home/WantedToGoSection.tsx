@@ -71,6 +71,8 @@ export function WantedToGoSection({
               <Card
                 size="md"
                 image={spot.photo_url ?? undefined}
+                href={`https://www.google.com/maps/place/?q=place_id:${spot.google_place_id}`}
+                external
                 scrim={false}
                 metadata={{
                   title: spot.name,

@@ -2,6 +2,7 @@ import { createClient } from "../supabase/client";
 import { upsertSpot } from "./playlists";
 import { track } from "../analytics";
 import { formatCityDisplay } from "../cityDisplay";
+import { playlistUrl } from "../playlistUrl";
 import type { SpotMention, SpotMentionSaver } from "../spotMentions";
 import type { Spot, SearchResult } from "@/types";
 
@@ -229,12 +230,16 @@ export async function getWantedToGoSpots(
 export async function getOldFavoriteSpots(
   userId: string,
   cityId?: string | null
-): Promise<{ spot: Spot; playlist_name: string }[]> {
+): Promise<
+  { spot: Spot; playlist_name: string; playlist_url: string | null }[]
+> {
   const supabase = createClient();
 
   let query = supabase
     .from("playlist_spots")
-    .select("spot_id, created_at, playlists!inner(user_id, name, city_id)")
+    .select(
+      "spot_id, created_at, playlists!inner(user_id, name, slug, city, city_id, profiles!playlists_user_id_fkey(username), cities!playlists_city_id_fkey(display_name, is_primary))"
+    )
     .eq("playlists.user_id", userId)
     .order("created_at", { ascending: true })
     .limit(30);
@@ -244,12 +249,24 @@ export async function getOldFavoriteSpots(
   if (!data || data.length === 0) return [];
 
   // Deduplicate by spot_id, keep earliest
-  const seen = new Map<string, { spot_id: string; playlist_name: string }>();
+  const seen = new Map<
+    string,
+    { spot_id: string; playlist_name: string; playlist_url: string | null }
+  >();
   for (const row of data as any[]) {
     if (!seen.has(row.spot_id)) {
+      const p = row.playlists;
+      const username = p?.profiles?.username;
+      const city = p?.cities?.display_name
+        ? formatCityDisplay(p.cities.display_name, p.cities.is_primary)
+        : p?.city;
       seen.set(row.spot_id, {
         spot_id: row.spot_id,
-        playlist_name: row.playlists?.name ?? "",
+        playlist_name: p?.name ?? "",
+        playlist_url:
+          username && city && p?.slug
+            ? playlistUrl(username, city, p.name, p.slug)
+            : null,
       });
     }
   }
@@ -268,6 +285,7 @@ export async function getOldFavoriteSpots(
     .map((e) => ({
       spot: spotMap.get(e.spot_id)!,
       playlist_name: e.playlist_name,
+      playlist_url: e.playlist_url,
     }))
     .filter((r) => r.spot);
 }

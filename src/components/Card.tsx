@@ -94,6 +94,8 @@ interface CardProps {
   readOnlyName?: boolean;
   autoFocusName?: boolean;
   href?: string;
+  /** Open href in a new tab (for external links, e.g. Google Maps) */
+  external?: boolean;
   onClick?: () => void;
   className?: string;
   /** Set to false to hide the gradient scrim over the image */
@@ -210,6 +212,7 @@ export function Card({
   readOnlyName,
   autoFocusName,
   href,
+  external,
   onClick,
   className,
   scrim = true,
@@ -245,8 +248,14 @@ export function Card({
 
   // ── XS ────────────────────────────────────────────────────────────────────
   if (size === "xs") {
-    const XsWrapper = (href ? Link : onClick ? "button" : "div") as React.ElementType;
-    const xsProps = href ? { href } : onClick ? { onClick } : {};
+    const XsWrapper = (href ? (external ? "a" : Link) : onClick ? "button" : "div") as React.ElementType;
+    const xsProps = href
+      ? external
+        ? { href, target: "_blank", rel: "noopener noreferrer" }
+        : { href }
+      : onClick
+        ? { onClick }
+        : {};
     return (
       <XsWrapper
         {...(xsProps as Record<string, unknown>)}
@@ -269,12 +278,28 @@ export function Card({
     );
   }
 
-  const Wrapper = (href ? Link : "div") as React.ElementType;
-  const wrapperProps = href
-    ? { href }
-    : onClick
-      ? { onClick, role: "button" }
-      : {};
+  // When metadata is present, href only links the thumbnail + title (like
+  // SpotCard) rather than the whole card, since metadata can contain its own
+  // links (e.g. "Mentioned in ... by") that can't nest inside another link.
+  const metadataLink = !!href && !!metadata;
+  const LinkComp = (external ? "a" : Link) as React.ElementType;
+  const linkProps = external
+    ? { href, target: "_blank", rel: "noopener noreferrer" }
+    : { href };
+
+  const Wrapper = (href && !metadataLink ? LinkComp : "div") as React.ElementType;
+  const wrapperProps =
+    href && !metadataLink
+      ? linkProps
+      : onClick
+        ? { onClick, role: "button" }
+        : {};
+
+  const [thumbHovered, setThumbHovered] = useState(false);
+  const thumbHoverProps = metadataLink
+    ? { onMouseEnter: () => setThumbHovered(true), onMouseLeave: () => setThumbHovered(false) }
+    : {};
+  const ImageWrapper = (metadataLink ? LinkComp : "div") as React.ElementType;
 
   const metadataFirstType = metadata?.types
     ?.filter((t) => !FILTERED_METADATA_TYPES.has(t))
@@ -317,16 +342,17 @@ export function Card({
   return (
     <Wrapper
       {...(wrapperProps as Record<string, unknown>)}
-      className={`flex flex-col gap-3 w-full ${href || onClick ? "cursor-pointer group" : ""} ${className ?? ""}`}
+      className={`flex flex-col gap-3 w-full ${(href && !metadataLink) || onClick ? "cursor-pointer group" : ""} ${className ?? ""}`}
     >
-      <div
+      <ImageWrapper
+        {...(metadataLink ? { ...linkProps, ...thumbHoverProps } : {})}
         className={`relative overflow-hidden w-full @container ${imageLoaded ? "bg-transparent" : "bg-black"} ${sizeConfig[size].height} ${sizeConfig[size].radius}`}
       >
         {displayImage && (
           <img
             src={displayImage}
             alt={city ?? title ?? ""}
-            className="absolute inset-0 size-full object-cover transition-transform duration-400 ease-in-out group-hover:scale-104"
+            className={`absolute inset-0 size-full object-cover transition-transform duration-400 ease-in-out ${metadataLink ? (thumbHovered ? "scale-104" : "scale-100") : "group-hover:scale-104"}`}
             onLoad={() => setImageLoaded(true)}
           />
         )}
@@ -376,7 +402,7 @@ export function Card({
           right={bottomRight}
           padding={sizeConfig[size].actionPadding}
         />
-      </div>
+      </ImageWrapper>
       {(title || subtitle) && (
         <div className="flex flex-col gap-0.5">
           {title && <p className={`text-display-golos-4 ${truncate ? "truncate" : ""}`}>{title}</p>}
@@ -388,9 +414,19 @@ export function Card({
       {metadata && (
         <div className="flex items-start gap-2">
           <div className="flex-1 min-w-0">
-            <p className={`text-header-radio-2 lg:text-header-radio-1 mb-[2px] ${truncate ? "truncate" : ""}`}>
-              {metadata.title}
-            </p>
+            {metadataLink ? (
+              <LinkComp
+                {...linkProps}
+                {...thumbHoverProps}
+                className={`block w-full text-header-radio-2 lg:text-header-radio-1 mb-[2px] cursor-pointer ${truncate ? "truncate" : ""} ${thumbHovered ? "underline" : ""}`}
+              >
+                {metadata.title}
+              </LinkComp>
+            ) : (
+              <p className={`text-header-radio-2 lg:text-header-radio-1 mb-[2px] ${truncate ? "truncate" : ""}`}>
+                {metadata.title}
+              </p>
+            )}
             {metadata.subtitleContent ? (
               <div className="text-body-xs text-secondary mb-1 flex items-center gap-1">
                 {metadata.subtitleContent}

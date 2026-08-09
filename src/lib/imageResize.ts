@@ -14,26 +14,7 @@ export interface ImageDerivatives {
   /** Downscaled for grid/carousel/list contexts. */
   thumb: Blob;
   /** File extension (without dot) matching the encoding used for full/thumb. */
-  ext: "webp" | "jpg";
-}
-
-let webpSupportPromise: Promise<boolean> | null = null;
-
-/** Canvas can *decode* webp everywhere it can display it, but a handful of
- * older engines can't *encode* it via toBlob — check once and cache. */
-export function supportsWebpEncode(): Promise<boolean> {
-  if (!webpSupportPromise) {
-    webpSupportPromise = new Promise((resolve) => {
-      const canvas = document.createElement("canvas");
-      canvas.width = 1;
-      canvas.height = 1;
-      canvas.toBlob(
-        (blob) => resolve(!!blob && blob.type === "image/webp"),
-        "image/webp",
-      );
-    });
-  }
-  return webpSupportPromise;
+  ext: "jpg";
 }
 
 /**
@@ -41,13 +22,16 @@ export function supportsWebpEncode(): Promise<boolean> {
  * (archived, unreferenced by the UI) plus downscaled/compressed "full" and
  * "thumb" versions sized for the two ways covers actually get displayed
  * across the app (hero detail view vs. small grid/carousel cards).
+ *
+ * Encoded as JPEG rather than WebP — iOS's LinkPresentation fetcher (iMessage
+ * previews, the native share sheet) doesn't reliably render WebP og:images,
+ * and these derivatives are what profile/playlist share previews point at.
  */
 export async function createImageDerivatives(
   file: File,
 ): Promise<ImageDerivatives> {
-  const useWebp = await supportsWebpEncode();
-  const fileType = useWebp ? "image/webp" : "image/jpeg";
-  const ext = useWebp ? "webp" : "jpg";
+  const fileType = "image/jpeg";
+  const ext = "jpg";
 
   const [full, thumb] = await Promise.all([
     imageCompression(file, {
@@ -198,20 +182,23 @@ const AVATAR_MAX_EDGE = 300;
 const AVATAR_MAX_BYTES = 8 * 1024 * 1024;
 
 /**
- * Produce an upload-ready avatar derivative: downscaled to WebP (JPEG
- * fallback) capped at 300px, the largest the app ever renders an avatar
- * plus retina headroom. The canvas decode/re-encode this goes through is
- * also what sanitizes the file — it only preserves pixel data, so EXIF
- * metadata, embedded scripts, and other non-image payloads don't survive.
+ * Produce an upload-ready avatar derivative: downscaled to JPEG capped at
+ * 300px, the largest the app ever renders an avatar plus retina headroom.
+ * The canvas decode/re-encode this goes through is also what sanitizes the
+ * file — it only preserves pixel data, so EXIF metadata, embedded scripts,
+ * and other non-image payloads don't survive.
+ *
+ * JPEG rather than WebP for the same reason as `createImageDerivatives`:
+ * iOS's LinkPresentation fetcher doesn't reliably render WebP og:images, and
+ * this is what profile share previews point at.
  */
 export async function sanitizeAndCompressAvatar(
   file: File,
-): Promise<{ blob: Blob; ext: "webp" | "jpg" }> {
+): Promise<{ blob: Blob; ext: "jpg" }> {
   const validatedFile = await validateImageFile(file, AVATAR_MAX_BYTES);
 
-  const useWebp = await supportsWebpEncode();
-  const fileType = useWebp ? "image/webp" : "image/jpeg";
-  const ext = useWebp ? "webp" : "jpg";
+  const fileType = "image/jpeg";
+  const ext = "jpg";
   const blob = await imageCompression(validatedFile, {
     maxWidthOrHeight: AVATAR_MAX_EDGE,
     initialQuality: QUALITY,

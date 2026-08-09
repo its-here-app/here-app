@@ -1,11 +1,45 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { Spot } from "@/types";
 import { Badge } from "@/components/ui/Badge";
 import { Rating } from "@/components/ui/Rating";
 
 const FILTERED_TYPES = new Set(["point_of_interest", "establishment"]);
+
+function ExpandableSubtitle({ text }: { text: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const [canExpand, setCanExpand] = useState(false);
+  const measureRef = useRef<HTMLParagraphElement>(null);
+
+  useEffect(() => {
+    const el = measureRef.current;
+    if (!el) return;
+    const check = () => setCanExpand(el.scrollHeight > el.clientHeight + 1);
+    check();
+    const ro = new ResizeObserver(check);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [text]);
+
+  return (
+    <div className="relative">
+      <p
+        ref={measureRef}
+        aria-hidden="true"
+        className="text-body-xs mb-1 line-clamp-1 invisible absolute inset-x-0 top-0 pointer-events-none"
+      >
+        {text}
+      </p>
+      <p
+        className={`text-body-xs text-secondary mb-1 ${canExpand ? "cursor-pointer" : "cursor-default"} ${expanded ? "" : "line-clamp-1"}`}
+        onClick={canExpand ? () => setExpanded((v) => !v) : undefined}
+      >
+        {text}
+      </p>
+    </div>
+  );
+}
 
 export type SpotCardSize = "default" | "xxsmall";
 
@@ -46,7 +80,6 @@ export default function SpotCard({
 
   const [imgFailed, setImgFailed] = useState(false);
   const [thumbHovered, setThumbHovered] = useState(false);
-  const [descExpanded, setDescExpanded] = useState(false);
   const showImage = !!spot.photo_url && !imgFailed;
   const thumbnailClass = isXxsmall ? "size-[3.125rem]" : "w-20 h-20";
 
@@ -70,12 +103,7 @@ export default function SpotCard({
           <div className="flex-1 min-w-0">
             <p className="text-header-radio-2 lg:text-header-radio-1 mb-[2px]">{spot.name}</p>
             {subtitleSlot ?? (
-              <p
-                className={`text-body-xs text-secondary mb-1 cursor-pointer ${descExpanded ? "" : "line-clamp-1"}`}
-                onClick={() => setDescExpanded((v) => !v)}
-              >
-                {subtitleText ?? spot.address}
-              </p>
+              <ExpandableSubtitle text={subtitleText ?? spot.address} />
             )}
             {!isXxsmall && (spot.rating != null || firstType || city) && (
               <div className="flex items-center gap-1 mt-1 flex-wrap">
@@ -124,12 +152,7 @@ export default function SpotCard({
               </p>
             </a>
             {subtitleSlot ?? (
-              <p
-                className={`text-body-xs text-secondary mb-1 cursor-pointer ${descExpanded ? "" : "line-clamp-1"}`}
-                onClick={() => setDescExpanded((v) => !v)}
-              >
-                {subtitleText ?? spot.address}
-              </p>
+              <ExpandableSubtitle text={subtitleText ?? spot.address} />
             )}
             {!isXxsmall && (spot.rating != null || firstType || city) && (
               <div className="flex items-center gap-1 mt-1 flex-wrap">

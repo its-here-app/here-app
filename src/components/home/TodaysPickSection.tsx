@@ -55,6 +55,8 @@ export function TodaysPickSection({
     <Card
       size="featured"
       image={pick!.spot.photo_url ?? undefined}
+      href={`https://www.google.com/maps/place/?q=place_id:${pick!.spot.google_place_id}`}
+      external
       scrim={false}
       sticker
       metadata={{

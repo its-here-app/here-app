@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { CardShelf } from "@/components/ui/CardShelf";
 import { Card } from "@/components/Card";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -19,7 +20,7 @@ export function OldFavoritesSection({
 }) {
   const { ref, shouldLoad } = useLazyLoad();
   const [favorites, setFavorites] = useState<
-    { spot: Spot; playlist_name: string }[]
+    { spot: Spot; playlist_name: string; playlist_url: string | null }[]
   >([]);
   const [loaded, setLoaded] = useState(false);
 
@@ -69,14 +70,22 @@ export function OldFavoritesSection({
             itemKey={({ spot }) => spot.id}
             mobileWidthClass="w-40"
             cardsPerView={4}
-            renderItem={({ spot, playlist_name }) => (
+            renderItem={({ spot, playlist_name, playlist_url }) => (
               <Card
                 size="md"
                 image={spot.photo_url ?? undefined}
+                href={`https://www.google.com/maps/place/?q=place_id:${spot.google_place_id}`}
+                external
                 scrim={false}
                 metadata={{
                   title: spot.name,
-                  subtitleText: playlist_name,
+                  subtitleContent: playlist_url ? (
+                    <Link href={playlist_url} className="min-w-0 truncate hover:underline">
+                      {playlist_name}
+                    </Link>
+                  ) : (
+                    <span className="min-w-0 truncate">{playlist_name}</span>
+                  ),
                   rating: spot.rating,
                   types: spot.types,
                 }}
