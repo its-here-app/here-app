@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import SpotCard from "@/components/SpotCard";
@@ -40,8 +40,33 @@ export function EditableSpotCard({
   } = useSortable({ id: item.id });
 
   const [isFocused, setIsFocused] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const noteAtFocus = useRef<string>("");
+
+  // Notes render as a full-height, wrapping textarea (not truncated to one
+  // line) so the whole highlight is always visible while editing a playlist.
+  useLayoutEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = "1px";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [item.notes]);
+
+  // The create-playlist flow mounts this card in both a desktop and a
+  // mobile container simultaneously (CSS toggles which is visible), so the
+  // effect above can measure scrollHeight against a not-yet-laid-out
+  // ancestor (e.g. mid panel-open transition) and freeze at ~0px. Re-measure
+  // whenever the element's own box actually changes size.
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver(() => {
+      el.style.height = "1px";
+      el.style.height = `${el.scrollHeight}px`;
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -65,8 +90,9 @@ export function EditableSpotCard({
           disableLink
           onClick={reorderMode ? undefined : () => inputRef.current?.focus()}
           subtitleSlot={
-            <input
+            <textarea
               ref={inputRef}
+              rows={1}
               value={item.notes ?? ""}
               readOnly={reorderMode}
               onChange={(e) => onNotesChange(item.id, e.target.value)}
@@ -97,7 +123,7 @@ export function EditableSpotCard({
                 }
               }}
               placeholder={reorderMode ? "" : "Add a highlight"}
-              className="block w-full bg-transparent text-body-xs text-secondary placeholder:text-tertiary outline-none border-none p-0 leading-4 h-4 mb-1 truncate"
+              className="block w-full resize-none bg-transparent text-body-xs text-secondary placeholder:text-tertiary outline-none border-none p-0 leading-4 mb-1"
             />
           }
           action={

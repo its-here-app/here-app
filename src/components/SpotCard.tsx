@@ -45,6 +45,8 @@ export default function SpotCard({
   const mapsUrl = `https://www.google.com/maps/place/?q=place_id:${spot.google_place_id}`;
 
   const [imgFailed, setImgFailed] = useState(false);
+  const [thumbHovered, setThumbHovered] = useState(false);
+  const [descExpanded, setDescExpanded] = useState(false);
   const showImage = !!spot.photo_url && !imgFailed;
   const thumbnailClass = isXxsmall ? "size-[3.125rem]" : "w-20 h-20";
 
@@ -68,7 +70,10 @@ export default function SpotCard({
           <div className="flex-1 min-w-0">
             <p className="text-header-radio-2 lg:text-header-radio-1 mb-[2px]">{spot.name}</p>
             {subtitleSlot ?? (
-              <p className="text-body-xs text-secondary mb-1 line-clamp-1">
+              <p
+                className={`text-body-xs text-secondary mb-1 cursor-pointer ${descExpanded ? "" : "line-clamp-1"}`}
+                onClick={() => setDescExpanded((v) => !v)}
+              >
                 {subtitleText ?? spot.address}
               </p>
             )}
@@ -87,26 +92,42 @@ export default function SpotCard({
           </div>
         </div>
       ) : (
-        <a
-          href={mapsUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-start gap-2 flex-1 min-w-0 cursor-pointer group"
-        >
-          <div className={`flex-shrink-0 ${thumbnailClass} rounded-xs overflow-hidden bg-grey-300 transition-transform duration-400 ease-out group-hover:scale-100`}>
+        <div className="flex items-start gap-2 flex-1 min-w-0">
+          <a
+            href={mapsUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            onMouseEnter={() => setThumbHovered(true)}
+            onMouseLeave={() => setThumbHovered(false)}
+            className={`flex-shrink-0 ${thumbnailClass} rounded-xs overflow-hidden bg-grey-300 cursor-pointer`}
+          >
             {showImage && (
               <img
                 src={spot.photo_url!}
                 alt={spot.name}
-                className="w-full h-full object-cover"
+                className={`w-full h-full object-cover transition-transform duration-200 ease-in-out ${thumbHovered ? "scale-106" : "scale-100"}`}
                 onError={() => setImgFailed(true)}
               />
             )}
-          </div>
+          </a>
           <div className="flex-1 min-w-0">
-            <p className="text-header-radio-2 lg:text-header-radio-1 mb-[2px]">{spot.name}</p>
+            <a
+              href={mapsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              onMouseEnter={() => setThumbHovered(true)}
+              onMouseLeave={() => setThumbHovered(false)}
+              className="inline-block cursor-pointer"
+            >
+              <p className={`text-header-radio-2 lg:text-header-radio-1 mb-[2px] ${thumbHovered ? "underline" : ""}`}>
+                {spot.name}
+              </p>
+            </a>
             {subtitleSlot ?? (
-              <p className="text-body-xs text-secondary mb-1 line-clamp-1">
+              <p
+                className={`text-body-xs text-secondary mb-1 cursor-pointer ${descExpanded ? "" : "line-clamp-1"}`}
+                onClick={() => setDescExpanded((v) => !v)}
+              >
                 {subtitleText ?? spot.address}
               </p>
             )}
@@ -123,7 +144,7 @@ export default function SpotCard({
               </div>
             )}
           </div>
-        </a>
+        </div>
       )}
       {(bookmark || action) && (
         <div className="flex-shrink-0 flex flex-col items-center gap-1">
