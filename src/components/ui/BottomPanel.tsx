@@ -56,21 +56,38 @@ export function BottomPanel({
   const [dragY, setDragY] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
-  const touchStartY = useRef(0);
+  const dragStartY = useRef(0);
+  const isDraggingRef = useRef(false);
   const scrollableRef = useRef<HTMLDivElement>(null);
 
-  function handleTouchStart(e: React.TouchEvent) {
-    touchStartY.current = e.touches[0].clientY;
+  // Pointer Events (not Touch Events) so the handle drags with mouse, touch,
+  // and pen alike. Pointer capture keeps move/up events targeting the handle
+  // even once the pointer strays outside its small hit area mid-drag.
+  // pointermove fires on plain mouse hover too (no button needed), so a ref
+  // (checked synchronously, unlike state) gates it to only apply mid-drag.
+  function handlePointerDown(e: React.PointerEvent) {
+    dragStartY.current = e.clientY;
+    isDraggingRef.current = true;
     setIsDragging(true);
+    e.currentTarget.setPointerCapture(e.pointerId);
   }
-  function handleTouchMove(e: React.TouchEvent) {
-    const delta = e.touches[0].clientY - touchStartY.current;
-    if (delta > 0) setDragY(delta);
+  function handlePointerMove(e: React.PointerEvent) {
+    if (!isDraggingRef.current) return;
+    setDragY(e.clientY - dragStartY.current);
   }
-  function handleTouchEnd() {
+  function handlePointerUp() {
+    isDraggingRef.current = false;
     setIsDragging(false);
-    if (dragY > 100) {
-      onClose();
+    if (Math.abs(dragY) < 5) {
+      // Negligible movement: treat as a tap, same as clicking the handle.
+      setIsExpanded((prev) => !prev);
+    } else if (isExpanded) {
+      // Expanded: drag down far enough collapses back to the default height.
+      if (dragY > 100) setIsExpanded(false);
+    } else {
+      // Collapsed: drag up far enough expands; drag down far enough dismisses.
+      if (dragY < -40) setIsExpanded(true);
+      else if (dragY > 100) onClose();
     }
     setDragY(0);
   }
@@ -214,38 +231,30 @@ export function BottomPanel({
       )}
 
       {/* Mobile: bottom sheet */}
-      <div className="fixed inset-0 z-[60] lg:hidden flex flex-col justify-end">
+      <div className="fixed inset-0 z-[60] lg:hidden flex flex-col justify-end pt-10">
         <Scrim visible={isAnimating} onClick={onClose} />
         <div
-          ref={scrollableRef}
-          className={`relative bg-surface-base dark rounded-t-[1.5rem] flex flex-col gap-5 px-6 pt-6 pb-[calc(2.25rem+env(safe-area-inset-bottom))] overflow-x-hidden ${handle && isDragging ? "" : "transition-[transform,height]"} duration-300`}
+          className={`relative bg-surface-base dark rounded-t-[1.5rem] flex flex-col gap-5 px-6 pt-6 pb-[calc(2.25rem+env(safe-area-inset-bottom))] max-h-[90vh] overflow-hidden ${handle && isDragging ? "" : "transition-[transform,height]"} duration-300`}
           style={{
             height:
               isExpanded || mobileHeight === "tall" ? "90vh" : mobileHeight,
             transform: isAnimating
-              ? `translateY(${handle ? dragY : 0}px)`
+              ? `translateY(${handle ? Math.max(dragY, 0) : 0}px)`
               : "translateY(100%)",
           }}
-          {...(handle
-            ? {
-                onTouchStart: handleTouchStart,
-                onTouchMove: handleTouchMove,
-                onTouchEnd: handleTouchEnd,
-              }
-            : {})}
         >
           {handle && (
             <div
-              className="flex justify-center cursor-pointer py-4 -mt-7 -mb-4 touch-none"
-              onClick={() => setIsExpanded((prev) => !prev)}
-              onTouchStart={handleTouchStart}
-              onTouchMove={handleTouchMove}
-              onTouchEnd={handleTouchEnd}
+              className="shrink-0 flex justify-center cursor-pointer py-4 -mt-7 -mb-4 touch-none"
+              onPointerDown={handlePointerDown}
+              onPointerMove={handlePointerMove}
+              onPointerUp={handlePointerUp}
+              onPointerCancel={handlePointerUp}
             >
               <div className="w-12 h-1 rounded-full bg-white/20" />
             </div>
           )}
-          <div className="relative">
+          <div className="relative shrink-0">
             <div
               className={`flex flex-col ${centerHeader ? "items-center px-8" : "pr-8"}`}
             >
@@ -261,11 +270,12 @@ export function BottomPanel({
             <div className="absolute top-0 right-0">{closeBtn}</div>
           </div>
           <div
-            className={`flex flex-col gap-4 ${mobileHeight || centerBody ? "flex-1" : ""} ${centerBody ? "justify-center" : ""}`}
+            ref={scrollableRef}
+            className={`flex flex-col gap-4 min-h-0 overflow-y-auto ${mobileHeight || centerBody ? "flex-1" : ""} ${centerBody ? "justify-center" : ""}`}
           >
             {children}
           </div>
-          {footer && <div className="pt-3 flex justify-center">{footer}</div>}
+          {footer && <div className="shrink-0 pt-3 flex justify-center">{footer}</div>}
         </div>
       </div>
     </>
