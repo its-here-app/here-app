@@ -9,6 +9,7 @@ import { Snackbar } from "@/components/ui/Snackbar";
 import { CreatePlaylistFlow } from "@/components/modals/CreatePlaylistFlow";
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { headers } from "next/headers";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -48,10 +49,11 @@ export default async function RootLayout({
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   const initialLoggedIn = !!user;
+  const theme = (await headers()).get("x-theme");
 
   return (
     <html lang="en">
-      <body className="antialiased">
+      <body className={`antialiased ${theme === "dark" ? "dark" : ""}`}>
         <AuthProvider>
           <SavesProvider>
             <AppShell

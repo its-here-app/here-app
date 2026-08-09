@@ -4,8 +4,7 @@ import { usePathname } from "next/navigation";
 import AppBar from "./AppBar";
 import { AppBarProvider } from "@/lib/appBarContext";
 import { useAuth } from "@/lib/authContext";
-
-const AUTH_PATHS = ["/signin", "/create-account", "/users/registration"];
+import { isAuthPath } from "@/lib/authRoutes";
 
 export default function AppShell({
   nav,
@@ -18,9 +17,9 @@ export default function AppShell({
 }) {
   const pathname = usePathname();
   const { user } = useAuth();
-  const isAuth = AUTH_PATHS.some((p) => pathname.startsWith(p));
+  const isAuth = isAuthPath(pathname);
 
-  if (isAuth) return <div className="bg-surface-base dark min-h-screen">{children}</div>;
+  if (isAuth) return <div className="min-h-dvh">{children}</div>;
 
   const showSidebar = initialLoggedIn || !!user;
 

@@ -533,8 +533,8 @@
 }
 
 body {
-  background-color: #ffffff;
-  color: var(--color-black);
+  background-color: var(--surface-base);
+  color: var(--text-primary);
   font-family: var(--font-golos);
 }
 

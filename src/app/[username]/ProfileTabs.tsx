@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Tabs, Tab, TabPanels } from "@/components/ui/Tabs";
 import { List } from "@/components/ui/icons/List";
@@ -39,20 +39,37 @@ export default function ProfileTabs({
   const [activeTab, setActiveTab] = useState<"playlists" | "cities" | "spots">(
     "playlists",
   );
-  const [playlists, setPlaylists] = useState(initialPlaylists);
+  // Ids pending real (delayed) deletion. Kept separate from initialPlaylists
+  // so it can't be clobbered by a later re-render with freshly re-fetched
+  // server data — that data legitimately still includes the playlist until
+  // the delayed deletion actually lands, so filtering has to survive any
+  // number of prop updates, not just the first one.
+  const [hiddenIds, setHiddenIds] = useState<Set<string>>(() => new Set());
+  const playlists = useMemo(
+    () => initialPlaylists.filter((p) => !hiddenIds.has(p.id)),
+    [initialPlaylists, hiddenIds],
+  );
   const { user } = useAuth();
   const router = useRouter();
-
-  useEffect(() => {
-    setPlaylists(initialPlaylists);
-  }, [initialPlaylists]);
 
   useEffect(() => {
     const deletingId = sessionStorage.getItem("deletingPlaylistId");
     if (deletingId) {
       sessionStorage.removeItem("deletingPlaylistId");
-      setPlaylists((prev) => prev.filter((p) => p.id !== deletingId));
+      setHiddenIds((prev) => new Set(prev).add(deletingId));
     }
+  }, []);
+
+  // Covers the common case: the playlist editor is still open/mounted (or
+  // this page was already mounted underneath it) when the delete happens,
+  // so the mount-only sessionStorage check above never re-runs.
+  useEffect(() => {
+    function handlePlaylistDeleted(e: Event) {
+      const { playlistId } = (e as CustomEvent<{ playlistId: string }>).detail;
+      setHiddenIds((prev) => new Set(prev).add(playlistId));
+    }
+    window.addEventListener("playlist-deleted", handlePlaylistDeleted);
+    return () => window.removeEventListener("playlist-deleted", handlePlaylistDeleted);
   }, []);
   const { share } = useShare();
 

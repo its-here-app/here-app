@@ -405,6 +405,13 @@ export default function PlaylistEditor({ playlist, isOwner, onClose }: Props) {
     );
 
     sessionStorage.setItem("deletingPlaylistId", playlistId);
+    // Also hide it immediately if the profile page is already mounted
+    // underneath (this editor opens as an intercepted modal over it, so
+    // the sessionStorage check above — which only runs on mount — won't
+    // re-fire on its own).
+    window.dispatchEvent(
+      new CustomEvent("playlist-deleted", { detail: { playlistId } }),
+    );
     closePlaylist(`/${username}`);
 
     let undone = false;
