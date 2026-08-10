@@ -76,6 +76,7 @@ interface Props {
   isOwner: boolean;
   fromNew?: boolean;
   onClose?: (pushTo?: string) => void;
+  closeReady?: boolean;
 }
 
 /** A spot added via search but not yet persisted — notes are staged client-side. */
@@ -96,7 +97,7 @@ function timeAgo(dateStr: string): string {
 }
 
 
-export default function PlaylistEditor({ playlist, isOwner, onClose }: Props) {
+export default function PlaylistEditor({ playlist, isOwner, onClose, closeReady = true }: Props) {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const signupSnackbarIdRef = useRef<string | null>(null);
@@ -470,14 +471,14 @@ export default function PlaylistEditor({ playlist, isOwner, onClose }: Props) {
               >
                 Cancel
               </button>
-            ) : (
+            ) : closeReady ? (
               <IconButton
                 variant="overlay"
                 icon={<Close />}
                 label="Close"
                 onClick={() => closePlaylist()}
               />
-            )
+            ) : undefined
           }
           topCenter={
             editMode ? (

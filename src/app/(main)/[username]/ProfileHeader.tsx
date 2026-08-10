@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useShare, copyToClipboard } from "@/lib/useShare";
-import { useAuth } from "../../lib/authContext";
+import { useAuth } from "../../../lib/authContext";
 import { useRouter, useSearchParams } from "next/navigation";
 import NextLink from "next/link";
 import { AppBarConfig } from "@/lib/appBarContext";
@@ -24,12 +24,12 @@ import {
   getFollowingCount,
   signOut,
 } from "@/lib/services/users";
-import { Profile } from "../../components/Profile";
+import { Profile } from "../../../components/Profile";
 import { FullLogo } from "@/components/ui/Logo";
-import EditProfileModal from "../../components/modals/EditProfileModal";
-import FollowsModal from "../../components/modals/FollowsModal";
-import { Sheet, ConfirmSheet } from "../../components/ui/Sheet";
-import type { SheetItem } from "../../components/ui/Sheet";
+import EditProfileModal from "../../../components/modals/EditProfileModal";
+import FollowsModal from "../../../components/modals/FollowsModal";
+import { Sheet, ConfirmSheet } from "../../../components/ui/Sheet";
+import type { SheetItem } from "../../../components/ui/Sheet";
 import { removeFollowerAction, blockUserAction } from "@/lib/actions/users";
 import { snackbar } from "@/components/ui/Snackbar";
 import { Info } from "@/components/ui/icons/Info";

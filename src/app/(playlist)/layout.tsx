@@ -1,16 +1,10 @@
 import { AuthProvider } from "@/lib/authContext";
 import { SavesProvider } from "@/lib/savesContext";
-import Sidebar from "@/components/layout/Sidebar";
-import BottomNav from "@/components/layout/BottomNav";
-import AppShell from "@/components/layout/AppShell";
-import { createClient } from "@/lib/supabase/server";
 import { Toaster } from "@/components/ui/Toast";
 import { Snackbar } from "@/components/ui/Snackbar";
-import { CreatePlaylistFlow } from "@/components/modals/CreatePlaylistFlow";
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { headers } from "next/headers";
-import "./globals.css";
+import "../globals.css";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -39,38 +33,19 @@ export const metadata: Metadata = {
   },
 };
 
-export default async function RootLayout({
+export default function PlaylistLayout({
   children,
-  modal,
 }: Readonly<{
   children: React.ReactNode;
-  modal: React.ReactNode;
 }>) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  const initialLoggedIn = !!user;
-  const theme = (await headers()).get("x-theme");
-
   return (
     <html lang="en">
-      <body className={`antialiased ${theme === "dark" ? "dark" : ""}`}>
+      <body className="antialiased">
         <AuthProvider>
           <SavesProvider>
-            <AppShell
-              initialLoggedIn={initialLoggedIn}
-              nav={
-                <>
-                  <Sidebar />
-                  <BottomNav />
-                </>
-              }
-            >
-              {children}
-            </AppShell>
-            {modal}
+            {children}
             <Toaster />
             <Snackbar />
-            <CreatePlaylistFlow />
           </SavesProvider>
         </AuthProvider>
       </body>

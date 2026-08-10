@@ -25,7 +25,7 @@ export default function Sidebar() {
     getUserUsername(user.id).then(setUsername);
   }, [user]);
 
-  if (loading || !user || pathname.startsWith("/signin")) return null;
+  if (loading || !user) return null;
 
   async function handleSignOut() {
     setSigningOut(true);
@@ -44,25 +44,25 @@ export default function Sidebar() {
 
       {/* Nav */}
       <nav className="-ml-2 flex flex-col gap-8 mt-[5rem]">
-        <Link href="/" className="flex items-center gap-5">
+        <Link href="/" className="group flex items-center gap-5">
           <Home focus={pathname === "/"} className="size-8 shrink-0 text-primary" />
-          <span className="text-header-radio-3 text-primary">Home</span>
+          <span className="text-header-radio-3 text-primary group-hover:underline">Home</span>
         </Link>
 
-        <Link href="/search" className="flex items-center gap-5">
+        <Link href="/search" className="group flex items-center gap-5">
           <Search focus={pathname.startsWith("/search")} className="size-8 shrink-0 text-primary" />
-          <span className="text-header-radio-3 text-primary">Search</span>
+          <span className="text-header-radio-3 text-primary group-hover:underline">Search</span>
         </Link>
 
-        <Link href="/saves" className="flex items-center gap-5">
+        <Link href="/saves" className="group flex items-center gap-5">
           <Bookmark
             active={pathname === "/saves"}
             className="size-8 shrink-0 text-primary"
           />
-          <span className="text-header-radio-3 text-primary">Saves</span>
+          <span className="text-header-radio-3 text-primary group-hover:underline">Saves</span>
         </Link>
 
-        <Link href={profileHref} className="flex items-center gap-5">
+        <Link href={profileHref} className="group flex items-center gap-5">
           <span className="size-8 shrink-0 flex items-center justify-center">
             <Avatar
               src={avatarUrl}
@@ -70,17 +70,17 @@ export default function Sidebar() {
               focus={pathname === profileHref}
             />
           </span>
-          <span className="text-header-radio-3 text-primary">Profile</span>
+          <span className="text-header-radio-3 text-primary group-hover:underline">Profile</span>
         </Link>
 
         <div className="border-t border-subtle w-full" />
 
         <button
           onClick={() => openCreatePlaylist()}
-          className="flex items-center gap-5 cursor-pointer"
+          className="group flex items-center gap-5 cursor-pointer"
         >
           <Add className="size-8 shrink-0" />
-          <span className="text-header-radio-3 text-primary">
+          <span className="text-header-radio-3 text-primary group-hover:underline">
             Start a new playlist
           </span>
         </button>
@@ -89,10 +89,10 @@ export default function Sidebar() {
       {/* Log out */}
       <button
         onClick={handleSignOut}
-        className="-ml-2 absolute bottom-[var(--space-page-dynamic)] left-[var(--space-page-dynamic)] flex items-center gap-5 cursor-pointer"
+        className="group -ml-2 absolute bottom-[var(--space-page-dynamic)] left-[var(--space-page-dynamic)] flex items-center gap-5 cursor-pointer"
       >
         <Logout className="size-8 shrink-0 text-secondary" />
-        <span className="text-header-radio-3 text-secondary">Log out</span>
+        <span className="text-header-radio-3 text-secondary group-hover:underline">Log out</span>
       </button>
     </aside>
   );

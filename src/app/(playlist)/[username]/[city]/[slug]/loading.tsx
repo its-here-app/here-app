@@ -1,25 +1,6 @@
-"use client";
-
-import { useState, useEffect } from "react";
-
 export default function Loading() {
-  const [isAnimating, setIsAnimating] = useState(false);
-
-  useEffect(() => {
-    let raf2: number;
-    const raf1 = requestAnimationFrame(() => {
-      raf2 = requestAnimationFrame(() => setIsAnimating(true));
-    });
-    return () => {
-      cancelAnimationFrame(raf1);
-      cancelAnimationFrame(raf2);
-    };
-  }, []);
-
   return (
-    <main
-      className={`fixed inset-0 z-50 bg-surface-base overflow-y-auto p-[var(--space-page-sm)] lg:pb-0 max-w-[var(--app-max-width)] mx-auto transition-transform duration-400 ${isAnimating ? "translate-x-0" : "translate-x-full"}`}
-    >
+    <main className="min-h-dvh bg-surface-base p-[var(--space-page-sm)] lg:pb-0 max-w-[var(--app-max-width)] mx-auto">
       <div className="w-full lg:grid lg:grid-cols-2 lg:gap-6 lg:items-start">
         {/* Left: hero card placeholder */}
         <div className="relative mb-6 lg:mb-0 lg:sticky lg:top-0 lg:h-[calc(100vh-2*var(--space-page-sm))]">

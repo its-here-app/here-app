@@ -2,32 +2,32 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "../../lib/authContext";
-import { createClient } from "../../lib/supabase/client";
-import { Smiley, Arrow } from "../../components/ui/stickers";
-import { TextInput } from "../../components/ui/inputs";
-import { Button } from "../../components/ui/Button";
-import { IconButton } from "../../components/ui/IconButton";
-import { ArrowRight } from "../../components/ui/icons/ArrowRight";
-import { Google } from "../../components/ui/icons/Google";
-import { Avatar } from "../../components/ui/Avatar";
-import { Sheet } from "../../components/ui/Sheet";
-import { Check } from "../../components/ui/icons/Check";
-import { Error } from "../../components/ui/icons/Error";
-import { FullLogo } from "../../components/ui/Logo";
-import { toast } from "../../components/ui/Toast";
-import { CoverPhotoRotator } from "../../components/ui/CoverPhotoRotator";
+import { useAuth } from "../../../lib/authContext";
+import { createClient } from "../../../lib/supabase/client";
+import { Smiley, Arrow } from "../../../components/ui/stickers";
+import { TextInput } from "../../../components/ui/inputs";
+import { Button } from "../../../components/ui/Button";
+import { IconButton } from "../../../components/ui/IconButton";
+import { ArrowRight } from "../../../components/ui/icons/ArrowRight";
+import { Google } from "../../../components/ui/icons/Google";
+import { Avatar } from "../../../components/ui/Avatar";
+import { Sheet } from "../../../components/ui/Sheet";
+import { Check } from "../../../components/ui/icons/Check";
+import { Error } from "../../../components/ui/icons/Error";
+import { FullLogo } from "../../../components/ui/Logo";
+import { toast } from "../../../components/ui/Toast";
+import { CoverPhotoRotator } from "../../../components/ui/CoverPhotoRotator";
 
-import { CityAutocompleteInput } from "../../components/ui/inputs/CityAutocompleteInput";
-import { upsertCityAction } from "../../lib/actions/cities";
-import { updateProfileAction } from "../../lib/actions/users";
-import { getUserByUsername } from "../../lib/services/users";
+import { CityAutocompleteInput } from "../../../components/ui/inputs/CityAutocompleteInput";
+import { upsertCityAction } from "../../../lib/actions/cities";
+import { updateProfileAction } from "../../../lib/actions/users";
+import { getUserByUsername } from "../../../lib/services/users";
 import {
   isValidInstagramHandle,
   sanitizeInstagramHandleInput,
-} from "../../lib/isValidInstagramHandle";
-import { useDebouncedValue } from "../../lib/useDebouncedValue";
-import { useAvatarUpload } from "../../lib/useAvatarUpload";
+} from "../../../lib/isValidInstagramHandle";
+import { useDebouncedValue } from "../../../lib/useDebouncedValue";
+import { useAvatarUpload } from "../../../lib/useAvatarUpload";
 
 type Step = "auth" | "profile";
 type UsernameStatus = "idle" | "too-short" | "checking" | "valid" | "taken";

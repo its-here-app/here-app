@@ -1,11 +1,8 @@
 "use client";
 
-import { useEffect } from "react";
-import { usePathname } from "next/navigation";
 import AppBar from "./AppBar";
 import { AppBarProvider } from "@/lib/appBarContext";
 import { useAuth } from "@/lib/authContext";
-import { isAuthPath } from "@/lib/authRoutes";
 
 export default function AppShell({
   nav,
@@ -16,20 +13,7 @@ export default function AppShell({
   children: React.ReactNode;
   initialLoggedIn?: boolean;
 }) {
-  const pathname = usePathname();
   const { user } = useAuth();
-  const isAuth = isAuthPath(pathname);
-
-  // Root layout is a server component, so its "dark"/light class on <body>
-  // only reflects the theme at the time of a full page load. Client-side
-  // navigations (router.push, browser back/forward) skip that server
-  // re-render, so sync the class here on every route change too.
-  useEffect(() => {
-    document.body.classList.toggle("dark", isAuth);
-  }, [isAuth]);
-
-  if (isAuth) return <div className="min-h-dvh">{children}</div>;
-
   const showSidebar = initialLoggedIn || !!user;
 
   return (

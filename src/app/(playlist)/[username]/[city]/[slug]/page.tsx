@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { getPlaylistByUsernameAndName } from "@/lib/queries/playlists";
-import PlaylistOverlay from "@/app/playlists/[slug]/PlaylistOverlay";
+import PlaylistOverlay from "./PlaylistOverlay";
 import { playlistDocTitle } from "@/lib/playlistDocTitle";
 
 export async function generateMetadata({

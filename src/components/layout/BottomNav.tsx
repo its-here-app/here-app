@@ -24,7 +24,7 @@ export default function BottomNav() {
 
   const username = profile?.username ?? null;
 
-  if (loading || !user || pathname.startsWith("/signin")) return null;
+  if (loading || !user) return null;
 
   const activeTab: BottomNavTab = pathname.startsWith("/search")
     ? "search"
