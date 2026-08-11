@@ -39,6 +39,7 @@ export function AddSpotSection({
           leftIcon={<Add className="size-5" />}
           className="flex-1"
           onClick={onOpenSearch}
+          disabled={reorderMode}
         >
           Search spots
         </Button>
@@ -46,7 +47,7 @@ export function AddSpotSection({
       {spotCount > 1 && (
         <Button
           size="lg"
-          variant="tonal"
+          variant={reorderMode ? "filled" : "tonal"}
           leftIcon={<Arrows />}
           onClick={onToggleReorder}
         >

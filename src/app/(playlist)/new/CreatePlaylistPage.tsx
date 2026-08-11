@@ -51,6 +51,7 @@ import {
   verticalListSortingStrategy,
   arrayMove,
 } from "@dnd-kit/sortable";
+import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
 import type { InitialCity } from "@/components/modals/CreatePlaylistCityPicker";
 import type { DraftSpot, SearchResult } from "@/types";
 
@@ -127,7 +128,12 @@ function PlaylistFormBody({
               <Asterisk className="size-[18px]" />
             </p>
           )}
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onReorder}>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={onReorder}
+            modifiers={[restrictToVerticalAxis]}
+          >
             <SortableContext items={items.map((i) => i.id)} strategy={verticalListSortingStrategy}>
               <div className="space-y-3 mb-4">
                 {items.map((item) => (
@@ -536,7 +542,9 @@ export default function CreatePlaylistPage({ initialCity }: { initialCity: Initi
               </button>
             }
             topCenter={
-              <p className="text-body-sm-bold text-white lg:hidden">Create playlist</p>
+              <p className="text-body-sm-bold text-white lg:hidden">
+                {reorderMode ? "Reorder spots" : "Create playlist"}
+              </p>
             }
             topRight={
               <button
@@ -588,7 +596,11 @@ export default function CreatePlaylistPage({ initialCity }: { initialCity: Initi
                     Cancel
                   </Button>
                 }
-                center={<p className="text-body-sm-bold text-primary">Create playlist</p>}
+                center={
+                  <p className="text-body-sm-bold text-primary">
+                    {reorderMode ? "Reorder spots" : "Create playlist"}
+                  </p>
+                }
                 right={
                   <Button
                     variant="text"

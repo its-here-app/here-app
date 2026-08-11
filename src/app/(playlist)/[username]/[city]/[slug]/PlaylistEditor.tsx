@@ -69,6 +69,7 @@ import {
   verticalListSortingStrategy,
   arrayMove,
 } from "@dnd-kit/sortable";
+import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
 import { Asterisk } from "@/components/ui/icons/Asterisk";
 
 interface Props {
@@ -581,7 +582,11 @@ export default function PlaylistEditor({ playlist, isOwner, onClose, closeReady 
                   Cancel
                 </Button>
               }
-              center={<p className="text-body-sm-bold text-primary">Edit playlist</p>}
+              center={
+                <p className="text-body-sm-bold text-primary">
+                  {reorderMode ? "Reorder spots" : "Edit playlist"}
+                </p>
+              }
               right={
                 <Button variant="text" size="md" onClick={handleDone} disabled={saving}>
                   {saving ? "Saving…" : "Done"}
@@ -616,6 +621,7 @@ export default function PlaylistEditor({ playlist, isOwner, onClose, closeReady 
           sensors={sensors}
           collisionDetection={closestCenter}
           onDragEnd={handleDragEnd}
+          modifiers={[restrictToVerticalAxis]}
         >
           <SortableContext
             items={spots.map((s) => s.id)}
