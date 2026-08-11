@@ -106,7 +106,7 @@ export default function SpotSearchInput({
     await performSearch(query);
   }
 
-  function renderSpotRow(result: SearchResult) {
+  function renderSpotRow(result: SearchResult, { showPhoto = true }: { showPhoto?: boolean } = {}) {
     return (
       <SpotCard
         key={result.spot_id}
@@ -114,12 +114,16 @@ export default function SpotSearchInput({
           google_place_id: result.spot_id,
           name: result.name,
           address: result.address,
-          photo_url: result.photo_url,
+          // Temporarily hidden for live search results — photo proxy 404s
+          // for unsaved spots, which would burn Places Details/Photo API
+          // calls with no image shown anyway. Re-enable once that's fixed.
+          photo_url: showPhoto ? result.photo_url : null,
           rating: result.rating,
           types: result.types,
         }}
         size="xxsmall"
         disableLink
+        hidePlaceholder={!showPhoto}
         onClick={onSelect ? () => onSelect(result) : undefined}
         action={
           renderAction ? (
@@ -176,7 +180,7 @@ export default function SpotSearchInput({
             {results.length} result{results.length === 1 ? "" : "s"}
           </p>
           <div className="space-y-3">
-            {results.map(renderSpotRow)}
+            {results.map((result) => renderSpotRow(result, { showPhoto: false }))}
           </div>
         </div>
       )}

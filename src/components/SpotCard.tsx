@@ -57,6 +57,7 @@ interface SpotCardProps {
   onClick?: () => void;
   subtitleSlot?: ReactNode;
   city?: string;
+  hidePlaceholder?: boolean;
 }
 
 export default function SpotCard({
@@ -70,6 +71,7 @@ export default function SpotCard({
   onClick,
   subtitleSlot,
   city,
+  hidePlaceholder = false,
 }: SpotCardProps) {
   const isXxsmall = size === "xxsmall";
   const firstType = spot.types
@@ -81,6 +83,7 @@ export default function SpotCard({
   const [imgFailed, setImgFailed] = useState(false);
   const [thumbHovered, setThumbHovered] = useState(false);
   const showImage = !!spot.photo_url && !imgFailed;
+  const showThumbnail = showImage || !hidePlaceholder;
   const thumbnailClass = isXxsmall ? "size-[3.125rem]" : "w-20 h-20";
 
   return (
@@ -90,16 +93,18 @@ export default function SpotCard({
           className={`flex items-start gap-2 flex-1 min-w-0 ${onClick ? "cursor-pointer" : ""}`}
           onClick={onClick}
         >
-          <div className={`flex-shrink-0 ${thumbnailClass} rounded-xs overflow-hidden bg-grey-300`}>
-            {showImage && (
-              <img
-                src={spot.photo_url!}
-                alt={spot.name}
-                className="w-full h-full object-cover"
-                onError={() => setImgFailed(true)}
-              />
-            )}
-          </div>
+          {showThumbnail && (
+            <div className={`flex-shrink-0 ${thumbnailClass} rounded-xs overflow-hidden bg-grey-300`}>
+              {showImage && (
+                <img
+                  src={spot.photo_url!}
+                  alt={spot.name}
+                  className="w-full h-full object-cover"
+                  onError={() => setImgFailed(true)}
+                />
+              )}
+            </div>
+          )}
           <div className="flex-1 min-w-0">
             <p className="text-header-radio-2 lg:text-header-radio-1 mb-[2px]">{spot.name}</p>
             {subtitleSlot ?? (
@@ -121,23 +126,25 @@ export default function SpotCard({
         </div>
       ) : (
         <div className="flex items-start gap-2 flex-1 min-w-0">
-          <a
-            href={mapsUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            onMouseEnter={() => setThumbHovered(true)}
-            onMouseLeave={() => setThumbHovered(false)}
-            className={`flex-shrink-0 ${thumbnailClass} rounded-xs overflow-hidden bg-grey-300 cursor-pointer`}
-          >
-            {showImage && (
-              <img
-                src={spot.photo_url!}
-                alt={spot.name}
-                className={`w-full h-full object-cover transition-transform duration-200 ease-in-out ${thumbHovered ? "scale-106" : "scale-100"}`}
-                onError={() => setImgFailed(true)}
-              />
-            )}
-          </a>
+          {showThumbnail && (
+            <a
+              href={mapsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              onMouseEnter={() => setThumbHovered(true)}
+              onMouseLeave={() => setThumbHovered(false)}
+              className={`flex-shrink-0 ${thumbnailClass} rounded-xs overflow-hidden bg-grey-300 cursor-pointer`}
+            >
+              {showImage && (
+                <img
+                  src={spot.photo_url!}
+                  alt={spot.name}
+                  className={`w-full h-full object-cover transition-transform duration-200 ease-in-out ${thumbHovered ? "scale-106" : "scale-100"}`}
+                  onError={() => setImgFailed(true)}
+                />
+              )}
+            </a>
+          )}
           <div className="flex-1 min-w-0">
             <a
               href={mapsUrl}
