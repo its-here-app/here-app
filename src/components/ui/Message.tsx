@@ -4,11 +4,12 @@ interface MessageProps {
   icon?: ReactNode;
   header?: string;
   children?: ReactNode;
+  className?: string;
 }
 
-export default function Message({ icon, header, children }: MessageProps) {
+export default function Message({ icon, header, children, className = "mt-16" }: MessageProps) {
   return (
-    <div className="text-center flex flex-col items-center mt-16">
+    <div className={`text-center flex flex-col items-center ${className}`}>
       {icon && (
         <div className="size-12 rounded-full bg-grey-300 flex items-center justify-center mb-4">
           {icon}

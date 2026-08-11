@@ -43,6 +43,22 @@ function variantClasses(variant: ButtonVariant, darkTheme: boolean): string {
   }
 }
 
+/** Shared class string for anything styled like a Button but not rendered as a <button> (e.g. a Link). */
+export function buttonClasses({
+  variant = "filled",
+  size = "md",
+  darkTheme = false,
+}: {
+  variant?: ButtonVariant;
+  size?: ButtonSize;
+  darkTheme?: boolean;
+}): string {
+  const isOverlay = variant === "overlay";
+  return `inline-flex items-center justify-center whitespace-nowrap cursor-pointer transition-[filter] hover:brightness-95 active:brightness-90 ${
+    isOverlay ? variantClasses(variant, darkTheme) : `${sizeClasses[size]} ${variantClasses(variant, darkTheme)}`
+  }`;
+}
+
 export function Button({
   variant = "filled",
   size = "md",
@@ -54,15 +70,12 @@ export function Button({
   className,
   ...rest
 }: ButtonProps) {
-  const isOverlay = variant === "overlay";
   const disabledClasses = softDisabled
     ? "disabled:!opacity-100 disabled:!bg-white/15 disabled:text-secondary disabled:!cursor-not-allowed"
     : "disabled:opacity-40 disabled:!cursor-not-allowed";
   return (
     <button
-      className={`inline-flex items-center justify-center whitespace-nowrap cursor-pointer transition-[filter] hover:brightness-95 active:brightness-90 ${disabledClasses} ${
-        isOverlay ? variantClasses(variant, darkTheme) : `${sizeClasses[size]} ${variantClasses(variant, darkTheme)}`
-      } ${className ?? ""}`}
+      className={`${buttonClasses({ variant, size, darkTheme })} ${disabledClasses} ${className ?? ""}`}
       {...rest}
     >
       {leftIcon && <span className="shrink-0 size-6 flex items-center justify-center">{leftIcon}</span>}
