@@ -11,7 +11,7 @@ import { getUserUsername } from "@/lib/services/users";
 import { playlistUrl } from "@/lib/playlistUrl";
 import { formatCityDisplay } from "@/lib/cityDisplay";
 import { getDefaultCover } from "@/lib/playlist-covers";
-import { openCreatePlaylist } from "@/components/modals/CreatePlaylistFlow";
+import { openCreatePlaylist } from "@/components/modals/CreatePlaylistCityPicker";
 import type { Playlist } from "@/types";
 
 interface CityForCreate {

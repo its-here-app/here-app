@@ -394,41 +394,28 @@ export default function PlaylistEditor({ playlist, isOwner, onClose, closeReady 
     }
   }
 
-  function handleDeletePlaylist() {
+  async function handleDeletePlaylist() {
     const username = playlist.profiles.username;
     const playlistId = playlist.id;
-    const playlistName = playlist.name;
-    const url = playlistUrl(
-      username,
-      playlist.city,
-      playlistName,
-      playlist.slug,
-    );
 
-    sessionStorage.setItem("deletingPlaylistId", playlistId);
-    // Also hide it immediately if the profile page is already mounted
-    // underneath (this editor opens as an intercepted modal over it, so
-    // the sessionStorage check above — which only runs on mount — won't
-    // re-fire on its own).
-    window.dispatchEvent(
-      new CustomEvent("playlist-deleted", { detail: { playlistId } }),
-    );
+    // Delete right away rather than deferring it to a snackbar's "undo"
+    // grace period: `/new`'s route group has its own root layout, so
+    // leaving this page for the profile is a full navigation that tears
+    // down any pending JS timers — a deferred delete would silently never
+    // run, leaving the playlist undeleted until the tab happened to still
+    // be open when the timer fired.
+    try {
+      await deletePlaylistAction(playlistId, username);
+    } catch (err) {
+      console.error("Error deleting playlist:", err);
+      snackbar({
+        icon: <ErrorIcon />,
+        message: "Something went wrong. Please try again.",
+      });
+      return;
+    }
+
     closePlaylist(`/${username}`);
-
-    let undone = false;
-
-    snackbar({
-      icon: <Trash />,
-      message: `"${playlistName}" deleted`,
-      actionLabel: "Undo",
-      onAction: () => {
-        undone = true;
-        window.location.href = url;
-      },
-      onDismiss: () => {
-        if (!undone) deletePlaylistAction(playlistId, username);
-      },
-    });
   }
 
   return (

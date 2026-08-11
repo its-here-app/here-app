@@ -6,7 +6,7 @@ import AppShell from "@/components/layout/AppShell";
 import { createClient } from "@/lib/supabase/server";
 import { Toaster } from "@/components/ui/Toast";
 import { Snackbar } from "@/components/ui/Snackbar";
-import { CreatePlaylistFlow } from "@/components/modals/CreatePlaylistFlow";
+import { CreatePlaylistCityPicker } from "@/components/modals/CreatePlaylistCityPicker";
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "../globals.css";
@@ -65,7 +65,7 @@ export default async function RootLayout({
             </AppShell>
             <Toaster />
             <Snackbar />
-            <CreatePlaylistFlow />
+            <CreatePlaylistCityPicker />
           </SavesProvider>
         </AuthProvider>
       </body>

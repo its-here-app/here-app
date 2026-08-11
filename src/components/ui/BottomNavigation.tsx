@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Avatar } from "./Avatar";
 import { Bookmark } from "./icons/Bookmark";
 import { Home } from "./icons/Home";
@@ -30,18 +30,51 @@ function NavButton({
 }: {
   active?: boolean;
   onClick?: () => void;
-  children: ReactNode;
+  children: (highlighted: boolean) => ReactNode;
   label: string;
 }) {
+  const [hovered, setHovered] = useState(false);
+
   return (
     <button
       type="button"
       onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
       aria-label={label}
       aria-current={active ? "page" : undefined}
-      className="size-8 flex items-center justify-center transition-opacity hover:opacity-70"
+      className="size-8 flex items-center justify-center"
     >
-      {children}
+      {children(active || hovered)}
+    </button>
+  );
+}
+
+function ProfileButton({
+  active,
+  avatarUrl,
+  onClick,
+}: {
+  active: boolean;
+  avatarUrl?: string;
+  onClick?: () => void;
+}) {
+  const [hovered, setHovered] = useState(false);
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      aria-label="Profile"
+    >
+      <Avatar
+        src={avatarUrl}
+        focus={active || hovered}
+        size="md"
+        className="mt-2"
+      />
     </button>
   );
 }
@@ -60,11 +93,11 @@ export function BottomNavigation({
       className={`bg-surface-base py-2 shadow-[0px_-4px_14px_0px_rgba(0,0,0,0.05)] ${className ?? ""}`}
     >
       <div className="flex items-center justify-evenly max-w-md mx-auto">
-        <NavButton label="Home" onClick={() => onTabChange?.("home")}>
-          <Home focus={activeTab === "home"} className="size-8" />
+        <NavButton active={activeTab === "home"} label="Home" onClick={() => onTabChange?.("home")}>
+          {(highlighted) => <Home focus={highlighted} className="size-8" />}
         </NavButton>
-        <NavButton label="Search" onClick={() => onTabChange?.("search")}>
-          <Search focus={activeTab === "search"} className="size-8" />
+        <NavButton active={activeTab === "search"} label="Search" onClick={() => onTabChange?.("search")}>
+          {(highlighted) => <Search focus={highlighted} className="size-8" />}
         </NavButton>
         <IconButton
           variant="hero"
@@ -72,22 +105,14 @@ export function BottomNavigation({
           label="Add"
           onClick={onAdd}
         />
-        <NavButton label="Saved" onClick={() => onTabChange?.("saved")}>
-          <Bookmark active={activeTab === "saved"} className="size-8" />
+        <NavButton active={activeTab === "saved"} label="Saved" onClick={() => onTabChange?.("saved")}>
+          {(highlighted) => <Bookmark active={highlighted} className="size-8" />}
         </NavButton>
-        <button
-          type="button"
+        <ProfileButton
+          active={activeTab === "profile"}
+          avatarUrl={avatarUrl}
           onClick={() => onTabChange?.("profile")}
-          aria-label="Profile"
-          className="transition-opacity hover:opacity-70"
-        >
-          <Avatar
-            src={avatarUrl}
-            focus={activeTab === "profile"}
-            size="md"
-            className="mt-2"
-          />
-        </button>
+        />
       </div>
     </div>
   );

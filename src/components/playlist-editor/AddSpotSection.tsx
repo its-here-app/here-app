@@ -6,7 +6,7 @@ import { Arrows } from "@/components/ui/icons/Arrows";
 
 /**
  * Just the add-spot + "Reorder" button row — deliberately does not also
- * render SpotSearchPanel, since some callers (e.g. CreatePlaylistFlow) render
+ * render SpotSearchPanel, since some callers (e.g. CreatePlaylistPage) render
  * this row twice (once per breakpoint) but must mount the panel exactly once.
  * Mount SpotSearchPanel separately alongside this component.
  */

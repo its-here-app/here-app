@@ -4,7 +4,6 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/authContext";
 import { BottomPanel } from "@/components/ui/BottomPanel";
-import { CityAutocompleteInput } from "@/components/ui/inputs/CityAutocompleteInput";
 import { Button } from "@/components/ui/Button";
 import { ConfirmSheet } from "@/components/ui/Sheet";
 import { snackbar, dismissAllSnackbars } from "@/components/ui/Snackbar";
@@ -36,6 +35,7 @@ import { getCityIdByGooglePlaceId } from "@/lib/services/cities";
 import { randomPlaylistName } from "@/lib/playlistNames";
 import { createPlaylistAction } from "@/lib/actions/playlists";
 import { upsertCityAction } from "@/lib/actions/cities";
+import { playlistUrl } from "@/lib/playlistUrl";
 import {
   DndContext,
   closestCenter,
@@ -51,27 +51,8 @@ import {
   verticalListSortingStrategy,
   arrayMove,
 } from "@dnd-kit/sortable";
+import type { InitialCity } from "@/components/modals/CreatePlaylistCityPicker";
 import type { DraftSpot, SearchResult } from "@/types";
-
-// ─── Imperative trigger ───────────────────────────────────────────────────────
-
-export interface InitialCity {
-  google_place_id: string;
-  display_name: string;
-  is_primary?: boolean;
-}
-
-type OpenListener = (initialCity?: InitialCity) => void;
-const listeners: OpenListener[] = [];
-
-/**
- * Opens the create-playlist flow. Pass `initialCity` when the city is
- * already known from context (e.g. the home page's city filter) to skip
- * straight past the "Which city are you making a playlist for?" step.
- */
-export function openCreatePlaylist(initialCity?: InitialCity) {
-  listeners.forEach((fn) => fn(initialCity));
-}
 
 // ─── Shared form body ────────────────────────────────────────────────────────
 
@@ -128,7 +109,7 @@ function PlaylistFormBody({
       {!imported && (
         <div className="flex-1 flex flex-col min-h-0 mb-3">
           <ListInput
-            className="flex-1 min-h-0"
+            className="flex-1"
             heightClassName={spotsHeightClassName}
             value={spotsInput}
             onChange={onSpotsInputChange}
@@ -181,37 +162,30 @@ function PlaylistFormBody({
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function CreatePlaylistFlow() {
+export default function CreatePlaylistPage({ initialCity }: { initialCity: InitialCity }) {
   const { user } = useAuth();
   const router = useRouter();
 
   // UI state
-  const [panelOpen, setPanelOpen] = useState(false);
-  const [overlayOpen, setOverlayOpen] = useState(false);
-  const [overlayClosing, setOverlayClosing] = useState(false);
   const [confirmCancelOpen, setConfirmCancelOpen] = useState(false);
   const [missingPanelOpen, setMissingPanelOpen] = useState(false);
 
-  // Form state
-  const [city, setCity] = useState("");
-  const [selectedCity, setSelectedCity] = useState<{
-    google_place_id: string;
-    display_name: string;
-    is_primary?: boolean;
-  } | null>(null);
+  // Form state — the city is fixed for the lifetime of this page; it's
+  // picked beforehand via the global CreatePlaylistCityPicker BottomPanel,
+  // which hands off here with it already in the URL.
+  const city = initialCity.display_name;
+  const selectedCity = initialCity;
   const [cityId, setCityId] = useState<string | undefined>(undefined);
   // Hides the state/country suffix for primary cities ("Portland, OR" ->
   // "Portland"), matching how city names render elsewhere in the app.
-  const displayCity = formatCityDisplay(city, selectedCity?.is_primary);
+  const displayCity = formatCityDisplay(city, selectedCity.is_primary);
 
   // Read-only lookup so popular spots can be shown for a city that's already
   // in our DB — doesn't upsert, so brand-new cities just show no suggestions.
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const id = selectedCity
-        ? await getCityIdByGooglePlaceId(selectedCity.google_place_id)
-        : null;
+      const id = await getCityIdByGooglePlaceId(selectedCity.google_place_id);
       if (!cancelled) setCityId(id ?? undefined);
     })();
     return () => {
@@ -219,9 +193,12 @@ export function CreatePlaylistFlow() {
     };
   }, [selectedCity]);
 
+  // Left empty until the mount-only effect below fills it in client-side —
+  // randomPlaylistName() is random, so picking it during the initial render
+  // (which also runs during SSR) would have the server and client pick
+  // different names and fail to hydrate.
   const [draftName, setDraftName] = useState("");
-  const defaultNameRef = useRef("");
-  const lastNameRef = useRef("");
+  const lastNameRef = useRef(draftName);
   const [description, setDescription] = useState("");
   const [isPublic, setIsPublic] = useState(false);
   const [spotsInput, setSpotsInput] = useState("");
@@ -268,23 +245,32 @@ export function CreatePlaylistFlow() {
   // Cover state
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [coverPreview, setCoverPreview] = useState("");
+  // Also left empty until mount — see the draftName comment above; the same
+  // SSR/client hydration mismatch applies since getDefaultCover is random.
   const [defaultCover, setDefaultCover] = useState("");
   // Tracks the "city|name" pair the current defaultCover was computed for, so
-  // the debounced effect below doesn't re-roll a fresh random cover for inputs
-  // that were already just used (e.g. by handleCreate's synchronous pick).
+  // the debounced effect below doesn't re-roll a fresh random cover for the
+  // pair it was already just computed for.
   const lastCoverKeyRef = useRef<string | null>(null);
   const { coverInputRef, handleCoverSelect: handleCoverChange } = useCoverPhotoUpload((file) => {
     setCoverFile(file);
     setCoverPreview(URL.createObjectURL(file));
   });
 
+  // Client-only: pick the random starting name + cover once, after mount.
+  useEffect(() => {
+    const name = randomPlaylistName();
+    lastNameRef.current = name;
+    setDraftName(name);
+    lastCoverKeyRef.current = `${city}|${name}`;
+    setDefaultCover(getDefaultCover(city, name));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Recompute the default cover only after the user pauses typing, so the
   // image doesn't flicker on every keystroke (since getDefaultCover is random).
-  // Skip while the overlay isn't open yet — city changes during the city-picker
-  // step (before draftName is set) would otherwise pick an early cover that
-  // immediately gets replaced once handleCreate sets the real draftName.
   useEffect(() => {
-    if (!overlayOpen) return;
+    if (!draftName) return;
     const key = `${city}|${draftName}`;
     const t = setTimeout(() => {
       if (lastCoverKeyRef.current === key) return;
@@ -292,24 +278,7 @@ export function CreatePlaylistFlow() {
       setDefaultCover(getDefaultCover(city, draftName));
     }, 400);
     return () => clearTimeout(t);
-  }, [overlayOpen, city, draftName]);
-
-  // Listen for imperative open calls. When an initialCity is provided (e.g.
-  // from the home page's city filter), pre-fill the city step instead of
-  // making the user pick it again.
-  useEffect(() => {
-    const listener: OpenListener = (initialCity) => {
-      if (initialCity) {
-        setCity(initialCity.display_name);
-        setSelectedCity(initialCity);
-      }
-      setPanelOpen(true);
-    };
-    listeners.push(listener);
-    return () => {
-      listeners.splice(listeners.indexOf(listener), 1);
-    };
-  }, []);
+  }, [city, draftName]);
 
   // Escape key: close the spot search panel if open, otherwise open cancel confirmation
   useEffect(() => {
@@ -318,59 +287,36 @@ export function CreatePlaylistFlow() {
       if (spotSearchOpen) setSpotSearchOpen(false);
       else setConfirmCancelOpen(true);
     }
-    if (overlayOpen) document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [overlayOpen, spotSearchOpen]);
+  }, [spotSearchOpen]);
 
-  // ── Helpers ────────────────────────────────────────────────────────────────
+  // ── Navigation ─────────────────────────────────────────────────────────────
 
-  function resetState() {
-    setCity("");
-    setSelectedCity(null);
-    setDraftName("");
-    setDescription("");
-    setIsPublic(false);
-    setSpotsInput("");
-    setFoundSpots([]);
-    setUnfoundSpots([]);
-    setImporting(false);
-    setImportStatus("");
-    setImported(false);
-    setSaving(false);
-    setSpotSearchOpen(false);
-    setShareOpen(false);
-    setCoverFile(null);
-    setCoverPreview("");
+  function withinAppReferrerPath(): string | null {
+    if (!document.referrer) return null;
+    try {
+      const url = new URL(document.referrer);
+      if (url.origin !== window.location.origin) return null;
+      return `${url.pathname}${url.search}`;
+    } catch {
+      return null;
+    }
   }
 
-  function dismissOverlay(then?: () => void) {
-    setOverlayClosing(true);
-    document.body.style.overflow = "";
-    setTimeout(() => {
-      setOverlayOpen(false);
-      setOverlayClosing(false);
-      then?.();
-    }, 250);
-  }
-
-  function closePanel() {
-    setPanelOpen(false);
-    setCity("");
-    setSelectedCity(null);
-  }
-
-  // ── Step 1: Create ─────────────────────────────────────────────────────────
-
-  function handleCreate() {
-    const name = randomPlaylistName();
-    defaultNameRef.current = name;
-    lastNameRef.current = name;
-    setDraftName(name);
-    lastCoverKeyRef.current = `${city}|${name}`;
-    setDefaultCover(getDefaultCover(city, name));
-    setPanelOpen(false);
-    setOverlayOpen(true);
-    document.body.style.overflow = "hidden";
+  function goBack() {
+    const referrerPath = withinAppReferrerPath();
+    if (!referrerPath) {
+      router.push("/");
+    } else if (window.history.length > 1) {
+      // There's a same-origin referrer *and* an entry to pop in this tab's
+      // own history, so a real back() is safe — e.g. this rules out a link
+      // opened in a new tab, where the referrer is same-origin but this
+      // tab's history is empty and back() would be a no-op.
+      router.back();
+    } else {
+      router.push(referrerPath);
+    }
   }
 
   // ── Import ─────────────────────────────────────────────────────────────────
@@ -532,10 +478,9 @@ export function CreatePlaylistFlow() {
         await uploadPlaylistCover(result.id, user.id, coverFile);
       }
 
-      dismissOverlay(() => {
-        resetState();
-        router.refresh();
-      });
+      router.push(
+        `${playlistUrl(result.username, result.city, result.name, result.slug)}?from=new`,
+      );
     } catch (err) {
       console.error("Error creating playlist:", err);
       setSaving(false);
@@ -550,65 +495,13 @@ export function CreatePlaylistFlow() {
 
   function handleDiscard() {
     setConfirmCancelOpen(false);
-    dismissOverlay(resetState);
+    goBack();
   }
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <>
-      {/* Step 1 — City BottomPanel */}
-      <BottomPanel
-        isOpen={panelOpen}
-        onClose={closePanel}
-        header="Create a playlist"
-        subheader="Which city are you making a playlist for?"
-        mobileHeight="tall"
-        centerBody
-        desktopVariant="full-page"
-        footer={
-          <Button
-            variant="filled"
-            size="md"
-            darkTheme
-            softDisabled
-            disabled={!selectedCity}
-            onClick={handleCreate}
-            className="w-full"
-          >
-            Create
-          </Button>
-        }
-        desktopFooter={
-          <Button
-            variant="filled"
-            size="lg"
-            darkTheme
-            softDisabled
-            disabled={!selectedCity}
-            onClick={handleCreate}
-          >
-            Create
-          </Button>
-        }
-      >
-        <CityAutocompleteInput
-          variant="ghost"
-          value={displayCity}
-          onSelect={(c) => {
-            setCity(c.display_name);
-            setSelectedCity(c);
-          }}
-          onChange={(val) => {
-            setCity(val);
-            setSelectedCity(null);
-          }}
-          placeholder="New York"
-          autoFocus
-          className="lg:-mt-[1.5rem]"
-        />
-      </BottomPanel>
-
+    <main className="min-h-dvh bg-surface-base p-[var(--space-page-sm)] lg:pb-0 max-w-[var(--app-max-width)] mx-auto">
       {/* Importing overlay — full-screen dark with status */}
       {importing && (
         <div className="fixed inset-0 z-[60] bg-black flex items-center justify-center lg:hidden">
@@ -616,162 +509,153 @@ export function CreatePlaylistFlow() {
         </div>
       )}
 
-      {/* Steps 3–5 — Create Overlay */}
-      {overlayOpen && (
-        <div
-          className="fixed inset-0 z-50 bg-white overflow-y-auto p-[var(--space-page-sm)] lg:pb-0"
-          style={{
-            animation: `${overlayClosing ? "fadeOut" : "fadeIn"} 250ms ease forwards`,
-          }}
-        >
-          <div
-            className={`flex flex-col ${imported ? "" : "h-full"} lg:h-full lg:block`}
-            style={{ ["--col-w" as string]: "calc((100vw - 2*var(--space-page-sm) - var(--space-page-sm)) / 2)" }}
-          >
-            {/* Left — Card. Desktop: position:fixed (not sticky) so it's pinned to the
-                viewport regardless of how tall the right column's content is — sticky's
-                containing block is the row it shares with the right column, so it would
-                detach/scroll once that row's height caught up to the right column's. */}
-            <div className={`relative shrink-0 mb-4 lg:mb-0 lg:fixed lg:top-[var(--space-page-sm)] lg:left-[var(--space-page-sm)] lg:w-[var(--col-w)] lg:h-[calc(100vh-2*var(--space-page-sm))] ${!imported ? "lg:block" : ""}`}>
-              <Card
-                className="h-[30rem] lg:h-full"
-                size="hero"
-                image={coverPreview || defaultCover}
-                city={displayCity}
-                name={draftName}
-                onNameChange={(v) => { setDraftName(v); if (v.trim()) lastNameRef.current = v; }}
-                onNameBlur={(v) => { if (!v.trim()) setDraftName(lastNameRef.current); }}
-                topLeft={
-                  <button
-                    onClick={() => setConfirmCancelOpen(true)}
-                    className="text-body-xs text-white cursor-pointer lg:hidden"
-                  >
+      {/* Main editor */}
+      <div
+        className={`flex flex-col min-h-[calc(100dvh-2*var(--space-page-sm))] lg:h-full lg:block lg:min-h-0`}
+        style={{ ["--col-w" as string]: "calc((100vw - 2*var(--space-page-sm) - var(--space-page-sm)) / 2)" }}
+      >
+        {/* Left — Card. Desktop: position:fixed (not sticky) so it's pinned to the
+            viewport regardless of how tall the right column's content is — sticky's
+            containing block is the row it shares with the right column, so it would
+            detach/scroll once that row's height caught up to the right column's. */}
+        <div className={`relative shrink-0 mb-4 lg:mb-0 lg:fixed lg:top-[var(--space-page-sm)] lg:left-[var(--space-page-sm)] lg:w-[var(--col-w)] lg:h-[calc(100vh-2*var(--space-page-sm))] ${!imported ? "lg:block" : ""}`}>
+          <Card
+            className="h-[30rem] lg:h-full"
+            size="hero"
+            image={coverPreview || defaultCover}
+            city={displayCity}
+            name={draftName}
+            onNameChange={(v) => { setDraftName(v); if (v.trim()) lastNameRef.current = v; }}
+            onNameBlur={(v) => { if (!v.trim()) setDraftName(lastNameRef.current); }}
+            topLeft={
+              <button
+                onClick={() => setConfirmCancelOpen(true)}
+                className="text-body-xs text-white cursor-pointer lg:hidden"
+              >
+                Cancel
+              </button>
+            }
+            topCenter={
+              <p className="text-body-sm-bold text-white lg:hidden">Create playlist</p>
+            }
+            topRight={
+              <button
+                onClick={imported ? () => setShareOpen(true) : handleContinue}
+                className="text-body-xs text-white cursor-pointer lg:hidden"
+              >
+                {imported ? "Done" : "Continue"}
+              </button>
+            }
+            bottomCenter={
+              <Button
+                variant="overlay"
+                size="sm"
+                leftIcon={<Photo />}
+                onClick={() => coverInputRef.current?.click()}
+              >
+                Change cover photo
+              </Button>
+            }
+          />
+          <input
+            ref={coverInputRef}
+            type="file"
+            accept="image/*,.heic,.heif"
+            className="sr-only"
+            onChange={handleCoverChange}
+          />
+        </div>
+
+        {/* Right — Form or Search (desktop). lg:ml matches the fixed left column's
+            width + gap, since it's no longer a grid sibling that reserves that space. */}
+        <div className={`relative flex flex-col flex-1 lg:flex-1 lg:min-h-0 lg:ml-[calc(var(--col-w)+var(--space-page-sm))] lg:pl-[calc(1.5rem-var(--space-page-sm))] ${!imported ? "lg:h-[calc(100vh-2*var(--space-page-sm))]" : ""}`}>
+          {/* Desktop: importing overlay, scoped to this column (mobile uses the full-screen one above).
+              Positioned against this non-scrolling wrapper (not the scrollable box below) so its
+              inset-0 always matches the full rounded box, top and bottom. */}
+          {importing && (
+            <div className="hidden lg:flex absolute inset-0 z-10 bg-black rounded-lg items-center justify-center">
+              <p className="text-display-crimson-3 text-white">{importStatus}</p>
+            </div>
+          )}
+
+          <div className="relative flex flex-col flex-1 lg:flex-1 lg:min-h-0 lg:overflow-y-auto">
+            {/* Desktop: normal form, CSS-hidden (not unmounted) while search is open */}
+            <div className={spotSearchOpen ? "hidden" : "hidden lg:flex lg:flex-col lg:h-full"}>
+              <SlotRow
+                className="mb-6"
+                left={
+                  <Button variant="text" size="md" onClick={() => setConfirmCancelOpen(true)}>
                     Cancel
-                  </button>
+                  </Button>
                 }
-                topCenter={
-                  <p className="text-body-sm-bold text-white lg:hidden">Create playlist</p>
-                }
-                topRight={
-                  <button
+                center={<p className="text-body-sm-bold text-primary">Create playlist</p>}
+                right={
+                  <Button
+                    variant="text"
+                    size="md"
                     onClick={imported ? () => setShareOpen(true) : handleContinue}
-                    className="text-body-xs text-white cursor-pointer lg:hidden"
                   >
                     {imported ? "Done" : "Continue"}
-                  </button>
-                }
-                bottomCenter={
-                  <Button
-                    variant="overlay"
-                    size="sm"
-                    leftIcon={<Photo />}
-                    onClick={() => coverInputRef.current?.click()}
-                  >
-                    Change cover photo
                   </Button>
                 }
               />
-              <input
-                ref={coverInputRef}
-                type="file"
-                accept="image/*,.heic,.heif"
-                className="sr-only"
-                onChange={handleCoverChange}
+
+              <PlaylistFormBody
+                description={description}
+                onDescriptionChange={setDescription}
+                spotsInput={spotsInput}
+                onSpotsInputChange={setSpotsInput}
+                imported={imported}
+                foundSpots={foundSpots}
+                onImport={handleImport}
+                onOpenSearch={() => setSpotSearchOpen(true)}
+                onRemoveFoundSpot={handleRemoveFoundSpot}
+                onFoundSpotNotesChange={handleFoundSpotNotesChange}
+                reorderMode={reorderMode}
+                onToggleReorder={() => setReorderMode((r) => !r)}
+                onReorder={handleReorder}
+                sensors={sensors}
+                spotsHeightClassName="h-full min-h-0"
               />
             </div>
 
-            {/* Right — Form or Search (desktop). lg:ml matches the fixed left column's
-                width + gap, since it's no longer a grid sibling that reserves that space. */}
-            <div className={`relative flex flex-col ${!imported ? "flex-1 min-h-0" : ""} lg:flex-1 lg:min-h-0 lg:ml-[calc(var(--col-w)+var(--space-page-sm))] lg:pl-[calc(1.5rem-var(--space-page-sm))] ${!imported ? "lg:h-[calc(100vh-2*var(--space-page-sm))]" : ""}`}>
-              {/* Desktop: importing overlay, scoped to this column (mobile uses the full-screen one above).
-                  Positioned against this non-scrolling wrapper (not the scrollable box below) so its
-                  inset-0 always matches the full rounded box, top and bottom. */}
-              {importing && (
-                <div className="hidden lg:flex absolute inset-0 z-10 bg-black rounded-lg items-center justify-center">
-                  <p className="text-display-crimson-3 text-white">{importStatus}</p>
-                </div>
-              )}
+            <SpotSearchPanel
+              isOpen={spotSearchOpen}
+              onClose={() => {
+                dismissAllSnackbars();
+                setSpotSearchOpen(false);
+                if (foundSpots.length > 0) setImported(true);
+              }}
+              city={city}
+              cityId={cityId}
+              addedPlaceIds={addedPlaceIds}
+              onSelect={handleAddSpotFromSearch}
+            />
 
-              <div className={`relative flex flex-col ${!imported ? "flex-1 min-h-0 overflow-y-auto" : ""} lg:flex-1 lg:min-h-0 lg:overflow-y-auto`}>
-                {/* Desktop: normal form, CSS-hidden (not unmounted) while search is open */}
-                <div className={spotSearchOpen ? "hidden" : "hidden lg:flex lg:flex-col lg:h-full"}>
-                  <SlotRow
-                    className="mb-6"
-                    left={
-                      <Button variant="text" size="md" onClick={() => setConfirmCancelOpen(true)}>
-                        Cancel
-                      </Button>
-                    }
-                    center={<p className="text-body-sm-bold text-primary">Create playlist</p>}
-                    right={
-                      <Button
-                        variant="text"
-                        size="md"
-                        onClick={imported ? () => setShareOpen(true) : handleContinue}
-                      >
-                        {imported ? "Done" : "Continue"}
-                      </Button>
-                    }
-                  />
-
-                  <PlaylistFormBody
-                    description={description}
-                    onDescriptionChange={setDescription}
-                    spotsInput={spotsInput}
-                    onSpotsInputChange={setSpotsInput}
-                    imported={imported}
-                    foundSpots={foundSpots}
-                    onImport={handleImport}
-                    onOpenSearch={() => setSpotSearchOpen(true)}
-                    onRemoveFoundSpot={handleRemoveFoundSpot}
-                    onFoundSpotNotesChange={handleFoundSpotNotesChange}
-                    reorderMode={reorderMode}
-                    onToggleReorder={() => setReorderMode((r) => !r)}
-                    onReorder={handleReorder}
-                    sensors={sensors}
-                    spotsHeightClassName="h-full min-h-0"
-                  />
-                </div>
-
-                <SpotSearchPanel
-                  isOpen={spotSearchOpen}
-                  onClose={() => {
-                    dismissAllSnackbars();
-                    setSpotSearchOpen(false);
-                    if (foundSpots.length > 0) setImported(true);
-                  }}
-                  city={city}
-                  cityId={cityId}
-                  addedPlaceIds={addedPlaceIds}
-                  onSelect={handleAddSpotFromSearch}
-                />
-
-                {/* Mobile — always show form (search is a separate overlay) */}
-                <div className="lg:hidden flex-1 min-h-0 flex flex-col">
-                  <PlaylistFormBody
-                    description={description}
-                    onDescriptionChange={setDescription}
-                    spotsInput={spotsInput}
-                    onSpotsInputChange={setSpotsInput}
-                    imported={imported}
-                    foundSpots={foundSpots}
-                    onImport={handleImport}
-                    onOpenSearch={() => setSpotSearchOpen(true)}
-                    onRemoveFoundSpot={handleRemoveFoundSpot}
-                    onFoundSpotNotesChange={handleFoundSpotNotesChange}
-                    reorderMode={reorderMode}
-                    onToggleReorder={() => setReorderMode((r) => !r)}
-                    onReorder={handleReorder}
-                    sensors={sensors}
-                    spotsHeightClassName="h-full min-h-0"
-                    spotsPlaceholder={SPOTS_PLACEHOLDER_MOBILE}
-                  />
-                </div>
-              </div>
+            {/* Mobile — always show form (search is a separate overlay) */}
+            <div className="lg:hidden flex flex-col flex-1">
+              <PlaylistFormBody
+                description={description}
+                onDescriptionChange={setDescription}
+                spotsInput={spotsInput}
+                onSpotsInputChange={setSpotsInput}
+                imported={imported}
+                foundSpots={foundSpots}
+                onImport={handleImport}
+                onOpenSearch={() => setSpotSearchOpen(true)}
+                onRemoveFoundSpot={handleRemoveFoundSpot}
+                onFoundSpotNotesChange={handleFoundSpotNotesChange}
+                reorderMode={reorderMode}
+                onToggleReorder={() => setReorderMode((r) => !r)}
+                onReorder={handleReorder}
+                sensors={sensors}
+                spotsHeightClassName="flex-1 min-h-[200px]"
+                spotsPlaceholder={SPOTS_PLACEHOLDER_MOBILE}
+              />
             </div>
           </div>
         </div>
-      )}
+      </div>
 
       {/* Cancel confirmation */}
       <ConfirmSheet
@@ -883,6 +767,6 @@ export function CreatePlaylistFlow() {
           </Button>
         </div>
       </BottomPanel>
-    </>
+    </main>
   );
 }

@@ -7,7 +7,7 @@ import { useAuth } from "@/lib/authContext";
 import { signOut, getUserUsername } from "@/lib/services/users";
 import { FullLogo } from "../ui/Logo";
 import { Add } from "../ui/icons/Add";
-import { openCreatePlaylist } from "@/components/modals/CreatePlaylistFlow";
+import { openCreatePlaylist } from "@/components/modals/CreatePlaylistCityPicker";
 import { Bookmark } from "../ui/icons/Bookmark";
 import { Home } from "../ui/icons/Home";
 import { Search } from "../ui/icons/Search";

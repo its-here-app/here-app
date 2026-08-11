@@ -8,7 +8,7 @@ import {
   BottomNavigation,
   type BottomNavTab,
 } from "@/components/ui/BottomNavigation";
-import { openCreatePlaylist } from "@/components/modals/CreatePlaylistFlow";
+import { openCreatePlaylist } from "@/components/modals/CreatePlaylistCityPicker";
 import type { Profile } from "@/types";
 
 export default function BottomNav() {
@@ -53,7 +53,7 @@ export default function BottomNav() {
         activeTab={activeTab}
         avatarUrl={avatarUrl || undefined}
         onTabChange={handleTabChange}
-        onAdd={openCreatePlaylist}
+        onAdd={() => openCreatePlaylist()}
       />
     </div>
   );
