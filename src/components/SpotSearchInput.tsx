@@ -169,7 +169,7 @@ export default function SpotSearchInput({
         <div>
           <p className="text-body-sm text-tertiary mb-2 px-1">Popular spots</p>
           <div className="space-y-3">
-            {popularSpots.map(renderSpotRow)}
+            {popularSpots.map((result) => renderSpotRow(result))}
           </div>
         </div>
       )}
