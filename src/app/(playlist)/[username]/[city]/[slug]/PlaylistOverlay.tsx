@@ -43,17 +43,13 @@ export default function PlaylistOverlay({ playlist, isOwner, fromNew }: Props) {
       return;
     }
     const referrerPath = withinAppReferrerPath();
-    if (!referrerPath) {
-      router.push(`/${playlist.profiles.username}`);
-    } else if (window.history.length > 1) {
-      // There's a same-origin referrer *and* an entry to pop in this tab's
-      // own history, so a real back() is safe — e.g. this rules out a link
-      // opened in a new tab, where the referrer is same-origin but this
-      // tab's history is empty and back() would be a no-op.
-      router.back();
-    } else {
-      router.push(referrerPath);
-    }
+    // (playlist) and (main) are separate root layouts (each with their own
+    // html/body), so this close always crosses a root-layout boundary.
+    // router.back() drives that via popstate, which doesn't reliably force
+    // the full reload Next does for push/Link across root layouts — it can
+    // leave shared chrome (Sidebar/BottomNav/AppShell) half-mounted and
+    // serve stale Router Cache data. Always push instead.
+    router.push(referrerPath ?? `/${playlist.profiles.username}`);
   }
 
   function withinAppReferrerPath(): string | null {

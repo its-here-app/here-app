@@ -22,7 +22,7 @@ export async function getRecentFollowingPlaylists(
     .select("*, profiles(username, avatar_url), cities!playlists_city_id_fkey(display_name, is_primary), playlist_spots(count)")
     .in("user_id", followingIds)
     .eq("is_public", true)
-    .order("created_at", { ascending: false })
+    .order("updated_at", { ascending: false })
     .limit(9);
   if (error) return [];
   return data.map((p: any) => ({

@@ -12,7 +12,7 @@ export async function getPlaylistsByUser(
     .from("playlists")
     .select("*, playlist_spots(count), cities!playlists_city_id_fkey(display_name, is_primary)")
     .eq("user_id", userId)
-    .order("created_at", { ascending: false });
+    .order("updated_at", { ascending: false });
   if (onlyPublic) query = query.eq("is_public", true);
   const { data, error } = await query;
   if (error) return [];
