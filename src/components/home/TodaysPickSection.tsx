@@ -8,6 +8,7 @@ import { FeaturedSpotSkeleton } from "./SpotSkeleton";
 import { SpotBookmark } from "./SpotBookmark";
 import { getTodaysPick } from "@/lib/services/playlists";
 import { playlistUrl } from "@/lib/playlistUrl";
+import { mapsUrl } from "@/lib/mapsUrl";
 import type { TodaysPick } from "@/types";
 
 function MentionSubtitle({ mentionedBy }: { mentionedBy: TodaysPick["mentionedBy"] }) {
@@ -55,7 +56,7 @@ export function TodaysPickSection({
     <Card
       size="featured"
       image={pick!.spot.photo_url ?? undefined}
-      href={`https://www.google.com/maps/place/?q=place_id:${pick!.spot.google_place_id}`}
+      href={mapsUrl(pick!.spot)}
       external
       scrim={false}
       sticker

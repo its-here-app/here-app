@@ -9,6 +9,7 @@ import { SpotBookmark } from "./SpotBookmark";
 import { useCarousel, CarouselArrows, CarouselTrack } from "./Carousel";
 import { useLazyLoad } from "./hooks";
 import { getOldFavoriteSpots } from "@/lib/services/saves";
+import { mapsUrl } from "@/lib/mapsUrl";
 import type { Spot } from "@/types";
 
 export function OldFavoritesSection({
@@ -74,7 +75,7 @@ export function OldFavoritesSection({
               <Card
                 size="md"
                 image={spot.photo_url ?? undefined}
-                href={`https://www.google.com/maps/place/?q=place_id:${spot.google_place_id}`}
+                href={mapsUrl(spot)}
                 external
                 scrim={false}
                 metadata={{

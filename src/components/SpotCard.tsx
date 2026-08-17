@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { Spot } from "@/types";
+import { mapsUrl as buildMapsUrl } from "@/lib/mapsUrl";
 import { Badge } from "@/components/ui/Badge";
 import { Rating } from "@/components/ui/Rating";
 
@@ -78,7 +79,7 @@ export default function SpotCard({
     ?.filter((t) => !FILTERED_TYPES.has(t))
     .map((t) => t.replace(/_/g, " "))[0];
 
-  const mapsUrl = `https://www.google.com/maps/place/?q=place_id:${spot.google_place_id}`;
+  const mapsUrl = buildMapsUrl(spot);
 
   const [imgFailed, setImgFailed] = useState(false);
   const [thumbHovered, setThumbHovered] = useState(false);
