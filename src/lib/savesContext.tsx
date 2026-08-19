@@ -9,13 +9,13 @@ import {
 } from "react";
 import { useAuth } from "./authContext";
 import { getSavedSpots, saveSpot, unsaveSpot } from "@/lib/services/saves";
-import type { Spot, DraftSpot } from "@/types";
+import type { Spot, DraftSpot, SaveOrigin } from "@/types";
 
 interface SavesContextType {
   savedSpots: Spot[];
   isSaved: (googlePlaceId: string) => boolean;
-  toggle: (spot: DraftSpot) => Promise<void>;
-  addSpot: (spot: DraftSpot) => Promise<void>;
+  toggle: (spot: DraftSpot, origin: SaveOrigin) => Promise<void>;
+  addSpot: (spot: DraftSpot, origin: SaveOrigin) => Promise<void>;
   removeSpot: (spot: Spot) => Promise<void>;
   optimisticRemove: (googlePlaceId: string) => void;
   restoreSpot: (spot: Spot) => void;
@@ -61,18 +61,22 @@ export function SavesProvider({ children }: { children: React.ReactNode }) {
   );
 
   const addSpot = useCallback(
-    async (draft: DraftSpot) => {
+    async (draft: DraftSpot, origin: SaveOrigin) => {
       if (!user) return;
       setError(null);
       try {
-        const newSpot = await saveSpot(user.id, {
-          spot_id: draft.google_place_id,
-          name: draft.name,
-          address: draft.address,
-          photo_url: draft.photo_url,
-          rating: draft.rating,
-          types: draft.types,
-        });
+        const newSpot = await saveSpot(
+          user.id,
+          {
+            spot_id: draft.google_place_id,
+            name: draft.name,
+            address: draft.address,
+            photo_url: draft.photo_url,
+            rating: draft.rating,
+            types: draft.types,
+          },
+          origin
+        );
         setSavedSpots((prev) => [newSpot, ...prev]);
       } catch (e) {
         console.error("saveSpot failed:", e);
@@ -99,12 +103,12 @@ export function SavesProvider({ children }: { children: React.ReactNode }) {
   );
 
   const toggle = useCallback(
-    async (draft: DraftSpot) => {
+    async (draft: DraftSpot, origin: SaveOrigin) => {
       const existing = savedSpots.find(
         (s) => s.google_place_id === draft.google_place_id
       );
       if (existing) await removeSpot(existing);
-      else await addSpot(draft);
+      else await addSpot(draft, origin);
     },
     [savedSpots, removeSpot, addSpot]
   );

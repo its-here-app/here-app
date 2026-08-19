@@ -189,7 +189,13 @@ export default function ProfileTabs({
                 key={spot.id}
                 spot={spot}
                 subtitleText=""
-                bookmark={<BookmarkButton spot={spot} />}
+                bookmark={
+                  <BookmarkButton
+                    spot={spot}
+                    source={isActualOwner ? "direct" : "other_profile"}
+                    fromUserId={isActualOwner ? null : profileId}
+                  />
+                }
                 city={parseCityFromAddress(spot.address) ?? undefined}
               />
             ))

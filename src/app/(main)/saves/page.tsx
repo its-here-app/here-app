@@ -291,7 +291,7 @@ export default function SavesPage() {
                           )?.username ?? null,
                         ) ?? ""
                       }
-                      bookmark={<BookmarkButton spot={spot} />}
+                      bookmark={<BookmarkButton spot={spot} source="direct" />}
                     />
                   </div>
                 ))}
@@ -412,6 +412,7 @@ export default function SavesPage() {
                 types: result.types,
               }}
               variant="ghost"
+              source="search"
             />
           )}
         />

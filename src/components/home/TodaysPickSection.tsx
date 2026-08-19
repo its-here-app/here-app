@@ -69,7 +69,12 @@ export function TodaysPickSection({
         types: pick!.spot.types,
         city: pick!.city,
       }}
-      metadataRight={<SpotBookmark spot={pick!.spot} />}
+      metadataRight={
+        <SpotBookmark
+          spot={pick!.spot}
+          fromUserId={pick!.mentionedBy?.userId}
+        />
+      }
     />
   );
 }

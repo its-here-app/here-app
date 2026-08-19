@@ -63,6 +63,7 @@ export interface TodaysPick {
   spot: Spot;
   city: string;
   mentionedBy: {
+    userId: string;
     playlistName: string;
     username: string;
     avatarUrl: string | null;
@@ -70,6 +71,23 @@ export interface TodaysPick {
     city: string;
     count: number;
   } | null;
+}
+
+// Where a save came from. Powers the north star metric (trusted discoveries),
+// so every save surface must declare one — see saved_spots.discovery_source.
+export type DiscoverySource =
+  | "search"
+  | "feed"
+  | "own_playlist"
+  | "other_playlist"
+  | "other_profile"
+  | "direct";
+
+// The person whose content surfaced a spot, when there is one. A save with an
+// origin user is a "social save"; search and algorithmic feed rows have none.
+export interface SaveOrigin {
+  source: DiscoverySource;
+  fromUserId?: string | null;
 }
 
 // A Google Places result before it's been saved to the spots table
