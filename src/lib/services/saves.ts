@@ -4,7 +4,7 @@ import { track } from "../analytics";
 import { formatCityDisplay } from "../cityDisplay";
 import { playlistUrl } from "../playlistUrl";
 import type { SpotMention, SpotMentionSaver } from "../spotMentions";
-import type { Spot, SearchResult } from "@/types";
+import type { Spot, SearchResult, SaveOrigin } from "@/types";
 
 export async function getSavedSpots(userId: string): Promise<Spot[]> {
   const supabase = createClient();
@@ -19,7 +19,8 @@ export async function getSavedSpots(userId: string): Promise<Spot[]> {
 
 export async function saveSpot(
   userId: string,
-  place: SearchResult
+  place: SearchResult,
+  origin: SaveOrigin
 ): Promise<Spot> {
   const spot = await upsertSpot({
     google_place_id: place.spot_id,
@@ -30,13 +31,26 @@ export async function saveSpot(
     types: place.types,
   });
 
+  // Saving your own content isn't a trusted discovery — drop the origin so it
+  // doesn't inflate the social save count.
+  const fromUserId =
+    origin.fromUserId && origin.fromUserId !== userId ? origin.fromUserId : null;
+
   const supabase = createClient();
-  const { error } = await supabase
-    .from("saved_spots")
-    .insert({ user_id: userId, spot_id: spot.id });
+  const { error } = await supabase.from("saved_spots").insert({
+    user_id: userId,
+    spot_id: spot.id,
+    discovery_source: origin.source,
+    discovered_from_user_id: fromUserId,
+  });
   if (error) throw error;
 
-  track(userId, "spot.saved", { spot_id: spot.id, name: spot.name });
+  track(userId, "spot.saved", {
+    spot_id: spot.id,
+    name: spot.name,
+    discovery_source: origin.source,
+    social: !!fromUserId,
+  });
   return spot;
 }
 

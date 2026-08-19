@@ -266,13 +266,16 @@ export async function getTodaysPick(
       mentioners.set(mentionUserId, { username, avatarUrl, playlistName, slug, city });
     }
   }
-  const mentionList = [...mentioners.values()];
+  // Keep the id alongside the display fields — a save off Today's Pick is
+  // attributable to this person, which is what makes it a trusted discovery.
+  const mentionList = [...mentioners.entries()].map(([userId, m]) => ({ userId, ...m }));
 
   return {
     spot: { ...pick, cities: undefined } as Spot,
     mentionedBy:
       mentionList.length > 0
         ? {
+            userId: mentionList[0].userId,
             playlistName: mentionList[0].playlistName,
             username: mentionList[0].username,
             avatarUrl: mentionList[0].avatarUrl,
@@ -475,29 +478,6 @@ export async function reorderPlaylistSpots(
       supabase.from("playlist_spots").update({ position }).eq("id", id)
     )
   );
-}
-
-export async function createPlaylist(params: {
-  user_id: string;
-  name: string;
-  city: string;
-  slug: string;
-  description: string;
-  is_public: boolean;
-}) {
-  const supabase = createClient();
-  const { data, error } = await supabase
-    .from("playlists")
-    .insert({ ...params, cover_photo_url: getDefaultCover(params.city, params.name) })
-    .select()
-    .single();
-  if (error) throw error;
-  track(params.user_id, "playlist.created", {
-    playlist_id: data.id,
-    city: params.city,
-    is_public: params.is_public,
-  });
-  return data;
 }
 
 export async function touchPlaylist(playlistId: string) {

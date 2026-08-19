@@ -645,7 +645,14 @@ export default function PlaylistEditor({ playlist, isOwner, onClose, closeReady 
                     key={ps.id}
                     spot={ps.spots}
                     subtitleText={ps.notes ?? ""}
-                    bookmark={<BookmarkButton spot={ps.spots} variant="secondary" />}
+                    bookmark={
+                      <BookmarkButton
+                        spot={ps.spots}
+                        variant="secondary"
+                        source={isOwner ? "own_playlist" : "other_playlist"}
+                        fromUserId={isOwner ? null : playlist.user_id}
+                      />
+                    }
                   />
                 ),
               )}
