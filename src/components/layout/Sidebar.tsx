@@ -62,7 +62,16 @@ export default function Sidebar() {
           <span className="text-header-radio-3 text-primary group-hover:underline">Saves</span>
         </Link>
 
-        <Link href={profileHref} className="group flex items-center gap-5">
+        <Link
+          href={profileHref}
+          className="group flex items-center gap-5"
+          onClick={(e) => {
+            if (pathname === profileHref) {
+              e.preventDefault();
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            }
+          }}
+        >
           <span className="size-8 shrink-0 flex items-center justify-center">
             <Avatar
               src={avatarUrl}

@@ -105,7 +105,8 @@ export default function PlaylistEditor({ playlist, isOwner, onClose, closeReady 
 
   useEffect(() => {
     if (authLoading || user) return;
-    const timer = setTimeout(() => {
+
+    function showSignupSnackbar() {
       signupSnackbarIdRef.current = snackbar({
         icon: null,
         message: "Love this list? Save spots on Here*",
@@ -113,8 +114,23 @@ export default function PlaylistEditor({ playlist, isOwner, onClose, closeReady 
         actionLabel: "Sign up",
         onAction: () => router.push("/signin"),
       });
-    }, 4000);
-    return () => clearTimeout(timer);
+    }
+
+    const timer = setTimeout(showSignupSnackbar, 4000);
+
+    // Sign in/up lives in a separate root layout, so leaving this page is a
+    // full browser navigation. Coming back via the browser's back button can
+    // restore this page from bfcache instead of remounting it, which would
+    // otherwise leave the snackbar's one-shot mount effect never re-firing.
+    function handlePageShow(event: PageTransitionEvent) {
+      if (event.persisted) showSignupSnackbar();
+    }
+    window.addEventListener("pageshow", handlePageShow);
+
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("pageshow", handlePageShow);
+    };
   }, [authLoading, user, router]);
 
   function closePlaylist(pushTo?: string) {

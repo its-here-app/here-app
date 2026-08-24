@@ -20,7 +20,10 @@ import { CoverPhotoRotator } from "../../../components/ui/CoverPhotoRotator";
 
 import { CityAutocompleteInput } from "../../../components/ui/inputs/CityAutocompleteInput";
 import { upsertCityAction } from "../../../lib/actions/cities";
-import { updateProfileAction } from "../../../lib/actions/users";
+import {
+  checkEmailExistsAction,
+  updateProfileAction,
+} from "../../../lib/actions/users";
 import { getUserByUsername } from "../../../lib/services/users";
 import {
   isValidInstagramHandle,
@@ -29,7 +32,7 @@ import {
 import { useDebouncedValue } from "../../../lib/useDebouncedValue";
 import { useAvatarUpload } from "../../../lib/useAvatarUpload";
 
-type Step = "auth" | "profile";
+type Step = "auth" | "password" | "profile";
 type UsernameStatus = "idle" | "too-short" | "checking" | "valid" | "taken";
 
 export default function LoginPage() {
@@ -40,8 +43,9 @@ export default function LoginPage() {
   // Auth step
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
+  const [emailExists, setEmailExists] = useState(false);
   const [error, setError] = useState("");
+  const [emailRateLimited, setEmailRateLimited] = useState(false);
   const [loading, setLoading] = useState(false);
 
   // Multi-step
@@ -159,13 +163,24 @@ export default function LoginPage() {
 
   async function handleEmailContinue(e: React.FormEvent) {
     e.preventDefault();
-    setShowPassword(true);
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      toast({ icon: <Error />, message: "Invalid email" });
+      return;
+    }
+    setLoading(true);
+    try {
+      setEmailExists(await checkEmailExistsAction(email));
+      setStep("password");
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError("");
+    setEmailRateLimited(false);
 
     try {
       const { data: signInData, error: signInError } =
@@ -210,7 +225,12 @@ export default function LoginPage() {
 
       throw signInError;
     } catch (err: any) {
-      setError(err.message);
+      if (err.message?.includes("Email rate limit exceeded")) {
+        setError("Hm, something went wrong —");
+        setEmailRateLimited(true);
+      } else {
+        setError(err.message);
+      }
     } finally {
       setLoading(false);
     }
@@ -219,6 +239,7 @@ export default function LoginPage() {
   async function handleCancel() {
     await supabase.auth.signOut();
     setStep("auth");
+    setPassword("");
     setName("");
     setUsername("");
     setBio("");
@@ -305,10 +326,10 @@ export default function LoginPage() {
         </div>
 
         <div className="relative flex-1 overflow-hidden">
-          {/* ── Auth panel ── */}
+          {/* ── Auth + password panel ── */}
           <div
             className={`absolute inset-0 flex flex-col justify-end gap-9 p-[var(--space-page-dynamic)] pb-30 z-10 transition-transform duration-600 ease-in-out ${
-              step === "auth" ? "translate-x-0" : "-translate-x-full"
+              step === "profile" ? "-translate-x-full" : "translate-x-0"
             }`}
           >
             {/* Stickers */}
@@ -322,82 +343,166 @@ export default function LoginPage() {
             {/* Title */}
             <div className="flex flex-col gap-4 text-primary">
               <h1 className="text-display-radio-1">
-                Sign in <div>or sign up</div>
+                {step === "password" ? (
+                  emailExists ? (
+                    <>
+                      Welcome <div>back</div>
+                    </>
+                  ) : (
+                    <>
+                      Create your <div>account</div>
+                    </>
+                  )
+                ) : (
+                  <>
+                    Sign in <div>or sign up</div>
+                  </>
+                )}
               </h1>
               <p className="text-body-sm max-w-[22rem]">
-                {showPassword
-                  ? "Enter your password to continue"
-                  : "It's time to discover new spots around you and share your favorites in your own city playlists!"}
+                It's time to discover new spots around you and share your
+                favorites in your own city playlists!
               </p>
             </div>
 
-            {/* Auth options */}
-            <div className="flex flex-col gap-3">
-              <Button
-                variant="tonal"
-                size="lg"
-                darkTheme
-                onClick={handleGoogleSignIn}
-                disabled={loading}
-                className="w-full"
-                leftIcon={<Google className="w-5 h-5" />}
+            {/* Sliding inputs */}
+            <div className="relative overflow-hidden grid">
+              {/* Auth options */}
+              <div
+                className={`col-start-1 row-start-1 flex flex-col gap-3 transition-transform duration-600 ease-in-out ${
+                  step === "password" ? "-translate-x-full" : "translate-x-0"
+                }`}
               >
-                Continue with Google
-              </Button>
+                <Button
+                  variant="tonal"
+                  size="lg"
+                  darkTheme
+                  onClick={handleGoogleSignIn}
+                  disabled={loading}
+                  className="w-full"
+                  leftIcon={<Google className="w-5 h-5" />}
+                >
+                  Continue with Google
+                </Button>
 
-              <form
-                onSubmit={showPassword ? handleSubmit : handleEmailContinue}
-                className="flex flex-col gap-3"
+                <p className="text-body-sm text-secondary text-center">or</p>
+
+                <form
+                  onSubmit={handleEmailContinue}
+                  noValidate
+                  className="flex flex-col gap-3"
+                >
+                  <TextInput
+                    focusBrand
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    placeholder="Your email"
+                    state="default"
+                    rightSlot={
+                      <IconButton
+                        type="submit"
+                        variant="brand"
+                        label="Continue"
+                        disabled={loading}
+                        icon={<ArrowRight />}
+                      />
+                    }
+                  />
+                </form>
+
+                <p className="text-body-xs text-tertiary mt-1">
+                  By continuing, you confirm you're 18 or older and agree to our{" "}
+                  <a
+                    href="http://itshere.app/terms"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline hover:text-secondary"
+                  >
+                    Terms of Use
+                  </a>{" "}
+                  and{" "}
+                  <a
+                    href="http://itshere.app/privacy"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline hover:text-secondary"
+                  >
+                    Privacy Policy
+                  </a>
+                  .
+                </p>
+
+                {step === "auth" && error && (
+                  <p className="text-body-sm text-red-400">{error}</p>
+                )}
+              </div>
+
+              {/* Password options */}
+              <div
+                className={`col-start-1 row-start-1 flex flex-col gap-3 transition-transform duration-600 ease-in-out ${
+                  step === "password" ? "translate-x-0" : "translate-x-full"
+                }`}
               >
-                <TextInput
-                  focusBrand
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  disabled={showPassword}
-                  placeholder="Your email"
-                  state={showPassword ? "filled" : "default"}
-                  rightSlot={
-                    <IconButton
-                      type="submit"
-                      variant="brand"
-                      label="Continue"
-                      disabled={loading}
-                      icon={<ArrowRight />}
-                    />
-                  }
-                />
-
-                {showPassword && (
+                <form onSubmit={handleSubmit} className="flex flex-col gap-3">
                   <TextInput
                     focusBrand
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
-                    autoFocus
+                    autoFocus={step === "password"}
                     placeholder="Password"
                     state="default"
+                    rightSlot={
+                      <IconButton
+                        type="submit"
+                        variant="brand"
+                        label="Continue"
+                        disabled={loading}
+                        icon={<ArrowRight />}
+                      />
+                    }
                   />
-                )}
-              </form>
+                </form>
 
-              {showPassword && (
                 <button
                   type="button"
                   onClick={() => {
-                    setShowPassword(false);
+                    setStep("auth");
                     setPassword("");
                     setError("");
+                    setEmailRateLimited(false);
                   }}
-                  className="text-body-sm text-primary/50 hover:text-primary/80 transition-colors text-left cursor-pointer"
+                  className="text-body-sm text-primary/50 hover:text-primary/80 transition-colors text-left cursor-pointer mt-6"
                 >
                   ← Use a different email
                 </button>
-              )}
 
-              {error && <p className="text-body-sm text-red-400">{error}</p>}
+                {step === "password" && error && (
+                  <p className="text-body-sm text-red-400">
+                    {error}
+                    {emailRateLimited && (
+                      <>
+                        {" "}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setStep("auth");
+                            setPassword("");
+                            setError("");
+                            setEmailRateLimited(false);
+                          }}
+                          className="underline hover:text-red-300 cursor-pointer"
+                        >
+                          try Google instead.
+                        </button>
+                      </>
+                    )}
+                  </p>
+                )}
+              </div>
             </div>
           </div>
 

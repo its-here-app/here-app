@@ -104,7 +104,7 @@ export const TextInput = forwardRef<
     return () => observer.disconnect();
   }, [autoResize]);
 
-  const textClass = "text-primary placeholder:text-tertiary";
+  const textClass = "text-primary placeholder:text-tertiary autofill:[-webkit-text-fill-color:white] autofill:[-webkit-box-shadow:0_0_0_1000px_black_inset] autofill:[caret-color:white]";
 
   const bg = ghost || lightMode ? "bg-transparent" : "bg-black";
   const borderClass = ghost

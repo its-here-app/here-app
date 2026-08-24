@@ -43,6 +43,10 @@ export default function BottomNav() {
       case "saved":
         return router.push("/saves");
       case "profile":
+        if (activeTab === "profile") {
+          window.scrollTo({ top: 0, behavior: "smooth" });
+          return;
+        }
         return router.push(username ? `/${username}` : "/");
     }
   }

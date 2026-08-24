@@ -4,6 +4,21 @@ import { createClient as createServerClient } from "@/lib/supabase/server";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { revalidatePath } from "next/cache";
 
+export async function checkEmailExistsAction(email: string): Promise<boolean> {
+  const admin = createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SECRET_KEY!,
+  );
+
+  const { data } = await admin
+    .from("profiles")
+    .select("id")
+    .eq("email", email)
+    .maybeSingle();
+
+  return !!data;
+}
+
 export async function updateProfileAction(params: {
   full_name: string;
   username: string;
