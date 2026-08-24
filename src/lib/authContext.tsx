@@ -11,6 +11,8 @@ interface AuthContextType {
   loading: boolean;
   avatarUrl: string;
   setAvatarUrl: (url: string) => void;
+  username: string | null;
+  setUsername: (username: string | null) => void;
   signingOut: boolean;
   setSigningOut: (signingOut: boolean) => void;
 }
@@ -20,6 +22,8 @@ const AuthContext = createContext<AuthContextType>({
   loading: true,
   avatarUrl: "",
   setAvatarUrl: () => {},
+  username: null,
+  setUsername: () => {},
   signingOut: false,
   setSigningOut: () => {},
 });
@@ -28,6 +32,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [avatarUrl, setAvatarUrl] = useState("");
+  const [username, setUsername] = useState<string | null>(null);
   const [signingOut, setSigningOut] = useState(false);
   const supabase = createClient();
   const pathname = usePathname();
@@ -63,14 +68,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!user) {
       setAvatarUrl("");
+      setUsername(null);
       return;
     }
-    getProfile(user.id).then((p) => setAvatarUrl(p?.avatar_url || ""));
+    getProfile(user.id).then((p) => {
+      setAvatarUrl(p?.avatar_url || "");
+      setUsername(p?.username ?? null);
+    });
   }, [user]);
 
   return (
     <AuthContext.Provider
-      value={{ user, loading, avatarUrl, setAvatarUrl, signingOut, setSigningOut }}
+      value={{
+        user,
+        loading,
+        avatarUrl,
+        setAvatarUrl,
+        username,
+        setUsername,
+        signingOut,
+        setSigningOut,
+      }}
     >
       {children}
     </AuthContext.Provider>

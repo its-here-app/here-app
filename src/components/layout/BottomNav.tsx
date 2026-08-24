@@ -1,28 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/authContext";
-import { getProfile } from "@/lib/services/users";
 import {
   BottomNavigation,
   type BottomNavTab,
 } from "@/components/ui/BottomNavigation";
 import { openCreatePlaylist } from "@/components/modals/CreatePlaylistCityPicker";
-import type { Profile } from "@/types";
 
 export default function BottomNav() {
-  const { user, loading, avatarUrl } = useAuth();
+  const { user, loading, avatarUrl, username } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
-  const [profile, setProfile] = useState<Profile | null>(null);
-
-  useEffect(() => {
-    if (!user) return;
-    getProfile(user.id).then(setProfile);
-  }, [user]);
-
-  const username = profile?.username ?? null;
 
   if (loading || !user) return null;
 

@@ -1,10 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/authContext";
-import { signOut, getUserUsername } from "@/lib/services/users";
+import { signOut } from "@/lib/services/users";
 import { FullLogo } from "../ui/Logo";
 import { Add } from "../ui/icons/Add";
 import { openCreatePlaylist } from "@/components/modals/CreatePlaylistCityPicker";
@@ -15,15 +14,9 @@ import { Logout } from "../ui/icons/Logout";
 import { Avatar } from "../ui/Avatar";
 
 export default function Sidebar() {
-  const { user, loading, avatarUrl, setSigningOut } = useAuth();
+  const { user, loading, avatarUrl, username, setSigningOut } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
-  const [username, setUsername] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!user) return;
-    getUserUsername(user.id).then(setUsername);
-  }, [user]);
 
   if (loading || !user) return null;
 
