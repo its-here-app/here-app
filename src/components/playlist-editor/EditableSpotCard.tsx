@@ -7,9 +7,6 @@ import SpotCard from "@/components/SpotCard";
 import { IconButton } from "@/components/ui/IconButton";
 import { Trash } from "@/components/ui/icons/Trash";
 import { Reorder } from "@/components/ui/icons/Reorder";
-import { CheckCircle } from "@/components/ui/icons/CheckCircle";
-import { Info } from "@/components/ui/icons/Info";
-import { snackbar } from "@/components/ui/Snackbar";
 import type { Spot } from "@/types";
 
 export interface EditableSpotItem {
@@ -41,7 +38,6 @@ export function EditableSpotCard({
 
   const [isFocused, setIsFocused] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const noteAtFocus = useRef<string>("");
 
   // Notes render as a full-height, wrapping textarea (not truncated to one
   // line) so the whole highlight is always visible while editing a playlist.
@@ -96,32 +92,8 @@ export function EditableSpotCard({
               value={item.notes ?? ""}
               readOnly={reorderMode}
               onChange={(e) => onNotesChange(item.id, e.target.value)}
-              onFocus={() => {
-                setIsFocused(true);
-                noteAtFocus.current = item.notes ?? "";
-              }}
-              onBlur={() => {
-                setIsFocused(false);
-                const current = item.notes ?? "";
-                if (current !== noteAtFocus.current) {
-                  const previous = noteAtFocus.current;
-                  if (current.trim()) {
-                    snackbar({
-                      icon: <CheckCircle />,
-                      message: `Note added to ${item.spot.name}`,
-                      actionLabel: "Undo",
-                      onAction: () => onNotesChange(item.id, previous),
-                    });
-                  } else if (previous.trim()) {
-                    snackbar({
-                      icon: <Info />,
-                      message: `Note removed from ${item.spot.name}`,
-                      actionLabel: "Undo",
-                      onAction: () => onNotesChange(item.id, previous),
-                    });
-                  }
-                }
-              }}
+              onFocus={() => setIsFocused(true)}
+              onBlur={() => setIsFocused(false)}
               placeholder={reorderMode ? "" : "Add a highlight"}
               className="block w-full resize-none bg-transparent text-body-xs text-secondary placeholder:text-tertiary outline-none border-none p-0 leading-4 mb-1"
             />
