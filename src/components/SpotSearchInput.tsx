@@ -114,16 +114,16 @@ export default function SpotSearchInput({
           google_place_id: result.spot_id,
           name: result.name,
           address: result.address,
-          // Temporarily hidden for live search results — photo proxy 404s
-          // for unsaved spots, which would burn Places Details/Photo API
-          // calls with no image shown anyway. Re-enable once that's fixed.
+          // Real photos stay off for live search results — the photo proxy
+          // 404s for unsaved spots, which would burn Places Details/Photo
+          // API calls for an image that wouldn't load anyway. SpotCard
+          // falls back to the placeholder graphic instead.
           photo_url: showPhoto ? result.photo_url : null,
           rating: result.rating,
           types: result.types,
         }}
         size="xxsmall"
         disableLink
-        hidePlaceholder={!showPhoto}
         onClick={onSelect ? () => onSelect(result) : undefined}
         action={
           renderAction ? (

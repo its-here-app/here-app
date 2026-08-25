@@ -140,6 +140,25 @@ export default function PlaylistEditor({ playlist, isOwner, onClose, closeReady 
   }
 
   const [editMode, setEditMode] = useState(false);
+
+  // At the lg breakpoint, edit mode splits into a sticky cover column and a
+  // right column that scrolls internally (see the `lg:overflow-y-auto`
+  // column below) — so the outer page must not also scroll, or hovering the
+  // sticky cover scrolls the whole document instead of doing nothing.
+  useEffect(() => {
+    if (!editMode) return;
+    const mql = window.matchMedia("(min-width: 1024px)");
+    function applyLock() {
+      document.body.style.overflow = mql.matches ? "hidden" : "unset";
+    }
+    applyLock();
+    mql.addEventListener("change", applyLock);
+    return () => {
+      mql.removeEventListener("change", applyLock);
+      document.body.style.overflow = "unset";
+    };
+  }, [editMode]);
+
   const [reorderMode, setReorderMode] = useState(false);
   const [isAddSpotOpen, setIsAddSpotOpen] = useState(false);
   const [coverUrl, setCoverUrl] = useState<string>(
@@ -438,7 +457,7 @@ export default function PlaylistEditor({ playlist, isOwner, onClose, closeReady 
   return (
     <div className="w-full lg:grid lg:grid-cols-2 lg:gap-6 lg:items-start">
       {/* Cover photo */}
-      <div className="relative mb-4 lg:mb-0 lg:sticky lg:top-0 lg:h-[calc(100vh-2*var(--space-page-sm))]">
+      <div className="relative mb-4 lg:mb-0 lg:sticky lg:top-0 lg:h-[calc(100vh_-_2*var(--space-page-sm))]">
         <Card
           className="h-[30rem] lg:h-full"
           size="hero"
@@ -587,7 +606,7 @@ export default function PlaylistEditor({ playlist, isOwner, onClose, closeReady 
       </div>
 
       {/* Right column */}
-      <div className={editMode ? "lg:flex lg:flex-col lg:h-[calc(100vh-2*var(--space-page-sm))]" : undefined}>
+      <div className={editMode ? "lg:flex lg:flex-col lg:max-h-[calc(100vh_-_2*var(--space-page-sm))]" : undefined}>
         <div className={`${isAddSpotOpen ? "hidden" : ""} ${editMode ? "lg:flex-1 lg:overflow-y-auto" : ""}`}>
         {editMode && (
           <div className="hidden lg:block">

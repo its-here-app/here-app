@@ -15,6 +15,10 @@ interface SnackbarData {
   duration?: number;
   actionLabel?: string;
   onAction?: () => void;
+  /** When set alongside actionLabel, renders both actions on their own row
+   * below the message instead of inline (e.g. "Allow" / "Decline"). */
+  secondActionLabel?: string;
+  onSecondAction?: () => void;
   onDismiss?: () => void;
 }
 
@@ -29,11 +33,24 @@ export function snackbar({
   duration,
   actionLabel,
   onAction,
+  secondActionLabel,
+  onSecondAction,
   onDismiss,
 }: Omit<SnackbarData, "id">) {
   const id = Math.random().toString(36).slice(2);
   listeners.forEach((fn) =>
-    fn({ id, key, icon, message, duration, actionLabel, onAction, onDismiss }),
+    fn({
+      id,
+      key,
+      icon,
+      message,
+      duration,
+      actionLabel,
+      onAction,
+      secondActionLabel,
+      onSecondAction,
+      onDismiss,
+    }),
   );
   return id;
 }
@@ -83,26 +100,54 @@ function SnackbarItem({
     setTimeout(onRemove, 200);
   }
 
+  function handleSecondAction() {
+    data.onSecondAction?.();
+    setExiting(true);
+    setTimeout(onRemove, 200);
+  }
+
+  const hasTwoActions = !!data.actionLabel && !!data.secondActionLabel;
+
   return (
     <div
       style={{
         animation: `${exiting ? "snackbar-out 200ms ease" : "snackbar-in 400ms cubic-bezier(0.21,1.02,0.73,1)"} forwards`,
       }}
-      className="dark pointer-events-auto flex items-center gap-3 w-full max-w-sm bg-surface-subtle rounded-[var(--radius-sm)] px-5 py-3.5 shadow-[0px_2px_4px_0px_rgba(64,64,64,0.14)]"
+      className={`dark pointer-events-auto w-full max-w-sm bg-surface-subtle rounded-[var(--radius-sm)] px-5 py-3.5 shadow-[0px_2px_4px_0px_rgba(64,64,64,0.14)] ${
+        hasTwoActions ? "flex flex-col gap-3" : "flex items-center gap-3"
+      }`}
     >
-      {data.icon && (
-        <span className="size-6 shrink-0 text-white flex items-center justify-center">
-          {data.icon}
-        </span>
-      )}
-      <p className="text-body-sm text-white flex-1">{displayMessage}</p>
-      {data.actionLabel && (
-        <button
-          onClick={handleAction}
-          className="text-body-xs text-grey-400 shrink-0 cursor-pointer"
-        >
-          {data.actionLabel}
-        </button>
+      <div className="flex items-center gap-3">
+        {data.icon && (
+          <span className="size-6 shrink-0 text-white flex items-center justify-center">
+            {data.icon}
+          </span>
+        )}
+        <p className="text-body-sm text-white flex-1">{displayMessage}</p>
+        {data.actionLabel && !hasTwoActions && (
+          <button
+            onClick={handleAction}
+            className="text-body-xs text-grey-400 shrink-0 cursor-pointer"
+          >
+            {data.actionLabel}
+          </button>
+        )}
+      </div>
+      {hasTwoActions && (
+        <div className="flex items-center justify-end gap-6">
+          <button
+            onClick={handleAction}
+            className="text-body-xs font-semibold text-white shrink-0 cursor-pointer"
+          >
+            {data.actionLabel}
+          </button>
+          <button
+            onClick={handleSecondAction}
+            className="text-body-xs text-grey-400 shrink-0 cursor-pointer"
+          >
+            {data.secondActionLabel}
+          </button>
+        </div>
       )}
     </div>
   );

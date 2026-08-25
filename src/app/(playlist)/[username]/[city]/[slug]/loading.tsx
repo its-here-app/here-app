@@ -3,7 +3,7 @@ export default function Loading() {
     <main className="min-h-dvh bg-surface-base p-[var(--space-page-sm)] lg:pb-0 max-w-[var(--app-max-width)] mx-auto">
       <div className="w-full lg:grid lg:grid-cols-2 lg:gap-6 lg:items-start">
         {/* Left: hero card placeholder */}
-        <div className="relative mb-6 lg:mb-0 lg:sticky lg:top-0 lg:h-[calc(100vh-2*var(--space-page-sm))]">
+        <div className="relative mb-6 lg:mb-0 lg:sticky lg:top-0 lg:h-[calc(100vh_-_2*var(--space-page-sm))]">
           <div className="h-[30rem] lg:h-full w-full rounded-lg bg-grey-300 animate-pulse" />
         </div>
 

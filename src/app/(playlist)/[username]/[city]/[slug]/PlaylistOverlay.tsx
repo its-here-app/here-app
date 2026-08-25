@@ -42,7 +42,13 @@ export default function PlaylistOverlay({ playlist, isOwner, fromNew }: Props) {
       router.push(`/${playlist.profiles.username}`);
       return;
     }
-    const referrerPath = withinAppReferrerPath();
+    let referrerPath = withinAppReferrerPath();
+    // A referrer that's the same URL we're already on (e.g. this page was
+    // reloaded, or was reached via a link pointing at itself) makes
+    // router.push a no-op — nothing would happen when clicking Close.
+    if (referrerPath === `${window.location.pathname}${window.location.search}`) {
+      referrerPath = null;
+    }
     // (playlist) and (main) are separate root layouts (each with their own
     // html/body), so this close always crosses a root-layout boundary.
     // router.back() drives that via popstate, which doesn't reliably force

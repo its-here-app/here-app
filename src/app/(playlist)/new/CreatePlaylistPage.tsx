@@ -206,7 +206,7 @@ export default function CreatePlaylistPage({ initialCity }: { initialCity: Initi
   const [draftName, setDraftName] = useState("");
   const lastNameRef = useRef(draftName);
   const [description, setDescription] = useState("");
-  const [isPublic, setIsPublic] = useState(false);
+  const [isPublic, setIsPublic] = useState(true);
   const [spotsInput, setSpotsInput] = useState("");
   const [foundSpots, setFoundSpots] = useState<DraftSpot[]>([]);
   const [unfoundSpots, setUnfoundSpots] = useState<string[]>([]);
@@ -396,6 +396,7 @@ export default function CreatePlaylistPage({ initialCity }: { initialCity: Initi
       snackbar({
         icon: <Error />,
         message: `${unfoundTemp.length} missing spot${unfoundTemp.length === 1 ? "" : "s"}`,
+        duration: 10000,
         actionLabel: "See more",
         onAction: () => setMissingPanelOpen(true),
       });
