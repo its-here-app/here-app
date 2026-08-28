@@ -475,9 +475,9 @@ export default function LoginPage() {
                     setError("");
                     setEmailRateLimited(false);
                   }}
-                  className="text-body-sm text-primary/50 hover:text-primary/80 transition-colors text-left cursor-pointer mt-6"
+                  className="text-body-sm text-secondary text-left cursor-pointer mt-6 underline hover:no-underline"
                 >
-                  ← Use a different email
+                  Use a different email
                 </button>
 
                 {step === "password" && error && (
@@ -678,6 +678,7 @@ export default function LoginPage() {
                   saving ||
                   !name ||
                   usernameStatus !== "valid" ||
+                  !selectedCity ||
                   !isInstagramValid
                 }
                 className="w-full"

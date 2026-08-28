@@ -6,7 +6,7 @@ interface Props {
 export function Add({ focus = false, className }: Props) {
   if (focus) {
     return (
-      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className={className} aria-hidden="true">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className={className} aria-hidden="true">
         <mask id="path-1-inside-1_4888_40979" fill="white">
           <path fillRule="evenodd" clipRule="evenodd" d="M20 12C20 16.4183 16.4183 20 12 20C7.58172 20 4 16.4183 4 12C4 7.58172 7.58172 4 12 4C16.4183 4 20 7.58172 20 12ZM11.5 11.5V8H12.5V11.5H16V12.5H12.5V16H11.5V12.5H8L8 11.5H11.5Z" />
         </mask>
@@ -17,7 +17,7 @@ export function Add({ focus = false, className }: Props) {
   }
 
   return (
-    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className={className} aria-hidden="true">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className={className} aria-hidden="true">
       <circle cx="12" cy="12" r="7.5" stroke="currentColor" />
       <path fillRule="evenodd" clipRule="evenodd" d="M11.5 16L11.5 8L12.5 8L12.5 16L11.5 16Z" fill="currentColor" />
       <path fillRule="evenodd" clipRule="evenodd" d="M8 11.5L16 11.5L16 12.5L8 12.5L8 11.5Z" fill="currentColor" />
