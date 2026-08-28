@@ -21,11 +21,13 @@ export function EditableSpotCard({
   reorderMode,
   onRemove,
   onNotesChange,
+  placeholder,
 }: {
   item: EditableSpotItem;
   reorderMode: boolean;
   onRemove: (id: string) => void;
   onNotesChange: (id: string, notes: string) => void;
+  placeholder: string;
 }) {
   const {
     attributes,
@@ -94,7 +96,7 @@ export function EditableSpotCard({
               onChange={(e) => onNotesChange(item.id, e.target.value)}
               onFocus={() => setIsFocused(true)}
               onBlur={() => setIsFocused(false)}
-              placeholder={reorderMode ? "" : "Add a highlight"}
+              placeholder={reorderMode ? "" : placeholder}
               className="block w-full resize-none bg-transparent text-body-xs text-secondary placeholder:text-tertiary outline-none border-none p-0 leading-4 mb-1"
             />
           }

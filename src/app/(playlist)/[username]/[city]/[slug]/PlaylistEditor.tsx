@@ -51,6 +51,7 @@ import BookmarkButton from "@/components/BookmarkButton";
 import { SpotSearchPanel } from "@/components/SpotSearchPanel";
 import { DescriptionField } from "@/components/playlist-editor/DescriptionField";
 import { EditableSpotCard } from "@/components/playlist-editor/EditableSpotCard";
+import { pickHighlightPlaceholder } from "@/components/playlist-editor/highlightPlaceholders";
 import { AddSpotSection } from "@/components/playlist-editor/AddSpotSection";
 import { useCoverPhotoUpload } from "@/components/playlist-editor/useCoverPhotoUpload";
 import { SlotRow } from "@/components/ui/SlotRow";
@@ -140,6 +141,7 @@ export default function PlaylistEditor({ playlist, isOwner, onClose, closeReady 
   }
 
   const [editMode, setEditMode] = useState(false);
+  const [highlightPlaceholder, setHighlightPlaceholder] = useState(pickHighlightPlaceholder);
 
   // At the lg breakpoint, edit mode splits into a sticky cover column and a
   // right column that scrolls internally (see the `lg:overflow-y-auto`
@@ -293,6 +295,7 @@ export default function PlaylistEditor({ playlist, isOwner, onClose, closeReady 
     setPendingAdds([]);
     setPendingRemoveIds(new Set());
     setStagedCoverFile(null);
+    setHighlightPlaceholder(pickHighlightPlaceholder());
     setEditMode(true);
   }
 
@@ -674,6 +677,7 @@ export default function PlaylistEditor({ playlist, isOwner, onClose, closeReady 
                     reorderMode={reorderMode}
                     onRemove={handleRemoveSpot}
                     onNotesChange={handleNotesChange}
+                    placeholder={highlightPlaceholder}
                   />
                 ) : (
                   <SpotCard
@@ -701,6 +705,7 @@ export default function PlaylistEditor({ playlist, isOwner, onClose, closeReady 
                   reorderMode={false}
                   onRemove={handleRemovePendingAdd}
                   onNotesChange={handlePendingAddNotesChange}
+                  placeholder={highlightPlaceholder}
                 />
               ))}
             </div>

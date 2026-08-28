@@ -23,6 +23,7 @@ import { Asterisk } from "@/components/ui/icons/Asterisk";
 import { SpotSearchPanel } from "@/components/SpotSearchPanel";
 import { DescriptionField } from "@/components/playlist-editor/DescriptionField";
 import { EditableSpotCard, type EditableSpotItem } from "@/components/playlist-editor/EditableSpotCard";
+import { pickHighlightPlaceholder } from "@/components/playlist-editor/highlightPlaceholders";
 import { AddSpotSection } from "@/components/playlist-editor/AddSpotSection";
 import { useCoverPhotoUpload } from "@/components/playlist-editor/useCoverPhotoUpload";
 import { ListInput } from "@/components/ui/inputs";
@@ -78,6 +79,7 @@ function PlaylistFormBody({
   sensors,
   spotsHeightClassName,
   spotsPlaceholder = SPOTS_PLACEHOLDER,
+  highlightPlaceholder,
 }: {
   description: string;
   onDescriptionChange: (v: string) => void;
@@ -95,6 +97,7 @@ function PlaylistFormBody({
   sensors: ReturnType<typeof useSensors>;
   spotsHeightClassName?: string;
   spotsPlaceholder?: string;
+  highlightPlaceholder: string;
 }) {
   const items: EditableSpotItem[] = foundSpots.map((spot) => ({
     id: spot.google_place_id,
@@ -143,6 +146,7 @@ function PlaylistFormBody({
                     reorderMode={reorderMode}
                     onRemove={onRemoveFoundSpot}
                     onNotesChange={onFoundSpotNotesChange}
+                    placeholder={highlightPlaceholder}
                   />
                 ))}
               </div>
@@ -205,6 +209,10 @@ export default function CreatePlaylistPage({ initialCity }: { initialCity: Initi
   // different names and fail to hydrate.
   const [draftName, setDraftName] = useState("");
   const lastNameRef = useRef(draftName);
+  // Left empty until the mount-only effect below fills it in client-side —
+  // pickHighlightPlaceholder() is random, so picking it during the initial
+  // render (which also runs during SSR) would fail to hydrate.
+  const [highlightPlaceholder, setHighlightPlaceholder] = useState("");
   const [description, setDescription] = useState("");
   const [isPublic, setIsPublic] = useState(true);
   const [spotsInput, setSpotsInput] = useState("");
@@ -270,6 +278,7 @@ export default function CreatePlaylistPage({ initialCity }: { initialCity: Initi
     setDraftName(name);
     lastCoverKeyRef.current = `${city}|${name}`;
     setDefaultCover(getDefaultCover(city, name));
+    setHighlightPlaceholder(pickHighlightPlaceholder());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -629,6 +638,7 @@ export default function CreatePlaylistPage({ initialCity }: { initialCity: Initi
                 onReorder={handleReorder}
                 sensors={sensors}
                 spotsHeightClassName="h-full min-h-0"
+                highlightPlaceholder={highlightPlaceholder}
               />
             </div>
 
@@ -664,6 +674,7 @@ export default function CreatePlaylistPage({ initialCity }: { initialCity: Initi
                 sensors={sensors}
                 spotsHeightClassName="flex-1 min-h-[200px]"
                 spotsPlaceholder={SPOTS_PLACEHOLDER_MOBILE}
+                highlightPlaceholder={highlightPlaceholder}
               />
             </div>
           </div>
