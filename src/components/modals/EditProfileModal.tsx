@@ -381,6 +381,7 @@ export default function EditProfileModal({
           size="md"
           darkTheme
           className="!text-danger"
+          onClick={() => router.push("/delete-account")}
         >
           Delete account
         </Button>
