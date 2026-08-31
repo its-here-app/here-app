@@ -161,7 +161,7 @@ export default function ProfileHeader({ profile }: ProfileHeaderProps) {
   }
 
   function copyProfileUrl() {
-    copyToClipboard(`${window.location.origin}/${profile.username}`);
+    copyToClipboard(`${window.location.origin}/${profile.username}`, user?.id);
   }
 
   async function handleSignOut() {

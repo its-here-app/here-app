@@ -4,17 +4,22 @@ import { useState, useEffect, useRef } from "react";
 import { useSaves } from "@/lib/savesContext";
 import { useAuth } from "@/lib/authContext";
 import { isPlaylistSaved, savePlaylist, unsavePlaylist } from "@/lib/services/saves";
-import type { DraftSpot } from "@/types";
+import type { DraftSpot, DiscoverySource } from "@/types";
 import { IconButton } from "@/components/ui/IconButton";
 import type { IconButtonVariant } from "@/components/ui/IconButton";
 import { Bookmark } from "@/components/ui/icons/Bookmark";
 import { snackbar } from "@/components/ui/Snackbar";
 import { Info } from "@/components/ui/icons/Info";
 
-type SpotProps = { spot: DraftSpot; playlistId?: never; variant?: IconButtonVariant; className?: string; onRemove?: () => void; onRestore?: () => void };
-type PlaylistProps = { playlistId: string; spot?: never; variant?: IconButtonVariant; className?: string; onRemove?: () => void; onRestore?: () => void };
+/**
+ * `source` is required on spot saves — it feeds the north star metric, and an
+ * optional prop would let a new surface log unattributed saves silently.
+ * `fromUserId` marks the save as social; omit it when no person surfaced the spot.
+ */
+type SpotProps = { spot: DraftSpot; source: DiscoverySource; fromUserId?: string | null; playlistId?: never; variant?: IconButtonVariant; className?: string; onRemove?: () => void; onRestore?: () => void };
+type PlaylistProps = { playlistId: string; spot?: never; source?: never; fromUserId?: never; variant?: IconButtonVariant; className?: string; onRemove?: () => void; onRestore?: () => void };
 
-export default function BookmarkButton({ spot, playlistId, variant = "ghost", className, onRemove, onRestore }: SpotProps | PlaylistProps) {
+export default function BookmarkButton({ spot, source, fromUserId, playlistId, variant = "ghost", className, onRemove, onRestore }: SpotProps | PlaylistProps) {
   const { isSaved, savedSpots, addSpot, removeSpot } = useSaves();
   const { user } = useAuth();
   const [mounted, setMounted] = useState(false);
@@ -105,6 +110,9 @@ export default function BookmarkButton({ spot, playlistId, variant = "ghost", cl
   }
 
   async function handleSpotClick() {
+    // Undo restores the save that was just removed, so it keeps the original
+    // origin rather than re-attributing to wherever the user is standing now.
+    const origin = { source: source!, fromUserId };
     if (saved) {
       const existing = savedSpots.find(
         (s) => s.google_place_id === spot!.google_place_id
@@ -118,11 +126,11 @@ export default function BookmarkButton({ spot, playlistId, variant = "ghost", cl
         actionLabel: "Undo",
         onAction: async () => {
           setSavedOverride(null);
-          await addSpot(spot!);
+          await addSpot(spot!, origin);
         },
       });
     } else {
-      addSpot(spot!);
+      addSpot(spot!, origin);
     }
   }
 

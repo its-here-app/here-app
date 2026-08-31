@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { trackServer } from "@/lib/analytics";
 import { revalidatePath } from "next/cache";
 import { getDefaultCover } from "@/lib/playlist-covers";
 import { toSlug } from "@/lib/playlistUrl";
@@ -102,6 +103,13 @@ export async function createPlaylistAction(params: {
         .eq("id", ps.id);
     }
   }
+
+  await trackServer(supabase, user.id, "playlist.created", {
+    playlist_id: playlist.id,
+    city: params.city,
+    is_public: params.is_public,
+    spot_count: params.spots.length,
+  });
 
   revalidatePath(`/${profile.username}`);
 
