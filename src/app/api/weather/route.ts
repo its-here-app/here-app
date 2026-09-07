@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
+import { geocodeCity } from "@/lib/geocodeCity";
 
 const OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast";
 
@@ -39,22 +40,50 @@ export async function GET(request: NextRequest) {
 
   const { data: city } = await supabase
     .from("cities")
-    .select("latitude, longitude")
+    .select("latitude, longitude, display_name")
     .eq("id", cityId)
     .single();
 
-  if (!city?.latitude || !city?.longitude) {
+  if (!city) {
     return NextResponse.json(
-      { error: "city has no coordinates" },
+      { error: "city not found" },
       { status: 404, headers: { "Cache-Control": "no-store" } },
     );
+  }
+
+  // Resolve coordinates on demand when the row has none. Rows predating the
+  // Open-Meteo switch had their Google-derived coordinates cleared (Maps
+  // Platform Service Specific Terms §14.3), so the first weather request for
+  // one of those cities backfills it here rather than leaving the city
+  // permanently weatherless until someone re-selects it.
+  let latitude = city.latitude;
+  let longitude = city.longitude;
+
+  if (latitude == null || longitude == null) {
+    const coords = await geocodeCity(city.display_name);
+    if (!coords) {
+      return NextResponse.json(
+        { error: "city has no coordinates" },
+        { status: 404, headers: { "Cache-Control": "no-store" } },
+      );
+    }
+    latitude = coords.latitude;
+    longitude = coords.longitude;
+
+    // Best-effort write-back: a failure just means the next request geocodes
+    // again, which is free.
+    const { error: backfillErr } = await supabase
+      .from("cities")
+      .update({ latitude, longitude })
+      .eq("id", cityId);
+    if (backfillErr) console.error("weather: coordinate backfill failed");
   }
 
   try {
     const url =
       `${OPEN_METEO_URL}` +
-      `?latitude=${city.latitude}` +
-      `&longitude=${city.longitude}` +
+      `?latitude=${latitude}` +
+      `&longitude=${longitude}` +
       `&current=temperature_2m,weather_code` +
       `&temperature_unit=fahrenheit`;
 

@@ -36,6 +36,44 @@ const US_STATE_ABBR_SET = new Set(Object.values(US_STATE_ABBR));
 
 const AU_STATE_ABBR_SET = new Set(["NSW", "VIC", "QLD", "WA", "SA", "TAS", "NT", "ACT"]);
 
+const AU_STATE_NAME_BY_ABBR: Record<string, string> = {
+  NSW: "New South Wales",
+  VIC: "Victoria",
+  QLD: "Queensland",
+  WA: "Western Australia",
+  SA: "South Australia",
+  TAS: "Tasmania",
+  NT: "Northern Territory",
+  ACT: "Australian Capital Territory",
+};
+
+// Inverted from US_STATE_ABBR so the two never drift apart.
+const US_STATE_NAME_BY_ABBR: Record<string, string> = Object.fromEntries(
+  Object.entries(US_STATE_ABBR).map(([name, abbr]) => [
+    abbr,
+    // Title-case the key we stored lowercase ("new york" -> "New York") so it
+    // can be compared against full region names from third-party geocoders.
+    name.replace(/\b\w/g, (c) => c.toUpperCase()),
+  ]),
+);
+
+/** "OR" -> "Oregon". Null for anything that isn't a US state code.
+ *  Used to compare our stored "City, ST" display names against geocoders
+ *  that return full region names. */
+export function usStateNameFromAbbr(abbr: string): string | null {
+  return US_STATE_NAME_BY_ABBR[abbr.toUpperCase()] ?? null;
+}
+
+/** "NSW" -> "New South Wales". Null for anything that isn't an AU state code. */
+export function auStateNameFromAbbr(abbr: string): string | null {
+  return AU_STATE_NAME_BY_ABBR[abbr.toUpperCase()] ?? null;
+}
+
+/** True if `s` is a US state code we recognise (e.g. "OR", "ca"). */
+export function isUsStateAbbr(s: string): boolean {
+  return US_STATE_ABBR_SET.has(s.toUpperCase());
+}
+
 const COUNTRY_ALIASES: Record<string, string> = {
   usa: "usa",
   us: "usa",
