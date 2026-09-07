@@ -80,9 +80,29 @@ export default function SpotCard({
   const mapsUrl = buildMapsUrl(spot);
 
   const [imgFailed, setImgFailed] = useState(false);
+  const [retried, setRetried] = useState(false);
   const [thumbHovered, setThumbHovered] = useState(false);
   const showImage = !!spot.photo_url && !imgFailed;
   const thumbnailClass = isXxsmall ? "size-[3.125rem]" : "w-20 h-20";
+
+  // Photos come through /api/spots/photo, which caches the resolved Google CDN
+  // URL on the spot row for 30 days. A CDN URL can occasionally expire inside
+  // that window, so the first load failure retries once through `refresh=1`,
+  // forcing the proxy to re-resolve and repair the row. Without this the cache
+  // period would have to be short enough to outrun expiry — which is exactly
+  // the per-view cost problem the cache exists to solve. Second failure falls
+  // back to the placeholder as before.
+  const isProxied = !!spot.photo_url?.startsWith("/api/spots/photo");
+  const imgSrc = !showImage
+    ? "/images/spot-placeholder.svg"
+    : retried
+      ? `${spot.photo_url}${spot.photo_url!.includes("?") ? "&" : "?"}refresh=1`
+      : spot.photo_url!;
+
+  function handleImgError() {
+    if (isProxied && !retried) setRetried(true);
+    else setImgFailed(true);
+  }
 
   return (
     <div className={`flex items-start gap-2 ${className ?? ""}`}>
@@ -93,10 +113,12 @@ export default function SpotCard({
         >
           <div className={`flex-shrink-0 ${thumbnailClass} rounded-xs overflow-hidden bg-grey-300`}>
             <img
-              src={showImage ? spot.photo_url! : "/images/spot-placeholder.svg"}
+              src={imgSrc}
               alt={spot.name}
+              loading="lazy"
+              decoding="async"
               className="w-full h-full object-cover"
-              onError={() => setImgFailed(true)}
+              onError={handleImgError}
             />
           </div>
           <div className="flex-1 min-w-0">
@@ -129,10 +151,12 @@ export default function SpotCard({
             className={`flex-shrink-0 ${thumbnailClass} rounded-xs overflow-hidden bg-grey-300 cursor-pointer`}
           >
             <img
-              src={showImage ? spot.photo_url! : "/images/spot-placeholder.svg"}
+              src={imgSrc}
               alt={spot.name}
+              loading="lazy"
+              decoding="async"
               className={`w-full h-full object-cover transition-transform duration-200 ease-in-out ${thumbHovered ? "scale-106" : "scale-100"}`}
-              onError={() => setImgFailed(true)}
+              onError={handleImgError}
             />
           </a>
           <div className="flex-1 min-w-0">
