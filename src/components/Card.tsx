@@ -263,7 +263,13 @@ export function Card({
       >
         <div className="shrink-0 size-[3.125rem] rounded-xs overflow-hidden bg-black/10">
           {displayImage && (
-            <img src={displayImage} alt={city ?? name ?? ""} className="size-full object-cover" />
+            <img
+              src={displayImage}
+              alt={city ?? name ?? ""}
+              loading="lazy"
+              decoding="async"
+              className="size-full object-cover"
+            />
           )}
         </div>
         <div className="flex-1 min-w-0 flex flex-col">
@@ -352,6 +358,11 @@ export function Card({
           <img
             src={displayImage}
             alt={city ?? title ?? ""}
+            // hero/lg/featured are the large above-the-fold covers and stay
+            // eager so lazy loading doesn't push out LCP; the grid, carousel
+            // and list sizes are the ones that render off-screen in bulk.
+            loading={useFullImage ? undefined : "lazy"}
+            decoding="async"
             className={`absolute inset-0 size-full object-cover transition-transform duration-400 ease-in-out ${metadataLink ? (thumbHovered ? "scale-104" : "scale-100") : "group-hover:scale-104"}`}
             onLoad={() => setImageLoaded(true)}
           />
