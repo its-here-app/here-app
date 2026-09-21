@@ -21,6 +21,11 @@ import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 export const DELETION_GRACE_DAYS = 14;
 const GRACE_MS = DELETION_GRACE_DAYS * 24 * 60 * 60 * 1000;
 
+/** True once a pending deletion can no longer be undone by signing in. */
+export function isPastGracePeriod(deletedAt: string | null | undefined): boolean {
+  return !!deletedAt && Date.now() - Date.parse(deletedAt) >= GRACE_MS;
+}
+
 function adminClient() {
   return createSupabaseClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -57,7 +62,7 @@ export async function reconcileDeletedAccount(
   if (error) throw error;
   if (!profile?.deleted_at) return "active";
 
-  if (Date.now() - Date.parse(profile.deleted_at) < GRACE_MS) {
+  if (!isPastGracePeriod(profile.deleted_at)) {
     const { error: restoreError } = await admin
       .from("profiles")
       .update({ deleted_at: null })

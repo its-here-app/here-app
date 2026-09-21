@@ -4,11 +4,15 @@ import { createClient as createServerClient } from "@/lib/supabase/server";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { revalidatePath } from "next/cache";
 import {
+  isPastGracePeriod,
   reconcileDeletedAccount,
   softDeleteAccount,
   type SignInReconcile,
 } from "@/lib/accountDeletion";
 
+// Drives the "Welcome back" vs "Create your account" copy. An account whose
+// 14-day undo window has passed is as good as gone (signing in purges it and
+// starts over), so its email reads as free.
 export async function checkEmailExistsAction(email: string): Promise<boolean> {
   const admin = createSupabaseClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -17,11 +21,11 @@ export async function checkEmailExistsAction(email: string): Promise<boolean> {
 
   const { data } = await admin
     .from("profiles")
-    .select("id")
+    .select("deleted_at")
     .eq("email", email)
     .maybeSingle();
 
-  return !!data;
+  return !!data && !isPastGracePeriod(data.deleted_at);
 }
 
 // Service role on purpose: RLS hides profiles that are pending deletion, but

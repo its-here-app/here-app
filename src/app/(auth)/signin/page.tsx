@@ -36,8 +36,9 @@ import { useAvatarUpload } from "../../../lib/useAvatarUpload";
 type Step = "auth" | "password" | "profile";
 type UsernameStatus = "idle" | "too-short" | "checking" | "valid" | "taken";
 
-// Shown when someone signs in to an account whose 14-day undo window has
-// passed: it was just purged, and they're welcome to start over.
+// Shown after a Google sign-in to an account whose 14-day undo window has
+// passed: /auth/callback purged it and sent them back here to start over.
+// (The password path doesn't need it — it rolls straight into sign-up.)
 const DELETED_ACCOUNT_MESSAGE =
   "That account was deleted. You can create a new one with the same email.";
 
@@ -95,9 +96,13 @@ export default function LoginPage() {
     window.history.replaceState(null, "", "/signin");
   }, []);
 
-  // Handle returning from Google OAuth or already-authenticated users
+  // Handle returning from Google OAuth or already-authenticated users.
+  // Not while a password submit is in flight: the session appears the moment
+  // signInWithPassword resolves, but handleSubmit still has to settle a
+  // pending deletion (restore, or purge + start over) and pick where to go.
+  // Navigating here first would cut that short and strand a dead session.
   useEffect(() => {
-    if (authLoading || !user || step === "profile") return;
+    if (authLoading || !user || step === "profile" || loading) return;
 
     supabase
       .from("profiles")
@@ -202,34 +207,36 @@ export default function LoginPage() {
       const { data: signInData, error: signInError } =
         await supabase.auth.signInWithPassword({ email, password });
 
+      let startFresh =
+        signInError?.message.includes("Invalid login credentials") ?? false;
+
       if (!signInError && signInData.user) {
         // Signing back in undoes a pending account deletion — unless the 14
-        // days are up, in which case the account has just been purged and
-        // the session we hold belongs to nobody.
+        // days are up, in which case the account has just been purged, the
+        // session we hold belongs to nobody, and these same credentials
+        // simply open a new account (the email step already said "create").
         const reconcile = await reconcileDeletedAccountAction();
         if (reconcile === "purged") {
           await supabase.auth.signOut();
-          setError(DELETED_ACCOUNT_MESSAGE);
+          startFresh = true;
+        } else {
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("username")
+            .eq("id", signInData.user.id)
+            .single();
+
+          if (!profile?.username) {
+            setStep("profile");
+            return;
+          }
+
+          router.push(reconcile === "restored" ? "/?restored=1" : "/");
           return;
         }
-        const restored = reconcile === "restored";
-
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("username")
-          .eq("id", signInData.user.id)
-          .single();
-
-        if (!profile?.username) {
-          setStep("profile");
-          return;
-        }
-
-        router.push(restored ? "/?restored=1" : "/");
-        return;
       }
 
-      if (signInError?.message.includes("Invalid login credentials")) {
+      if (startFresh) {
         const { data: signUpData, error: signUpError } =
           await supabase.auth.signUp({
             email,
