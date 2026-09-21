@@ -1,24 +1,37 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/authContext";
+import { deleteAccountAction } from "@/lib/actions/users";
+import { signOut } from "@/lib/services/users";
 import { FullLogo } from "@/components/ui/Logo";
 import { Button } from "@/components/ui/Button";
+import { Check } from "@/components/ui/icons/Check";
 import { Error as ErrorIcon } from "@/components/ui/icons/Error";
 import { toast } from "@/components/ui/Toast";
 
 export default function DeleteAccountPage() {
   const router = useRouter();
+  const { user, loading } = useAuth();
   const [deleting, setDeleting] = useState(false);
+
+  // Only reachable signed in; a stray deep link goes to sign-in like everywhere else.
+  useEffect(() => {
+    if (!loading && !user && !deleting) router.replace("/signin");
+  }, [user?.id, loading, deleting]);
 
   async function handleDelete() {
     setDeleting(true);
     try {
-      // TODO(backend): call the account-deletion endpoint, then sign out
-      // and redirect (e.g. to "/" or a confirmation screen).
+      // Soft delete (14-day undo), then a global sign-out so every device's
+      // refresh token is revoked, not just this one's.
+      await deleteAccountAction();
+      await signOut();
+      toast({ icon: <Check focus />, message: "Your account has been deleted" });
+      router.replace("/signin");
     } catch (err: any) {
       toast({ icon: <ErrorIcon />, message: err.message ?? "Failed to delete account" });
-    } finally {
       setDeleting(false);
     }
   }

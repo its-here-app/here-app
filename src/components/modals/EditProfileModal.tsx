@@ -4,18 +4,18 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../../lib/authContext";
 import { Avatar } from "../ui/Avatar";
-import { Sheet } from "../ui/Sheet";
+import { Sheet, ConfirmSheet } from "../ui/Sheet";
 import { Check } from "../ui/icons/Check";
 import { Error } from "../ui/icons/Error";
 import { toast } from "../ui/Toast";
 import { TextInput } from "../ui/inputs/TextInput";
 import { BottomPanel } from "../ui/BottomPanel";
 import { Button } from "../ui/Button";
+import { getProfile } from "@/lib/services/users";
 import {
-  getProfile,
-  getUserByUsername,
-} from "@/lib/services/users";
-import { updateProfileAction } from "@/lib/actions/users";
+  checkUsernameTakenAction,
+  updateProfileAction,
+} from "@/lib/actions/users";
 import { upsertCityAction } from "@/lib/actions/cities";
 import { isValidInstagramHandle, sanitizeInstagramHandleInput } from "@/lib/isValidInstagramHandle";
 import { hasEdgePeriod, isValidUsername, sanitizeUsernameInput } from "@/lib/isValidUsername";
@@ -52,6 +52,7 @@ export default function EditProfileModal({
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
 
   const [name, setName] = useState("");
   const [username, setUsername] = useState("");
@@ -114,8 +115,8 @@ export default function EditProfileModal({
       setUsernameStatus(hasEdgePeriod(debouncedUsername) ? "edge-period" : "consecutive-periods");
       return;
     }
-    getUserByUsername(debouncedUsername).then((existing) => {
-      setUsernameStatus(existing ? "taken" : "valid");
+    checkUsernameTakenAction(debouncedUsername).then((taken) => {
+      setUsernameStatus(taken ? "taken" : "valid");
     });
   }, [debouncedUsername, initialUsername]);
 
@@ -381,7 +382,7 @@ export default function EditProfileModal({
           size="md"
           darkTheme
           className="!text-danger"
-          onClick={() => router.push("/delete-account")}
+          onClick={() => setIsConfirmDeleteOpen(true)}
         >
           Delete account
         </Button>
@@ -390,50 +391,69 @@ export default function EditProfileModal({
   );
 
   return (
-    <BottomPanel
-      isOpen={isOpen}
-      onClose={onClose}
-      header="Edit profile"
-      desktopVariant="full-page"
-      footer={
-        <Button
-          type="submit"
-          form="edit-profile-form"
-          variant="tonal"
-          size="md"
-          darkTheme
-          disabled={saving || usernameStatus === "too-short" || usernameStatus === "edge-period" || usernameStatus === "consecutive-periods" || usernameStatus === "taken" || usernameStatus === "checking" || !isInstagramValid}
-          className="w-full"
-        >
-          {saving ? "Saving..." : "Save"}
-        </Button>
-      }
-      desktopFooter={
-        <Button
-          type="submit"
-          form="edit-profile-form"
-          variant="tonal"
-          size="lg"
-          darkTheme
-          disabled={saving || usernameStatus === "too-short" || usernameStatus === "edge-period" || usernameStatus === "consecutive-periods" || usernameStatus === "taken" || usernameStatus === "checking" || !isInstagramValid}
-        >
-          {saving ? "Saving..." : "Save"}
-        </Button>
-      }
-    >
-      <form
-        id="edit-profile-form"
-        onSubmit={handleSubmit}
-        className="flex flex-col gap-4"
+    <>
+      <BottomPanel
+        isOpen={isOpen}
+        onClose={onClose}
+        header="Edit profile"
+        desktopVariant="full-page"
+        footer={
+          <Button
+            type="submit"
+            form="edit-profile-form"
+            variant="tonal"
+            size="md"
+            darkTheme
+            disabled={saving || usernameStatus === "too-short" || usernameStatus === "edge-period" || usernameStatus === "consecutive-periods" || usernameStatus === "taken" || usernameStatus === "checking" || !isInstagramValid}
+            className="w-full"
+          >
+            {saving ? "Saving..." : "Save"}
+          </Button>
+        }
+        desktopFooter={
+          <Button
+            type="submit"
+            form="edit-profile-form"
+            variant="tonal"
+            size="lg"
+            darkTheme
+            disabled={saving || usernameStatus === "too-short" || usernameStatus === "edge-period" || usernameStatus === "consecutive-periods" || usernameStatus === "taken" || usernameStatus === "checking" || !isInstagramValid}
+          >
+            {saving ? "Saving..." : "Save"}
+          </Button>
+        }
       >
-        {loading ? (
-          <p className="text-body-sm text-primary/50 text-center py-8">
-            Loading...
-          </p>
-        ) : (
-          formBody
-        )}
-      </form>
-    </BottomPanel>
+        <form
+          id="edit-profile-form"
+          onSubmit={handleSubmit}
+          className="flex flex-col gap-4"
+        >
+          {loading ? (
+            <p className="text-body-sm text-primary/50 text-center py-8">
+              Loading...
+            </p>
+          ) : (
+            formBody
+          )}
+        </form>
+      </BottomPanel>
+
+      {/* Rendered beside the panel, not inside it: the panel's transformed,
+          overflow-hidden container would trap a fixed-position sheet. */}
+      <ConfirmSheet
+        isOpen={isConfirmDeleteOpen}
+        onClose={() => setIsConfirmDeleteOpen(false)}
+        title="Delete your account?"
+        description="Your profile and lists will disappear. Sign back in within 14 days to undo."
+        items={[
+          { label: "Never mind", onClick: () => {} },
+          {
+            label: "Yes, delete",
+            onClick: () => router.push("/delete-account"),
+            variant: "danger",
+          },
+        ]}
+      />
+    </>
   );
 }

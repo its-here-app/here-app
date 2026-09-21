@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../../../lib/authContext";
 import { createClient } from "../../../lib/supabase/client";
@@ -22,9 +22,10 @@ import { CityAutocompleteInput } from "../../../components/ui/inputs/CityAutocom
 import { upsertCityAction } from "../../../lib/actions/cities";
 import {
   checkEmailExistsAction,
+  checkUsernameTakenAction,
+  reconcileDeletedAccountAction,
   updateProfileAction,
 } from "../../../lib/actions/users";
-import { getUserByUsername } from "../../../lib/services/users";
 import {
   isValidInstagramHandle,
   sanitizeInstagramHandleInput,
@@ -35,10 +36,18 @@ import { useAvatarUpload } from "../../../lib/useAvatarUpload";
 type Step = "auth" | "password" | "profile";
 type UsernameStatus = "idle" | "too-short" | "checking" | "valid" | "taken";
 
+// Shown after a Google sign-in to an account whose 14-day undo window has
+// passed: /auth/callback purged it and sent them back here to start over.
+// (The password path doesn't need it — it rolls straight into sign-up.)
+const DELETED_ACCOUNT_MESSAGE =
+  "That account was deleted. You can create a new one with the same email.";
+
 export default function LoginPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const supabase = createClient();
+  const emailRef = useRef<HTMLInputElement>(null);
+  const passwordRef = useRef<HTMLInputElement>(null);
 
   // Auth step
   const [email, setEmail] = useState("");
@@ -79,9 +88,37 @@ export default function LoginPage() {
   const isInstagramValid =
     !instagramHandle || isValidInstagramHandle(instagramHandle);
 
-  // Handle returning from Google OAuth or already-authenticated users
+  // /auth/callback sends an expired, just-purged account here with ?deleted=1.
+  // Read it off window rather than useSearchParams: this page is prerendered
+  // and that hook would need a Suspense boundary around the whole form.
   useEffect(() => {
-    if (authLoading || !user || step === "profile") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("deleted") !== "1") return;
+    setError(DELETED_ACCOUNT_MESSAGE);
+    window.history.replaceState(null, "", "/signin");
+  }, []);
+
+  // The email and password panels slide, they don't remount, so autoFocus
+  // never fires for the password field — focus would stay in the email box
+  // and the password get typed onto the end of the address. Move it by hand
+  // on each step change (and back again for "Use a different email").
+  const initialStep = useRef(true);
+  useEffect(() => {
+    if (initialStep.current) {
+      initialStep.current = false;
+      return;
+    }
+    if (step === "password") passwordRef.current?.focus({ preventScroll: true });
+    else if (step === "auth") emailRef.current?.focus({ preventScroll: true });
+  }, [step]);
+
+  // Handle returning from Google OAuth or already-authenticated users.
+  // Not while a password submit is in flight: the session appears the moment
+  // signInWithPassword resolves, but handleSubmit still has to settle a
+  // pending deletion (restore, or purge + start over) and pick where to go.
+  // Navigating here first would cut that short and strand a dead session.
+  useEffect(() => {
+    if (authLoading || !user || step === "profile" || loading) return;
 
     supabase
       .from("profiles")
@@ -118,8 +155,8 @@ export default function LoginPage() {
       setUsernameStatus("too-short");
       return;
     }
-    getUserByUsername(debouncedUsername).then((existing) => {
-      setUsernameStatus(existing ? "taken" : "valid");
+    checkUsernameTakenAction(debouncedUsername).then((taken) => {
+      setUsernameStatus(taken ? "taken" : "valid");
     });
   }, [debouncedUsername]);
 
@@ -186,23 +223,36 @@ export default function LoginPage() {
       const { data: signInData, error: signInError } =
         await supabase.auth.signInWithPassword({ email, password });
 
-      if (!signInError && signInData.user) {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("username")
-          .eq("id", signInData.user.id)
-          .single();
+      let startFresh =
+        signInError?.message.includes("Invalid login credentials") ?? false;
 
-        if (!profile?.username) {
-          setStep("profile");
+      if (!signInError && signInData.user) {
+        // Signing back in undoes a pending account deletion — unless the 14
+        // days are up, in which case the account has just been purged, the
+        // session we hold belongs to nobody, and these same credentials
+        // simply open a new account (the email step already said "create").
+        const reconcile = await reconcileDeletedAccountAction();
+        if (reconcile === "purged") {
+          await supabase.auth.signOut();
+          startFresh = true;
+        } else {
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("username")
+            .eq("id", signInData.user.id)
+            .single();
+
+          if (!profile?.username) {
+            setStep("profile");
+            return;
+          }
+
+          router.push(reconcile === "restored" ? "/?restored=1" : "/");
           return;
         }
-
-        router.push("/");
-        return;
       }
 
-      if (signInError?.message.includes("Invalid login credentials")) {
+      if (startFresh) {
         const { data: signUpData, error: signUpError } =
           await supabase.auth.signUp({
             email,
@@ -393,6 +443,7 @@ export default function LoginPage() {
                   className="flex flex-col gap-3"
                 >
                   <TextInput
+                    ref={emailRef}
                     focusBrand
                     type="email"
                     value={email}
@@ -447,12 +498,12 @@ export default function LoginPage() {
               >
                 <form onSubmit={handleSubmit} className="flex flex-col gap-3">
                   <TextInput
+                    ref={passwordRef}
                     focusBrand
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
-                    autoFocus={step === "password"}
                     placeholder="Password"
                     state="default"
                     rightSlot={

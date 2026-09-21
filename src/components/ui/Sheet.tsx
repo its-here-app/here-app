@@ -27,10 +27,18 @@ interface ConfirmSheetProps {
   isOpen: boolean;
   onClose: () => void;
   title?: string;
+  /** Optional supporting line under the title (e.g. what the action does). */
+  description?: string;
   items: SheetItem[];
 }
 
-export function ConfirmSheet({ isOpen, onClose, title = "Are you sure?", items }: ConfirmSheetProps) {
+export function ConfirmSheet({
+  isOpen,
+  onClose,
+  title = "Are you sure?",
+  description,
+  items,
+}: ConfirmSheetProps) {
   const [isVisible, setIsVisible] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
 
@@ -80,8 +88,11 @@ export function ConfirmSheet({ isOpen, onClose, title = "Are you sure?", items }
           isAnimating ? "scale-100 opacity-100" : "scale-95 opacity-0"
         }`}
       >
-        <div className="py-4 px-3 flex items-center justify-center border-b border-subtle">
+        <div className="py-4 px-3 flex flex-col items-center justify-center gap-1 border-b border-subtle">
           <p className="text-body-sm-bold text-primary text-center">{title}</p>
+          {description && (
+            <p className="text-body-xs text-secondary text-center">{description}</p>
+          )}
         </div>
         {items.map((item, i) => (
           <button

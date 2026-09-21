@@ -100,18 +100,22 @@ export async function getSavedPlaylists(userId: string): Promise<SavedPlaylist[]
     .order("created_at", { ascending: false });
   if (error || !data) return [];
 
-  return data.map((row: any) => ({
-    id: row.id,
-    playlist_id: row.playlist_id,
-    playlist: {
-      ...row.playlists,
-      city: row.playlists.cities?.display_name
-        ? formatCityDisplay(row.playlists.cities.display_name, row.playlists.cities.is_primary)
-        : row.playlists.city,
-      cities: undefined,
-      spot_count: row.playlists.playlist_spots?.length ?? 0,
-    },
-  }));
+  // A list whose owner is pending account deletion is hidden by RLS and
+  // embeds as null; it disappears from here too (and comes back if they do).
+  return data
+    .filter((row: any) => row.playlists)
+    .map((row: any) => ({
+      id: row.id,
+      playlist_id: row.playlist_id,
+      playlist: {
+        ...row.playlists,
+        city: row.playlists.cities?.display_name
+          ? formatCityDisplay(row.playlists.cities.display_name, row.playlists.cities.is_primary)
+          : row.playlists.city,
+        cities: undefined,
+        spot_count: row.playlists.playlist_spots?.length ?? 0,
+      },
+    }));
 }
 
 export async function isPlaylistSaved(
@@ -497,31 +501,44 @@ export async function getRecommendedSpots(
 
   // Fallback: no network-based recommendations available. Surface generally
   // popular spots in the city instead, ranked by how many public playlists
-  // include them (mirrors getPopularSpotsForCity's ranking).
+  // include them (mirrors getPopularSpotsForCity's ranking, including saves
+  // retained from deleted accounts as an anonymous count on the spot).
   if (!cityId) return [];
 
-  const { data: popularRows } = await supabase
-    .from("playlist_spots")
-    .select("spot_id, playlists!inner(city_id, is_public)")
-    .eq("playlists.city_id", cityId)
-    .eq("playlists.is_public", true);
+  const [{ data: popularRows }, { data: retainedSpots }] = await Promise.all([
+    supabase
+      .from("playlist_spots")
+      .select("spot_id, playlists!inner(city_id, is_public)")
+      .eq("playlists.city_id", cityId)
+      .eq("playlists.is_public", true),
+    supabase
+      .from("spots")
+      .select("*")
+      .eq("city_id", cityId)
+      .gt("retained_save_count", 0),
+  ]);
 
   const counts = new Map<string, number>();
   for (const row of (popularRows ?? []) as { spot_id: string }[]) {
     if (excluded.has(row.spot_id)) continue;
     counts.set(row.spot_id, (counts.get(row.spot_id) ?? 0) + 1);
   }
-  if (counts.size === 0) return [];
 
-  const { data: popularSpots } = await supabase
-    .from("spots")
-    .select("*")
-    .in("id", [...counts.keys()]);
-  if (!popularSpots) return [];
+  const liveSpots = counts.size
+    ? (await supabase.from("spots").select("*").in("id", [...counts.keys()])).data
+    : [];
+  const popularSpots = new Map<string, Spot>();
+  for (const spot of [...(liveSpots ?? []), ...(retainedSpots ?? [])] as Spot[]) {
+    if (!excluded.has(spot.id)) popularSpots.set(spot.id, spot);
+  }
+  if (popularSpots.size === 0) return [];
 
-  return (popularSpots as Spot[])
+  const totalCount = (spot: Spot) =>
+    (counts.get(spot.id) ?? 0) + (spot.retained_save_count ?? 0);
+
+  return [...popularSpots.values()]
     .sort((a, b) => {
-      const countDiff = (counts.get(b.id) ?? 0) - (counts.get(a.id) ?? 0);
+      const countDiff = totalCount(b) - totalCount(a);
       if (countDiff !== 0) return countDiff;
       const ratingDiff = (b.rating ?? -1) - (a.rating ?? -1);
       if (ratingDiff !== 0) return ratingDiff;

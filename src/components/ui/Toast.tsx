@@ -12,10 +12,18 @@ interface ToastData {
 
 type Listener = (t: ToastData) => void;
 const listeners: Listener[] = [];
+// Toasts fired before a Toaster has subscribed — e.g. from a page's mount
+// effect, which runs before the layout's Toaster effect — wait here.
+const pending: ToastData[] = [];
 
 export function toast({ icon, message, duration }: Omit<ToastData, "id">) {
   const id = Math.random().toString(36).slice(2);
-  listeners.forEach((fn) => fn({ id, icon, message, duration }));
+  const data = { id, icon, message, duration };
+  if (listeners.length === 0) {
+    pending.push(data);
+    return;
+  }
+  listeners.forEach((fn) => fn(data));
 }
 
 function ToastItem({
@@ -63,6 +71,7 @@ export function Toaster() {
     const listener: Listener = (t) =>
       setToasts((prev) => [...prev.slice(-2), t]);
     listeners.push(listener);
+    pending.splice(0).forEach(listener);
     return () => {
       listeners.splice(listeners.indexOf(listener), 1);
     };

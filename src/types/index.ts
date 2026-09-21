@@ -7,6 +7,8 @@ export interface Spot {
   rating?: number | null;
   types?: string[] | null;
   city_id?: string | null;
+  /** Saves kept from deleted accounts, anonymously. Counts like a live save. */
+  retained_save_count?: number;
 }
 
 export interface PlaylistSpot {
@@ -47,6 +49,8 @@ export interface Profile {
   avatar_url?: string | null;
   city_id?: string | null;
   created_at: string;
+  /** Set while the account is pending deletion (14-day undo window). */
+  deleted_at?: string | null;
 }
 
 // API response shape from /api/spots/search
