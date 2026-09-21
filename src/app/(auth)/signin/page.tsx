@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../../../lib/authContext";
 import { createClient } from "../../../lib/supabase/client";
@@ -46,6 +46,8 @@ export default function LoginPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const supabase = createClient();
+  const emailRef = useRef<HTMLInputElement>(null);
+  const passwordRef = useRef<HTMLInputElement>(null);
 
   // Auth step
   const [email, setEmail] = useState("");
@@ -95,6 +97,20 @@ export default function LoginPage() {
     setError(DELETED_ACCOUNT_MESSAGE);
     window.history.replaceState(null, "", "/signin");
   }, []);
+
+  // The email and password panels slide, they don't remount, so autoFocus
+  // never fires for the password field — focus would stay in the email box
+  // and the password get typed onto the end of the address. Move it by hand
+  // on each step change (and back again for "Use a different email").
+  const initialStep = useRef(true);
+  useEffect(() => {
+    if (initialStep.current) {
+      initialStep.current = false;
+      return;
+    }
+    if (step === "password") passwordRef.current?.focus({ preventScroll: true });
+    else if (step === "auth") emailRef.current?.focus({ preventScroll: true });
+  }, [step]);
 
   // Handle returning from Google OAuth or already-authenticated users.
   // Not while a password submit is in flight: the session appears the moment
@@ -427,6 +443,7 @@ export default function LoginPage() {
                   className="flex flex-col gap-3"
                 >
                   <TextInput
+                    ref={emailRef}
                     focusBrand
                     type="email"
                     value={email}
@@ -481,12 +498,12 @@ export default function LoginPage() {
               >
                 <form onSubmit={handleSubmit} className="flex flex-col gap-3">
                   <TextInput
+                    ref={passwordRef}
                     focusBrand
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
-                    autoFocus={step === "password"}
                     placeholder="Password"
                     state="default"
                     rightSlot={
