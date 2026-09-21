@@ -3,6 +3,11 @@
 import { createClient as createServerClient } from "@/lib/supabase/server";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { revalidatePath } from "next/cache";
+import {
+  reconcileDeletedAccount,
+  softDeleteAccount,
+  type SignInReconcile,
+} from "@/lib/accountDeletion";
 
 export async function checkEmailExistsAction(email: string): Promise<boolean> {
   const admin = createSupabaseClient(
@@ -14,6 +19,24 @@ export async function checkEmailExistsAction(email: string): Promise<boolean> {
     .from("profiles")
     .select("id")
     .eq("email", email)
+    .maybeSingle();
+
+  return !!data;
+}
+
+// Service role on purpose: RLS hides profiles that are pending deletion, but
+// their username stays reserved for the 14-day undo window, so a session-bound
+// lookup would report it free and the save would then hit the unique index.
+export async function checkUsernameTakenAction(username: string): Promise<boolean> {
+  const admin = createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SECRET_KEY!,
+  );
+
+  const { data } = await admin
+    .from("profiles")
+    .select("id")
+    .eq("username", username)
     .maybeSingle();
 
   return !!data;
@@ -123,4 +146,35 @@ export async function blockUserAction(blockedId: string): Promise<void> {
     .or(
       `and(follower_id.eq.${user.id},following_id.eq.${blockedId}),and(follower_id.eq.${blockedId},following_id.eq.${user.id})`
     );
+}
+
+/**
+ * Soft-deletes the caller's account (see lib/accountDeletion.ts). The client
+ * signs out afterwards with scope "global", which revokes every refresh token
+ * so other devices drop off within one access-token lifetime.
+ */
+export async function deleteAccountAction(): Promise<void> {
+  const supabase = await createServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+
+  await softDeleteAccount(user.id);
+}
+
+/**
+ * Run after a password sign-in (Google returns go through /auth/callback,
+ * which calls reconcileDeletedAccount directly). "restored" means a pending
+ * deletion was undone; "purged" means the 14 days had passed and the account
+ * was just removed — the caller must sign the session out again.
+ */
+export async function reconcileDeletedAccountAction(): Promise<SignInReconcile> {
+  const supabase = await createServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+
+  return reconcileDeletedAccount(user.id);
 }

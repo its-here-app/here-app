@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { reconcileDeletedAccount } from "@/lib/accountDeletion";
 
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);
@@ -37,6 +38,16 @@ export async function GET(request: NextRequest) {
       } = await supabase.auth.getUser();
 
       if (user) {
+        // Signing back in is how a pending account deletion is undone, so
+        // settle that before anything else reads the profile. Past the 14-day
+        // window the account is gone; drop the session we just created.
+        const reconcile = await reconcileDeletedAccount(user.id);
+        if (reconcile === "purged") {
+          await supabase.auth.signOut();
+          return NextResponse.redirect(new URL("/signin?deleted=1", request.url));
+        }
+        const restored = reconcile === "restored";
+
         const { data: existingProfile, error: profileError } = await supabase
           .from("profiles")
           .select("username")
@@ -66,7 +77,9 @@ export async function GET(request: NextRequest) {
           return NextResponse.redirect(new URL("/signin", request.url));
         }
 
-        return NextResponse.redirect(new URL("/", request.url));
+        return NextResponse.redirect(
+          new URL(restored ? "/?restored=1" : "/", request.url),
+        );
       }
     } else {
       console.error("Session exchange failed:", error);

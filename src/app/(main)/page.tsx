@@ -11,9 +11,11 @@ import { createClient } from "@/lib/supabase/client";
 import { formatCityDisplay } from "@/lib/cityDisplay";
 import { upsertCityAction } from "@/lib/actions/cities";
 import { updateProfileCityAction } from "@/lib/actions/users";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import CityPickerModal from "@/components/modals/CityPickerModal";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { toast } from "@/components/ui/Toast";
+import { Check } from "@/components/ui/icons/Check";
 import {
   YourPlaylistsSection,
   TodaysPickSection,
@@ -40,6 +42,7 @@ interface Weather {
 export default function HomePage() {
   const { user, loading } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [cityName, setCityName] = useState<string | null>(null);
   const [cityId, setCityId] = useState<string | null>(null);
   const [cityForCreate, setCityForCreate] = useState<{
@@ -55,6 +58,15 @@ export default function HomePage() {
   useEffect(() => {
     if (!loading && !user) router.replace("/signin");
   }, [user?.id, loading]);
+
+  // Sign-in lands here with ?restored=1 when it undid a pending account
+  // deletion. Sign-in and home live in different root layouts, so the toast
+  // can't be fired from the sign-in page itself.
+  useEffect(() => {
+    if (searchParams.get("restored") !== "1") return;
+    toast({ icon: <Check focus />, message: "Welcome back! Your account is restored." });
+    router.replace("/");
+  }, [searchParams]);
 
   // Load user profile: city + name + weather
   useEffect(() => {

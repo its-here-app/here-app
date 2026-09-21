@@ -22,9 +22,10 @@ import { CityAutocompleteInput } from "../../../components/ui/inputs/CityAutocom
 import { upsertCityAction } from "../../../lib/actions/cities";
 import {
   checkEmailExistsAction,
+  checkUsernameTakenAction,
+  reconcileDeletedAccountAction,
   updateProfileAction,
 } from "../../../lib/actions/users";
-import { getUserByUsername } from "../../../lib/services/users";
 import {
   isValidInstagramHandle,
   sanitizeInstagramHandleInput,
@@ -34,6 +35,11 @@ import { useAvatarUpload } from "../../../lib/useAvatarUpload";
 
 type Step = "auth" | "password" | "profile";
 type UsernameStatus = "idle" | "too-short" | "checking" | "valid" | "taken";
+
+// Shown when someone signs in to an account whose 14-day undo window has
+// passed: it was just purged, and they're welcome to start over.
+const DELETED_ACCOUNT_MESSAGE =
+  "That account was deleted. You can create a new one with the same email.";
 
 export default function LoginPage() {
   const { user, loading: authLoading } = useAuth();
@@ -79,6 +85,16 @@ export default function LoginPage() {
   const isInstagramValid =
     !instagramHandle || isValidInstagramHandle(instagramHandle);
 
+  // /auth/callback sends an expired, just-purged account here with ?deleted=1.
+  // Read it off window rather than useSearchParams: this page is prerendered
+  // and that hook would need a Suspense boundary around the whole form.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("deleted") !== "1") return;
+    setError(DELETED_ACCOUNT_MESSAGE);
+    window.history.replaceState(null, "", "/signin");
+  }, []);
+
   // Handle returning from Google OAuth or already-authenticated users
   useEffect(() => {
     if (authLoading || !user || step === "profile") return;
@@ -118,8 +134,8 @@ export default function LoginPage() {
       setUsernameStatus("too-short");
       return;
     }
-    getUserByUsername(debouncedUsername).then((existing) => {
-      setUsernameStatus(existing ? "taken" : "valid");
+    checkUsernameTakenAction(debouncedUsername).then((taken) => {
+      setUsernameStatus(taken ? "taken" : "valid");
     });
   }, [debouncedUsername]);
 
@@ -187,6 +203,17 @@ export default function LoginPage() {
         await supabase.auth.signInWithPassword({ email, password });
 
       if (!signInError && signInData.user) {
+        // Signing back in undoes a pending account deletion — unless the 14
+        // days are up, in which case the account has just been purged and
+        // the session we hold belongs to nobody.
+        const reconcile = await reconcileDeletedAccountAction();
+        if (reconcile === "purged") {
+          await supabase.auth.signOut();
+          setError(DELETED_ACCOUNT_MESSAGE);
+          return;
+        }
+        const restored = reconcile === "restored";
+
         const { data: profile } = await supabase
           .from("profiles")
           .select("username")
@@ -198,7 +225,7 @@ export default function LoginPage() {
           return;
         }
 
-        router.push("/");
+        router.push(restored ? "/?restored=1" : "/");
         return;
       }
 

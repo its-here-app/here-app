@@ -293,37 +293,55 @@ export async function getTodaysPick(
 /**
  * Spots already saved into (public) playlists for a city, ranked by how many
  * playlists include them, then alphabetically for ties. "Saved" here means
- * "added to a playlist" — spots have no direct city column of their own, so
- * city association only exists via playlist_spots -> playlists.city_id.
+ * "added to a playlist" — city association comes via playlist_spots ->
+ * playlists.city_id, plus spots.city_id for places whose only remaining saves
+ * are retained ones (see below).
+ *
+ * Saves by people who have since deleted their account survive as an
+ * anonymous count on the spot (spots.retained_save_count) and rank the same
+ * as live ones, so a place doesn't fall out of the city's picks when its
+ * savers leave.
  */
 export async function getPopularSpotsForCity(
   cityId: string,
   limit: number,
 ): Promise<SearchResult[]> {
   const supabase = createClient();
-  const { data: psData, error } = await supabase
-    .from("playlist_spots")
-    .select("spot_id, playlists!inner(city_id, is_public)")
-    .eq("playlists.city_id", cityId)
-    .eq("playlists.is_public", true);
+  const [{ data: psData, error }, { data: retainedSpots }] = await Promise.all([
+    supabase
+      .from("playlist_spots")
+      .select("spot_id, playlists!inner(city_id, is_public)")
+      .eq("playlists.city_id", cityId)
+      .eq("playlists.is_public", true),
+    supabase
+      .from("spots")
+      .select("*")
+      .eq("city_id", cityId)
+      .gt("retained_save_count", 0),
+  ]);
 
-  if (error || !psData || psData.length === 0) return [];
+  if (error) return [];
 
   const counts = new Map<string, number>();
-  for (const row of psData as { spot_id: string }[]) {
+  for (const row of (psData ?? []) as { spot_id: string }[]) {
     counts.set(row.spot_id, (counts.get(row.spot_id) ?? 0) + 1);
   }
+  if (counts.size === 0 && !retainedSpots?.length) return [];
 
-  const { data: spots } = await supabase
-    .from("spots")
-    .select("*")
-    .in("id", [...counts.keys()]);
+  const liveSpots = counts.size
+    ? (await supabase.from("spots").select("*").in("id", [...counts.keys()])).data
+    : [];
 
-  if (!spots) return [];
+  const spots = new Map<string, Spot>();
+  for (const spot of [...(liveSpots ?? []), ...(retainedSpots ?? [])] as Spot[]) {
+    spots.set(spot.id, spot);
+  }
+  const totalCount = (spot: Spot) =>
+    (counts.get(spot.id) ?? 0) + (spot.retained_save_count ?? 0);
 
-  return (spots as Spot[])
+  return [...spots.values()]
     .sort((a, b) => {
-      const countDiff = (counts.get(b.id) ?? 0) - (counts.get(a.id) ?? 0);
+      const countDiff = totalCount(b) - totalCount(a);
       if (countDiff !== 0) return countDiff;
       const ratingDiff = (b.rating ?? -1) - (a.rating ?? -1);
       if (ratingDiff !== 0) return ratingDiff;
