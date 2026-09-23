@@ -151,7 +151,12 @@ export default function PlaylistEditor({ playlist, isOwner, onClose, closeReady 
     if (!editMode) return;
     const mql = window.matchMedia("(min-width: 1024px)");
     function applyLock() {
+      const wasLocked = document.body.style.overflow === "hidden";
       document.body.style.overflow = mql.matches ? "hidden" : "unset";
+      // Entering edit mode shrinks the document to viewport height (the right
+      // column scrolls internally instead), so any scroll position carried
+      // over from view mode is now stale and must be reset before locking.
+      if (mql.matches && !wasLocked) window.scrollTo(0, 0);
     }
     applyLock();
     mql.addEventListener("change", applyLock);
@@ -460,7 +465,7 @@ export default function PlaylistEditor({ playlist, isOwner, onClose, closeReady 
   return (
     <div className="w-full lg:grid lg:grid-cols-2 lg:gap-6 lg:items-start">
       {/* Cover photo */}
-      <div className="relative mb-4 lg:mb-0 lg:sticky lg:top-0 lg:h-[calc(100vh_-_2*var(--space-page-sm))]">
+      <div className="relative mb-4 lg:mb-0 lg:sticky lg:top-[var(--space-page-sm)] lg:h-[calc(100vh_-_2*var(--space-page-sm))]">
         <Card
           className="h-[30rem] lg:h-full"
           size="hero"
