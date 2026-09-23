@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { siteUrl } from "@/lib/siteUrl";
 import { Geist, Geist_Mono } from "next/font/google";
 import "../globals.css";
 
@@ -18,6 +19,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
+  metadataBase: siteUrl,
   title: "Here* — internal metrics",
   robots: { index: false, follow: false },
 };

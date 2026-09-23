@@ -3,6 +3,7 @@ import { SavesProvider } from "@/lib/savesContext";
 import { Toaster } from "@/components/ui/Toast";
 import { Snackbar } from "@/components/ui/Snackbar";
 import type { Metadata, Viewport } from "next";
+import { siteUrl } from "@/lib/siteUrl";
 import { Geist, Geist_Mono } from "next/font/google";
 import "../globals.css";
 
@@ -22,6 +23,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
+  metadataBase: siteUrl,
   title: "Here* — Discover and share favorite spots through city playlists",
   description: "For the spots you love & the places you'll go.",
   openGraph: {

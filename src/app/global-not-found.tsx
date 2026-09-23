@@ -4,10 +4,9 @@
 // convention renders at the routing level, outside any layout, so it brings
 // its own <html>/<body> and fonts.
 import type { Metadata } from "next";
+import { siteUrl } from "@/lib/siteUrl";
 import { Geist, Geist_Mono } from "next/font/google";
-import Link from "next/link";
-import { Logo } from "@/components/ui/Logo";
-import EmptyState from "@/components/ui/EmptyState";
+import NotFoundScreen from "@/components/ui/NotFoundScreen";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -21,6 +20,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: siteUrl,
   title: "Page not found • Here*",
   description: "The page you're looking for doesn't exist or may have been moved.",
 };
@@ -29,18 +29,10 @@ export default function GlobalNotFound() {
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
       <body className="antialiased">
-        <div className="min-h-dvh flex flex-col items-center justify-center px-6">
-          <Link href="/">
-            <Logo />
-          </Link>
-          <EmptyState
-            className="mt-6"
-            header="Page not found"
-            message="The page you're looking for doesn't exist or may have been moved."
-            actionLabel="Back home"
-            actionHref="/"
-          />
-        </div>
+        <NotFoundScreen
+          header="Page not found"
+          message="The page you're looking for doesn't exist or may have been moved."
+        />
       </body>
     </html>
   );
