@@ -36,6 +36,8 @@ export default function DeleteAccountPage() {
     }
   }
 
+  if (!deleting && (loading || !user)) return null;
+
   return (
     <main className="relative flex flex-col h-dvh dark p-[var(--space-page-dynamic)] max-w-[var(--app-max-width)] mx-auto">
       <FullLogo color="white" />

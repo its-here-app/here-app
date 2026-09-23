@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { AppBarConfig } from "@/lib/appBarContext";
 import { SearchInput } from "@/components/ui/inputs/SearchInput";
 import type { SearchInputState } from "@/components/ui/inputs/SearchInput";
@@ -18,12 +19,17 @@ import { playlistUrl } from "@/lib/playlistUrl";
 import BookmarkButton from "@/components/BookmarkButton";
 
 export default function SearchPage() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
+  const router = useRouter();
   const [query, setQuery] = useState("");
   const [inputState, setInputState] = useState<SearchInputState>("default");
   const [people, setPeople] = useState<SearchResultPerson[]>([]);
   const [playlists, setPlaylists] = useState<SearchResultPlaylist[]>([]);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!authLoading && !user) router.replace("/signin");
+  }, [user?.id, authLoading]);
 
   // Debounced search
   useEffect(() => {
@@ -55,6 +61,14 @@ export default function SearchPage() {
   }
 
   const hasResults = people.length > 0 || playlists.length > 0;
+
+  if (authLoading || !user) {
+    return (
+      <main className="flex min-h-screen items-center justify-center">
+        <p>Loading...</p>
+      </main>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-6 -mt-[var(--space-page-md)] pt-[var(--space-page-sm)]">

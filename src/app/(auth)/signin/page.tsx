@@ -469,7 +469,7 @@ export default function LoginPage() {
                 <p className="text-body-xs text-tertiary mt-1">
                   By continuing, you confirm you're 18 or older and agree to our{" "}
                   <a
-                    href="http://itshere.app/terms"
+                    href="/terms"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="underline hover:text-secondary"
@@ -478,7 +478,7 @@ export default function LoginPage() {
                   </a>{" "}
                   and{" "}
                   <a
-                    href="http://itshere.app/privacy"
+                    href="/privacy"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="underline hover:text-secondary"

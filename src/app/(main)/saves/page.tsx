@@ -126,7 +126,7 @@ export default function SavesPage() {
       })
     : sortedSpots;
 
-  if (authLoading) {
+  if (authLoading || !user) {
     return (
       <main className="flex min-h-screen items-center justify-center">
         <p>Loading...</p>
