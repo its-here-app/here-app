@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../../../lib/authContext";
 import { createClient } from "../../../lib/supabase/client";
@@ -363,7 +364,9 @@ export default function LoginPage() {
       {/* Left column */}
       <div className="relative flex flex-col h-full overflow-hidden flex-1 min-w-0 min-h-[40rem]">
         <div className="p-[var(--space-page-dynamic)] flex flex-row items-center justify-between">
-          <FullLogo className="mt-2" color="white" />
+          <Link href="/" aria-label="Here* home">
+            <FullLogo className="mt-2" color="white" />
+          </Link>
           {step === "profile" ? (
             <button
               type="button"

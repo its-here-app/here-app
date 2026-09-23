@@ -26,7 +26,7 @@ export default function EmptyState({
 }: EmptyStateProps) {
   return (
     <Message icon={icon} header={header} className={className}>
-      <p className="whitespace-pre-line">{message}</p>
+      <p className="whitespace-pre-line text-pretty">{message}</p>
       {actionLabel && actionHref && (
         <Link
           href={actionHref}

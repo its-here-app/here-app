@@ -9,6 +9,7 @@ import {
   softDeleteAccount,
   type SignInReconcile,
 } from "@/lib/accountDeletion";
+import { isReservedUsername } from "@/lib/reservedUsernames";
 
 // Drives the "Welcome back" vs "Create your account" copy. An account whose
 // 14-day undo window has passed is as good as gone (signing in purges it and
@@ -32,6 +33,8 @@ export async function checkEmailExistsAction(email: string): Promise<boolean> {
 // their username stays reserved for the 14-day undo window, so a session-bound
 // lookup would report it free and the save would then hit the unique index.
 export async function checkUsernameTakenAction(username: string): Promise<boolean> {
+  if (isReservedUsername(username)) return true;
+
   const admin = createSupabaseClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SECRET_KEY!,

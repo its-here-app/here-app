@@ -25,7 +25,21 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  // Logged out, "/" belongs to the marketing zone. Decided here rather than
+  // with a cookie condition in next.config.ts: Supabase splits the session
+  // across chunked cookies (`-auth-token.0`, `.1`, ...) when the JWT is large,
+  // so no single cookie name reliably means "signed in".
+  const marketingOrigin = process.env.MARKETING_ORIGIN;
+  if (!user && marketingOrigin && request.nextUrl.pathname === "/") {
+    return NextResponse.rewrite(new URL("/", marketingOrigin), {
+      request,
+      headers: supabaseResponse.headers,
+    });
+  }
 
   return supabaseResponse;
 }
