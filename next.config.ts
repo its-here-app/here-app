@@ -25,6 +25,11 @@ const nextConfig: NextConfig = {
           destination: `${MARKETING_ORIGIN}/sitemap.xml`,
         },
         { source: "/terms", destination: `${MARKETING_ORIGIN}/terms` },
+        // Bare /studio needs its own rule: with `:path*` matching zero
+        // segments the destination interpolates to `/studio/`, and marketing
+        // (trailingSlash: false) 308s that back to a relative /studio, which
+        // the browser re-resolves against this domain — an infinite loop.
+        { source: "/studio", destination: `${MARKETING_ORIGIN}/studio` },
         {
           source: "/studio/:path*",
           destination: `${MARKETING_ORIGIN}/studio/:path*`,
