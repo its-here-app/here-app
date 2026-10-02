@@ -45,6 +45,30 @@ function extractMarker(line: string): { marker: string | null; rest: string } {
   return { marker: null, rest: line };
 }
 
+/**
+ * Splits a single-line, comma-separated list ("Spot 1, Spot 2, and Spot 3")
+ * into its items. Commas inside parentheses don't split, so a trailing
+ * "(note, with commas)" stays attached to its spot. A leading "and"/"&" on
+ * an item (the last one, in natural-language lists) is dropped.
+ */
+function splitCommaList(line: string): string[] {
+  const items: string[] = [];
+  let depth = 0;
+  let current = "";
+  for (const ch of line) {
+    if (ch === "(") depth++;
+    else if (ch === ")") depth = Math.max(0, depth - 1);
+    if (ch === "," && depth === 0) {
+      items.push(current);
+      current = "";
+    } else {
+      current += ch;
+    }
+  }
+  items.push(current);
+  return items.map((item) => item.trim().replace(/^(and|&)\s+/i, "").trim()).filter(Boolean);
+}
+
 function buildBlankLineBlocks(rawLines: string[]): string[][] {
   const blocks: string[][] = [];
   let current: string[] = [];
@@ -137,6 +161,14 @@ function topMarker(markers: (string | null)[]): { marker: string | null; count: 
 function groupIntoEntries(text: string): { entries: string[][]; boilerplateTexts: Set<string> } {
   const rawLines = text.split("\n").map((l) => l.trim());
   const nonBlank = rawLines.filter(Boolean);
+
+  // A single line with commas is a comma-separated list of spots, one per item.
+  if (nonBlank.length === 1) {
+    const items = splitCommaList(nonBlank[0]);
+    if (items.length >= 2) {
+      return { entries: items.map((item) => [item]), boilerplateTexts: new Set() };
+    }
+  }
 
   const rawBlocks = buildBlankLineBlocks(rawLines);
   if (rawBlocks.length >= 2) {
