@@ -7,7 +7,7 @@
  * Input: a GeoNames dump (tab-separated), e.g. cities15000.txt from
  * https://download.geonames.org/export/dump/ (CC BY 4.0). It only supplies
  * *which* cities to look up; names, place IDs and `display_name` all come from
- * Places autocomplete via the same naming code the live route uses
+ * Places autocomplete, via the same naming code the live route uses
  * (src/lib/cityAutocomplete.ts), so rows are identical to ones users create.
  *
  * Cost: one Places autocomplete request per city not already in `cities`.
@@ -25,8 +25,15 @@
  * explicit --limit N or --all. Without --apply it still makes real Places
  * requests (default 25) so you can eyeball the matches; --plan makes none.
  *
+ * API: --api new (default) uses Places API (New), a separate product from the
+ * legacy API the live route calls, so the backfill uses its own quota and free
+ * tier rather than users'. Enable "Places API (New)" on the key's project.
+ * --compare looks the first --limit cities up in both APIs (costs legacy
+ * quota too) and prints any name/place-id differences; run it before applying.
+ *
  * Usage:
  *   npx tsx scripts/backfill-cities.ts --file cities15000.txt --plan           # just count
+ *   npx tsx scripts/backfill-cities.ts --file cities15000.txt --compare        # legacy vs new, 25
  *   npx tsx scripts/backfill-cities.ts --file cities15000.txt                  # preview 25
  *   npx tsx scripts/backfill-cities.ts --file cities15000.txt --limit 400 --apply
  *   npx tsx scripts/backfill-cities.ts --file cities15000.txt --all --apply
@@ -48,6 +55,7 @@ import {
 
 const AUTOCOMPLETE_URL =
   "https://maps.googleapis.com/maps/api/place/autocomplete/json";
+const NEW_AUTOCOMPLETE_URL = "https://places.googleapis.com/v1/places:autocomplete";
 
 function arg(name: string): string | undefined {
   const i = process.argv.indexOf(`--${name}`);
@@ -61,10 +69,20 @@ const delayMs = Number(arg("delay-ms") ?? 120);
 const apply = flag("apply");
 const plan = flag("plan");
 const all = flag("all");
+const compareMode = flag("compare");
+const api = (arg("api") ?? "new") as "legacy" | "new";
 const limit = all ? Infinity : Number(arg("limit") ?? 25);
 
 if (!file) {
   console.error("Missing --file <GeoNames cities txt>");
+  process.exit(1);
+}
+if (api !== "new" && api !== "legacy") {
+  console.error("--api must be new or legacy");
+  process.exit(1);
+}
+if (compareMode && apply) {
+  console.error("--compare never writes; drop --apply");
   process.exit(1);
 }
 if (apply && !all && arg("limit") === undefined) {
@@ -153,15 +171,15 @@ type Lookup =
   | { kind: "none" }
   | { kind: "quota"; status: string; message: string };
 
-async function lookup(c: GeoCity): Promise<Lookup> {
-  const isUS = c.countryCode === "US";
-  // Qualify the input so the intended city outranks same-named ones.
-  const input = isUS ? `${c.name}, ${c.admin1}` : `${c.name}, ${countryName(c.countryCode)}`;
+type Fetched =
+  | { kind: "ok"; predictions: AutocompletePrediction[] }
+  | { kind: "quota"; status: string; message: string };
+
+async function fetchLegacy(input: string): Promise<Fetched> {
   const url =
     `${AUTOCOMPLETE_URL}?input=${encodeURIComponent(input)}` +
     `&types=(cities)&key=${apiKey}`;
-  const res = await fetch(url);
-  const data = (await res.json()) as {
+  const data = (await (await fetch(url)).json()) as {
     status?: string;
     error_message?: string;
     predictions?: AutocompletePrediction[];
@@ -169,10 +187,67 @@ async function lookup(c: GeoCity): Promise<Lookup> {
   if (data.status === "OVER_QUERY_LIMIT" || data.status === "REQUEST_DENIED") {
     return { kind: "quota", status: data.status, message: data.error_message ?? "" };
   }
+  return { kind: "ok", predictions: data.predictions ?? [] };
+}
 
+/**
+ * Places API (New). Separate product from the legacy API the live route uses,
+ * with its own quota and free tier, so the backfill doesn't eat into what
+ * users need. It has no `terms` array, so predictions are reshaped into the
+ * legacy form (main text + comma-split secondary text) to go through the same
+ * naming code; run --compare first to confirm the names come out identical.
+ */
+async function fetchNew(input: string): Promise<Fetched> {
+  const res = await fetch(NEW_AUTOCOMPLETE_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Goog-Api-Key": apiKey!,
+      "X-Goog-FieldMask":
+        "suggestions.placePrediction.placeId,suggestions.placePrediction.text.text,suggestions.placePrediction.structuredFormat",
+    },
+    body: JSON.stringify({ input, includedPrimaryTypes: ["(cities)"] }),
+  });
+  const data = (await res.json()) as {
+    error?: { status?: string; message?: string };
+    suggestions?: {
+      placePrediction?: {
+        placeId?: string;
+        text?: { text?: string };
+        structuredFormat?: { mainText?: { text?: string }; secondaryText?: { text?: string } };
+      };
+    }[];
+  };
+  if (!res.ok || data.error) {
+    return {
+      kind: "quota",
+      status: data.error?.status ?? String(res.status),
+      message: data.error?.message ?? "",
+    };
+  }
+  const predictions = (data.suggestions ?? []).flatMap((s) => {
+    const p = s.placePrediction;
+    const main = p?.structuredFormat?.mainText?.text;
+    if (!p?.placeId || !main) return [];
+    const secondary = p.structuredFormat?.secondaryText?.text ?? "";
+    const terms = [main, ...secondary.split(",").map((t) => t.trim()).filter(Boolean)];
+    return [{ place_id: p.placeId, description: p.text?.text, terms: terms.map((value) => ({ value })) }];
+  });
+  return { kind: "ok", predictions };
+}
+
+/** Query text qualified so the intended city outranks same-named ones. */
+function inputFor(c: GeoCity): string {
+  return c.countryCode === "US"
+    ? `${c.name}, ${c.admin1}`
+    : `${c.name}, ${countryName(c.countryCode)}`;
+}
+
+function pickMatch(c: GeoCity, predictions: AutocompletePrediction[]): Lookup {
+  const isUS = c.countryCode === "US";
   const wantBase = new Set([normalizeForMatch(c.name), normalizeForMatch(c.asciiName)]);
   const wantCountry = canonicalizeCountry(countryName(c.countryCode));
-  for (const p of data.predictions ?? []) {
+  for (const p of predictions) {
     const terms = p.terms ?? [];
     if (terms.length < 2 || !p.place_id) continue;
     if (!wantBase.has(normalizeForMatch(terms[0].value))) continue;
@@ -186,6 +261,40 @@ async function lookup(c: GeoCity): Promise<Lookup> {
     return { kind: "match", place_id: p.place_id, display_name: built.display_name };
   }
   return { kind: "none" };
+}
+
+async function lookup(c: GeoCity, which: "legacy" | "new"): Promise<Lookup> {
+  const r = await (which === "new" ? fetchNew : fetchLegacy)(inputFor(c));
+  return r.kind === "quota" ? r : pickMatch(c, r.predictions);
+}
+
+const describe = (r: Lookup) =>
+  r.kind === "match" ? `${r.display_name} [${r.place_id}]` : r.kind === "none" ? "(no match)" : `(${r.status})`;
+
+/** Look each city up in both APIs and print where the stored row would differ. */
+async function compare(batch: GeoCity[]) {
+  let same = 0;
+  const diffs: string[] = [];
+  for (const c of batch) {
+    const [legacy, fresh] = [await lookup(c, "legacy"), await lookup(c, "new")];
+    for (const r of [legacy, fresh]) {
+      if (r.kind === "quota") {
+        console.error(`Stopped: ${r.status} ${r.message}`);
+        return;
+      }
+    }
+    const equal =
+      legacy.kind === fresh.kind &&
+      (legacy.kind !== "match" ||
+        (fresh.kind === "match" &&
+          legacy.display_name === fresh.display_name &&
+          legacy.place_id === fresh.place_id));
+    if (equal) same++;
+    else diffs.push(`  ${inputFor(c)}\n    legacy: ${describe(legacy)}\n    new:    ${describe(fresh)}`);
+    await new Promise((res) => setTimeout(res, delayMs));
+  }
+  console.log(`${same}/${batch.length} identical.`);
+  if (diffs.length) console.log(`Differences:\n${diffs.join("\n")}`);
 }
 
 async function main() {
@@ -213,8 +322,13 @@ async function main() {
   if (plan) return;
 
   const batch = todo.slice(0, limit);
+  if (compareMode) {
+    console.log(`COMPARE legacy vs new (no writes): ${batch.length} cities\n`);
+    return compare(batch);
+  }
   console.log(
-    `${apply ? "APPLYING" : "PREVIEW (no writes)"}: ${batch.length} lookups, ${delayMs}ms apart\n`,
+    `${apply ? "APPLYING" : "PREVIEW (no writes)"} via ${api} API: ` +
+      `${batch.length} lookups, ${delayMs}ms apart\n`,
   );
 
   let inserted = 0;
@@ -223,7 +337,7 @@ async function main() {
   const unmatchedNames: string[] = [];
 
   for (const c of batch) {
-    const r = await lookup(c);
+    const r = await lookup(c, api);
     if (r.kind === "quota") {
       console.error(`\nStopped: ${r.status} ${r.message}`);
       break;
