@@ -117,6 +117,9 @@ function parseGeoNames(path: string): GeoCity[] {
   for (const line of readFileSync(path, "utf8").split("\n")) {
     if (!line) continue;
     const c = line.split("\t");
+    // PPLX = a section of a populated place (Manhattan, Kowloon, city
+    // districts): not something people pick as their city.
+    if (c[7] === "PPLX") continue;
     const population = Number(c[14]);
     const isCapital = c[7] === "PPLC";
     if (population < minPopulation && !isCapital) continue;
@@ -133,7 +136,17 @@ function parseGeoNames(path: string): GeoCity[] {
 }
 
 const regionNames = new Intl.DisplayNames(["en"], { type: "region" });
-const countryName = (code: string) => regionNames.of(code) ?? code;
+// Where Node's English region names differ from the country term Google
+// returns (checked against Places autocomplete).
+const GOOGLE_COUNTRY_NAMES: Record<string, string> = {
+  CD: "Democratic Republic of the Congo", // Intl: "Congo - Kinshasa"
+  CG: "Republic of the Congo", // Intl: "Congo - Brazzaville"
+  CI: "Côte d'Ivoire", // Intl uses a curly apostrophe
+  HK: "Hong Kong", // Intl: "Hong Kong SAR China"
+  MO: "Macao", // Intl: "Macao SAR China"
+};
+const countryName = (code: string) =>
+  GOOGLE_COUNTRY_NAMES[code] ?? regionNames.of(code) ?? code;
 
 /** Key for "this base name in this country" from a stored display_name
  *  ("Portland, OR" → portland|usa, "Paris, France" → paris|france). */
@@ -249,8 +262,11 @@ function pickMatch(c: GeoCity, predictions: AutocompletePrediction[]): Lookup {
   const wantCountry = canonicalizeCountry(countryName(c.countryCode));
   for (const p of predictions) {
     const terms = p.terms ?? [];
-    if (terms.length < 2 || !p.place_id) continue;
+    if (terms.length === 0 || !p.place_id) continue;
     if (!wantBase.has(normalizeForMatch(terms[0].value))) continue;
+    // City-states (Hong Kong, Singapore) come back as a single term with no
+    // country; accept that only when the city's name is the country's name.
+    if (terms.length === 1 && canonicalizeCountry(terms[0].value) !== wantCountry) continue;
     const last = terms[terms.length - 1].value;
     const countryOk = isUS
       ? last === "USA" && terms[1]?.value === c.admin1
