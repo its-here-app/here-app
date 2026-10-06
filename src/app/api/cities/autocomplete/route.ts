@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import { createClient } from "@supabase/supabase-js";
+import {
+  buildCitySuggestions,
+  type AutocompletePrediction,
+} from "@/lib/cityAutocomplete";
+import { normalizeForMatch } from "@/lib/cityResolution";
 
 /**
  * Place Autocomplete proxy for city selection.
@@ -11,7 +16,14 @@ import { createClient } from "@supabase/supabase-js";
  *  - Queries are normalized so equivalent prefixes share a cache entry.
  *  - City lists change extremely slowly, so we cache aggressively (7 days).
  *  - Client-side this route is already debounced at 300ms.
+ *
+ * Quota: Places autocomplete is billed per request, so `cities` is searched
+ * first and Google is only called when the typed text isn't a complete name
+ * we already know (see `searchDb` / `isConfidentDbMatch`).
  */
+
+// Shorter queries are too ambiguous to be worth a billed Places call.
+const MIN_QUERY_LENGTH = 3;
 
 const AUTOCOMPLETE_URL =
   "https://maps.googleapis.com/maps/api/place/autocomplete/json";
@@ -19,12 +31,6 @@ const AUTOCOMPLETE_URL =
 // Cache autocomplete prefixes for 7 days. City lists are effectively static.
 const CACHE_TTL_SECONDS = 60 * 60 * 24 * 7;
 
-type AutocompleteTerm = { value: string };
-type AutocompletePrediction = {
-  place_id?: string;
-  description?: string;
-  terms?: AutocompleteTerm[];
-};
 type AutocompleteResponse = {
   predictions?: AutocompletePrediction[];
   status?: string;
@@ -41,22 +47,56 @@ function escapeLike(s: string): string {
   return s.replace(/[%_\\]/g, "\\$&");
 }
 
+type CityRow = {
+  google_place_id: string;
+  display_name: string;
+  is_primary: boolean;
+};
+
+const baseName = (c: CityRow) => normalizeForMatch(c.display_name.split(",")[0]);
+
+/** Known cities matching the text, best first: exact base-name matches, then
+ *  base-name prefixes, then primary cities, then alphabetical. */
+async function searchDb(query: string): Promise<CityRow[]> {
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SECRET_KEY!,
+  );
+  const { data } = await supabase
+    .from("cities")
+    .select("google_place_id, display_name, is_primary")
+    .ilike("display_name", `%${escapeLike(query)}%`)
+    .limit(30);
+
+  const q = normalizeForMatch(query);
+  const rank = (c: CityRow) =>
+    baseName(c) === q ? 0 : baseName(c).startsWith(q) ? 1 : 2;
+  return ((data ?? []) as CityRow[]).sort(
+    (a, b) =>
+      rank(a) - rank(b) ||
+      Number(b.is_primary) - Number(a.is_primary) ||
+      a.display_name.localeCompare(b.display_name),
+  );
+}
+
+/** The text is a complete city name we already store ("stockholm"), not a
+ *  half-typed prefix or a qualified query ("portland, me") — safe to answer
+ *  without asking Google. Rows on other prefixes could be missing cities. */
+function isConfidentDbMatch(query: string, rows: CityRow[]): boolean {
+  const q = normalizeForMatch(query);
+  return rows.some((c) => baseName(c) === q);
+}
+
+async function dbResponse(rows: CityRow[]) {
+  return NextResponse.json(
+    { cities: rows.slice(0, 5) },
+    { headers: { "Cache-Control": "no-store" } },
+  );
+}
+
 async function fallbackToDb(query: string) {
   try {
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SECRET_KEY!,
-    );
-    const { data } = await supabase
-      .from("cities")
-      .select("google_place_id, display_name, is_primary")
-      .ilike("display_name", `%${escapeLike(query)}%`)
-      .limit(5);
-
-    return NextResponse.json(
-      { cities: data ?? [] },
-      { headers: { "Cache-Control": "no-store" } },
-    );
+    return dbResponse(await searchDb(query));
   } catch {
     return NextResponse.json(
       { cities: [] },
@@ -67,12 +107,6 @@ async function fallbackToDb(query: string) {
 
 function normalizeQuery(q: string): string {
   return q.toLowerCase().trim().replace(/\s+/g, " ");
-}
-
-/** Strip diacritics + lowercase for base-name comparison.
- * e.g. "Los Ángeles" and "Los Angeles" both become "los angeles" */
-function normalizeBaseName(s: string): string {
-  return s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 }
 
 export async function GET(request: NextRequest) {
@@ -86,11 +120,18 @@ export async function GET(request: NextRequest) {
   }
 
   const query = normalizeQuery(rawQuery);
-  if (query.length < 2) {
+  if (query.length < MIN_QUERY_LENGTH) {
     return NextResponse.json(
       { cities: [] },
       { headers: { "Cache-Control": "no-store" } },
     );
+  }
+
+  try {
+    const known = await searchDb(query);
+    if (isConfidentDbMatch(query, known)) return dbResponse(known);
+  } catch {
+    // DB unavailable: fall through to Google.
   }
 
   const apiKey = process.env.GOOGLE_PLACES_API_KEY;
@@ -122,99 +163,22 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    let data = (await res.json()) as AutocompleteResponse;
+    const data = (await res.json()) as AutocompleteResponse;
 
     if (!isUsable(data)) {
       // A bad answer may have been cached for this prefix (up to 7 days).
-      // Evict it and retry once uncached so one transient error can't stick.
+      // Evict it so the next request asks Google again, and answer this one
+      // from the DB. No retry here: on a quota error it would just burn more.
       console.error(
         "cities/autocomplete: places status",
         data.status,
         data.error_message ?? "",
       );
       revalidateTag(cacheTag, { expire: 0 });
-      const retry = await fetch(upstream, { cache: "no-store" });
-      if (retry.ok) data = (await retry.json()) as AutocompleteResponse;
-      if (!isUsable(data)) {
-        console.error(
-          "cities/autocomplete: retry still failing, using db fallback",
-          data.status,
-          data.error_message ?? "",
-        );
-        return fallbackToDb(query);
-      }
+      return fallbackToDb(query);
     }
 
-    // Determine is_primary for each prediction. Google returns results ranked
-    // by popularity, so the first occurrence of a base name is the most well-known city.
-
-    const predictions = data.predictions ?? [];
-
-    // First pass: find which base names (first term) appear more than once
-    // *within the same country*. Scoping by country too (not just base name)
-    // means "Brayton, UK" and "Brayton, Australia" each get to be primary
-    // independently instead of competing — a same-named town on the other
-    // side of the world shouldn't force a qualified "Brayton, NSW, Australia"
-    // display. Real same-country collisions (e.g. "Portland, OR" vs
-    // "Portland, ME", or "Woodside, SA" vs "Woodside, VIC" in Australia)
-    // still disambiguate correctly since they share both base name and country.
-    // Normalize diacritics so "Los Angeles" and "Los Ángeles" are treated as the same base.
-    const baseNameFirstSeen = new Map<string, number>();
-    const baseNameDupes = new Set<string>();
-    for (let i = 0; i < predictions.length; i++) {
-      const terms = predictions[i].terms ?? [];
-      const base = normalizeBaseName(terms[0]?.value ?? "");
-      const country = normalizeBaseName(terms[terms.length - 1]?.value ?? "");
-      const key = `${base}|${country}`;
-      if (baseNameFirstSeen.has(key)) {
-        baseNameDupes.add(key);
-      } else {
-        baseNameFirstSeen.set(key, i);
-      }
-    }
-
-    // Second pass: build each city's full canonical name and is_primary flag.
-    //  - `display_name`: always the full qualified name for storage.
-    //    UI display shortening is handled at render time via `formatCityDisplay(name, is_primary)`.
-    //  - `is_primary`: determines whether to show the short base name in the UI.
-    const cities = predictions.map((p, i) => {
-      const terms = p.terms ?? [];
-      const baseName = terms[0]?.value ?? p.description ?? "";
-      const baseKey = normalizeBaseName(baseName);
-      const countryKey = normalizeBaseName(terms[terms.length - 1]?.value ?? "");
-      const dedupeKey = `${baseKey}|${countryKey}`;
-      const isUS = terms[terms.length - 1]?.value === "USA";
-
-      // Full canonical name: built from Google's `terms` (already split into
-      // city / region / country) rather than the raw `description` field.
-      // `description` smashes some locales' city+region together with no
-      // separator (e.g. Australia: "Sydney NSW, Australia" instead of
-      // "Sydney, NSW, Australia"), while `terms` stays cleanly split for
-      // every locale — joining it reproduces `description` exactly
-      // everywhere else, and additionally fixes Australia/similar cases.
-      // US cities drop the trailing "USA" term (stored as bare "City, ST").
-      const display_name = isUS
-        ? terms.slice(0, -1).map((t) => t.value).join(", ")
-        : terms.length > 0
-          ? terms.map((t) => t.value).join(", ")
-          : (p.description ?? baseName);
-
-      // Primary = the most popular city for this base name *within its country*.
-      // - If same-country duplicates exist in results, the first one wins (Google ranks by popularity).
-      // - If unique within its country, only mark primary if the user's query is roughly
-      //   just the city name (not qualified with a country/state like "los angeles chile").
-      //   The +2 accounts for trailing spaces or 1-2 extra chars mid-typing.
-      const queryIsGeneric = query.length <= baseKey.length + 2;
-      const is_primary = baseNameDupes.has(dedupeKey)
-        ? baseNameFirstSeen.get(dedupeKey) === i
-        : queryIsGeneric;
-
-      return {
-        google_place_id: p.place_id,
-        display_name,
-        is_primary,
-      };
-    });
+    const cities = buildCitySuggestions(data.predictions ?? [], query);
 
     return NextResponse.json(
       { cities },

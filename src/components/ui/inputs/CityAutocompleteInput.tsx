@@ -47,7 +47,7 @@ export function CityAutocompleteInput({
 
   // Debounced fetch
   useEffect(() => {
-    if (query.length < 2 || query === selectedValue) {
+    if (query.length < 3 || query === selectedValue) {
       setSuggestions([]);
       return;
     }
