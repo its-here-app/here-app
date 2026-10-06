@@ -410,8 +410,9 @@ export async function getSpotMentionsForSpots(
  * Spots you might like: scored from what people you follow have saved or
  * added to public playlists (optionally scoped to a city). When that yields
  * nothing — no follows, or followed users have nothing in this city — falls
- * back to generally popular spots in the city (ranked by how many public
- * playlists include them), so the section isn't just empty for new users.
+ * back to spots in the city: those in public playlists first (ranked by how
+ * many include them), then any other spot by rating, so the section isn't
+ * just empty for new users or in cities with few playlists.
  */
 export async function getRecommendedSpots(
   userId: string,
@@ -499,24 +500,32 @@ export async function getRecommendedSpots(
     }
   }
 
-  // Fallback: no network-based recommendations available. Surface generally
-  // popular spots in the city instead, ranked by how many public playlists
-  // include them (mirrors getPopularSpotsForCity's ranking, including saves
-  // retained from deleted accounts as an anonymous count on the spot).
+  // Fallback: no network-based recommendations available. Surface spots in
+  // the city instead: ones that appear in public playlists rank first (by how
+  // many include them, plus saves retained from deleted accounts as an
+  // anonymous count on the spot), then every other spot in the city, best
+  // rated first. Spots don't need to be in any playlist to qualify.
   if (!cityId) return [];
 
-  const [{ data: popularRows }, { data: retainedSpots }] = await Promise.all([
-    supabase
-      .from("playlist_spots")
-      .select("spot_id, playlists!inner(city_id, is_public)")
-      .eq("playlists.city_id", cityId)
-      .eq("playlists.is_public", true),
-    supabase
-      .from("spots")
-      .select("*")
-      .eq("city_id", cityId)
-      .gt("retained_save_count", 0),
-  ]);
+  const [{ data: popularRows }, { data: retainedSpots }, { data: topRatedSpots }] =
+    await Promise.all([
+      supabase
+        .from("playlist_spots")
+        .select("spot_id, playlists!inner(city_id, is_public)")
+        .eq("playlists.city_id", cityId)
+        .eq("playlists.is_public", true),
+      supabase
+        .from("spots")
+        .select("*")
+        .eq("city_id", cityId)
+        .gt("retained_save_count", 0),
+      supabase
+        .from("spots")
+        .select("*")
+        .eq("city_id", cityId)
+        .order("rating", { ascending: false, nullsFirst: false })
+        .limit(50 + excluded.size),
+    ]);
 
   const counts = new Map<string, number>();
   for (const row of (popularRows ?? []) as { spot_id: string }[]) {
@@ -528,7 +537,11 @@ export async function getRecommendedSpots(
     ? (await supabase.from("spots").select("*").in("id", [...counts.keys()])).data
     : [];
   const popularSpots = new Map<string, Spot>();
-  for (const spot of [...(liveSpots ?? []), ...(retainedSpots ?? [])] as Spot[]) {
+  for (const spot of [
+    ...(liveSpots ?? []),
+    ...(retainedSpots ?? []),
+    ...(topRatedSpots ?? []),
+  ] as Spot[]) {
     if (!excluded.has(spot.id)) popularSpots.set(spot.id, spot);
   }
   if (popularSpots.size === 0) return [];
