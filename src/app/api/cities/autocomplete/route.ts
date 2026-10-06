@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { createClient } from "@supabase/supabase-js";
 
 /**
@@ -27,7 +28,14 @@ type AutocompletePrediction = {
 type AutocompleteResponse = {
   predictions?: AutocompletePrediction[];
   status?: string;
+  error_message?: string;
 };
+
+// Places reports errors (REQUEST_DENIED, OVER_QUERY_LIMIT, ...) inside an HTTP
+// 200, and Next's data cache stores any ok response. Only these two statuses
+// are real answers worth caching.
+const isUsable = (d: AutocompleteResponse) =>
+  !d.status || d.status === "OK" || d.status === "ZERO_RESULTS";
 
 function escapeLike(s: string): string {
   return s.replace(/[%_\\]/g, "\\$&");
@@ -101,8 +109,9 @@ export async function GET(request: NextRequest) {
       `&types=(cities)` +
       `&key=${apiKey}`;
 
+    const cacheTag = `cities-autocomplete:${query}`;
     const res = await fetch(upstream, {
-      next: { revalidate: CACHE_TTL_SECONDS },
+      next: { revalidate: CACHE_TTL_SECONDS, tags: [cacheTag] },
     });
 
     if (!res.ok) {
@@ -113,11 +122,27 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const data = (await res.json()) as AutocompleteResponse;
+    let data = (await res.json()) as AutocompleteResponse;
 
-    if (data.status && data.status !== "OK" && data.status !== "ZERO_RESULTS") {
-      console.error("cities/autocomplete: places status", data.status);
-      return fallbackToDb(query);
+    if (!isUsable(data)) {
+      // A bad answer may have been cached for this prefix (up to 7 days).
+      // Evict it and retry once uncached so one transient error can't stick.
+      console.error(
+        "cities/autocomplete: places status",
+        data.status,
+        data.error_message ?? "",
+      );
+      revalidateTag(cacheTag, { expire: 0 });
+      const retry = await fetch(upstream, { cache: "no-store" });
+      if (retry.ok) data = (await retry.json()) as AutocompleteResponse;
+      if (!isUsable(data)) {
+        console.error(
+          "cities/autocomplete: retry still failing, using db fallback",
+          data.status,
+          data.error_message ?? "",
+        );
+        return fallbackToDb(query);
+      }
     }
 
     // Determine is_primary for each prediction. Google returns results ranked
