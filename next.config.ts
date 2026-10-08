@@ -38,6 +38,13 @@ const nextConfig: NextConfig = {
           source: "/playlist/:path*",
           destination: `${MARKETING_ORIGIN}/playlist/:path*`,
         },
+        // Presentation mode's preview iframe calls this relative to
+        // itshere.app (sanity.config.js sets no `origin` override), so it
+        // needs the same proxying as /studio or draft mode never enables.
+        {
+          source: "/api/draft-mode/:path*",
+          destination: `${MARKETING_ORIGIN}/api/draft-mode/:path*`,
+        },
         // Marketing's JS/CSS. It sets assetPrefix: "/marketing-static", so its
         // chunks live under this namespace instead of colliding with this
         // app's own /_next/*.
