@@ -39,6 +39,13 @@ export function CityAutocompleteInput({
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Only autofocus on desktop; mobile browsers shift layout/zoom when the
+  // keyboard opens unprompted, so autofocus is intentionally suppressed there.
+  const effectiveAutoFocus =
+    autoFocus &&
+    typeof window !== "undefined" &&
+    window.matchMedia("(min-width: 1024px)").matches;
+
   // Sync external value changes
   useEffect(() => {
     setQuery(value);
@@ -144,7 +151,7 @@ export function CityAutocompleteInput({
             onKeyDown={handleKeyDown}
             onFocus={() => suggestions.length > 0 && setShowDropdown(true)}
             placeholder={placeholder}
-            autoFocus={autoFocus}
+            autoFocus={effectiveAutoFocus}
             className="text-display-crimson-1 text-neon text-center bg-transparent border-none outline-none w-full placeholder:text-white/30"
           />
           <div className="h-px bg-white" />
@@ -173,7 +180,7 @@ export function CityAutocompleteInput({
           onKeyDown={handleKeyDown}
           onFocus={() => suggestions.length > 0 && setShowDropdown(true)}
           placeholder={placeholder}
-          autoFocus={autoFocus}
+          autoFocus={effectiveAutoFocus}
           className="flex-1 min-w-0 bg-transparent text-body-sm outline-none text-primary placeholder:text-tertiary"
         />
       </div>
