@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 
 interface SnackbarData {
@@ -25,6 +25,15 @@ interface SnackbarData {
 type Listener = (s: SnackbarData) => void;
 const listeners: Listener[] = [];
 const dismissHandlers = new Map<string, () => void>();
+// Ids whose outcome (action taken, or onDismiss fired) is decided, so
+// onDismiss runs exactly once on whichever close path comes first.
+const settled = new Set<string>();
+
+function settleDismissed(data: SnackbarData) {
+  if (settled.has(data.id)) return;
+  settled.add(data.id);
+  data.onDismiss?.();
+}
 
 export function snackbar({
   key,
@@ -77,7 +86,7 @@ function SnackbarItem({
     if (data.duration === 0) return;
     const dur = data.duration ?? 5000;
     const t1 = setTimeout(() => setExiting(true), dur);
-    const t2 = setTimeout(() => { data.onDismiss?.(); onRemove(); }, dur + 200);
+    const t2 = setTimeout(() => { settleDismissed(data); onRemove(); }, dur + 200);
     return () => {
       clearTimeout(t1);
       clearTimeout(t2);
@@ -86,21 +95,26 @@ function SnackbarItem({
 
   useEffect(() => {
     dismissHandlers.set(data.id, () => {
+      settleDismissed(data);
       setExiting(true);
       setTimeout(onRemove, 200);
     });
     return () => {
       dismissHandlers.delete(data.id);
     };
-  }, [data.id, onRemove]);
+  }, [data, onRemove]);
 
   function handleAction() {
+    if (settled.has(data.id)) return;
+    settled.add(data.id);
     data.onAction?.();
     setExiting(true);
     setTimeout(onRemove, 200);
   }
 
   function handleSecondAction() {
+    if (settled.has(data.id)) return;
+    settled.add(data.id);
     data.onSecondAction?.();
     setExiting(true);
     setTimeout(onRemove, 200);
@@ -154,15 +168,23 @@ function SnackbarItem({
 export function Snackbar() {
   const [snackbars, setSnackbars] = useState<SnackbarData[]>([]);
   const [mounted, setMounted] = useState(false);
+  const snackbarsRef = useRef<SnackbarData[]>([]);
 
   useEffect(() => setMounted(true), []);
 
   useEffect(() => {
-    const listener: Listener = (s) =>
-      setSnackbars((prev) => [
-        ...prev.filter((x) => !(s.key && x.key === s.key)).slice(-2),
-        s,
-      ]);
+    snackbarsRef.current = snackbars;
+  }, [snackbars]);
+
+  useEffect(() => {
+    const listener: Listener = (s) => {
+      // Snackbars pushed out (same key, or past the 3-item cap) count as
+      // dismissed. Done outside the state updater, which may run twice.
+      const sameKey = (x: SnackbarData) => !!s.key && x.key === s.key;
+      const kept = snackbarsRef.current.filter((x) => !sameKey(x));
+      [...snackbarsRef.current.filter(sameKey), ...kept.slice(0, -2)].forEach(settleDismissed);
+      setSnackbars((prev) => [...prev.filter((x) => !sameKey(x)).slice(-2), s]);
+    };
     listeners.push(listener);
     return () => {
       listeners.splice(listeners.indexOf(listener), 1);
@@ -177,9 +199,10 @@ export function Snackbar() {
         <SnackbarItem
           key={s.id}
           data={s}
-          onRemove={() =>
-            setSnackbars((prev) => prev.filter((x) => x.id !== s.id))
-          }
+          onRemove={() => {
+            settled.delete(s.id);
+            setSnackbars((prev) => prev.filter((x) => x.id !== s.id));
+          }}
         />
       ))}
     </div>,

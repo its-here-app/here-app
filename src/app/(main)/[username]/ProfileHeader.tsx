@@ -33,6 +33,8 @@ import type { SheetItem } from "../../../components/ui/Sheet";
 import { removeFollowerAction, blockUserAction } from "@/lib/actions/users";
 import { snackbar } from "@/components/ui/Snackbar";
 import { Info } from "@/components/ui/icons/Info";
+import { Error as ErrorIcon } from "@/components/ui/icons/Error";
+import { toast } from "@/components/ui/Toast";
 import type { Profile as ProfileData } from "@/types";
 
 interface ProfileHeaderProps {
@@ -51,6 +53,7 @@ export default function ProfileHeader({ profile }: ProfileHeaderProps) {
   const [isConfirmBlockOpen, setIsConfirmBlockOpen] = useState(false);
   const [isConfirmUnblockOpen, setIsConfirmUnblockOpen] = useState(false);
   const overflowRef = useRef<HTMLButtonElement>(null);
+  const followPendingRef = useRef(false);
   const { canShare, share } = useShare();
   const [followsModal, setFollowsModal] = useState<{
     open: boolean;
@@ -105,15 +108,24 @@ export default function ProfileHeader({ profile }: ProfileHeaderProps) {
       router.push("/signin");
       return;
     }
-    if (!relationship) return;
-    if (relationship.following) {
-      await unfollowUser(user.id, profile.id);
-      setRelationship((r) => r && { ...r, following: false });
-      setCounts((c) => c && { ...c, followers: c.followers - 1 });
-    } else {
-      await followUser(user.id, profile.id);
-      setRelationship((r) => r && { ...r, following: true });
-      setCounts((c) => c && { ...c, followers: c.followers + 1 });
+    if (!relationship || followPendingRef.current) return;
+    const wasFollowing = relationship.following;
+    const delta = wasFollowing ? -1 : 1;
+    followPendingRef.current = true;
+    setRelationship((r) => r && { ...r, following: !wasFollowing });
+    setCounts((c) => c && { ...c, followers: c.followers + delta });
+    try {
+      if (wasFollowing) await unfollowUser(user.id, profile.id);
+      else await followUser(user.id, profile.id);
+    } catch {
+      setRelationship((r) => r && { ...r, following: wasFollowing });
+      setCounts((c) => c && { ...c, followers: c.followers - delta });
+      toast({
+        icon: <ErrorIcon />,
+        message: `Couldn't ${wasFollowing ? "unfollow" : "follow"}, please try again`,
+      });
+    } finally {
+      followPendingRef.current = false;
     }
   }
 
@@ -124,15 +136,27 @@ export default function ProfileHeader({ profile }: ProfileHeaderProps) {
       setRelationship((r) => r && { ...r, blocking: false });
       router.refresh();
     } else {
-      const wasFollowing = relationship.following;
-      const wasFollowedBy = relationship.followedBy;
+      const prevRelationship = relationship;
+      const followerDelta = relationship.following ? 1 : 0;
+      const followingDelta = relationship.followedBy ? 1 : 0;
       setRelationship((r) => r && { ...r, blocking: true, following: false, followedBy: false });
       setCounts((c) => c && {
         ...c,
-        followers: c.followers - (wasFollowing ? 1 : 0),
-        following: c.following - (wasFollowedBy ? 1 : 0),
+        followers: c.followers - followerDelta,
+        following: c.following - followingDelta,
       });
-      await blockUserAction(profile.id);
+      try {
+        await blockUserAction(profile.id);
+      } catch {
+        setRelationship(prevRelationship);
+        setCounts((c) => c && {
+          ...c,
+          followers: c.followers + followerDelta,
+          following: c.following + followingDelta,
+        });
+        toast({ icon: <ErrorIcon />, message: "Couldn't block, please try again" });
+        return;
+      }
       router.refresh();
     }
   }
@@ -149,12 +173,14 @@ export default function ProfileHeader({ profile }: ProfileHeaderProps) {
         setRelationship((r) => r && { ...r, followedBy: true });
         setCounts((c) => c && { ...c, following: c.following + 1 });
       },
+      // Fires on every close except Undo (timeout, dismissed, replaced).
       onDismiss: async () => {
         try {
           await removeFollowerAction(profile.id);
         } catch {
           setRelationship((r) => r && { ...r, followedBy: true });
           setCounts((c) => c && { ...c, following: c.following + 1 });
+          toast({ icon: <ErrorIcon />, message: "Couldn't remove follower, please try again" });
         }
       },
     });
@@ -317,7 +343,7 @@ export default function ProfileHeader({ profile }: ProfileHeaderProps) {
         currentUserId={user?.id}
         followerCount={counts?.followers}
         followingCount={counts?.following}
-        onFollowBack={() => setCounts((c) => c && { ...c, following: c.following + 1 })}
+        onFollowingChange={(delta) => setCounts((c) => c && { ...c, following: c.following + delta })}
       />
 
       <Sheet

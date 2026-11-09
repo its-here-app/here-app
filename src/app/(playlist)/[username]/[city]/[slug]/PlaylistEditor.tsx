@@ -806,7 +806,16 @@ export default function PlaylistEditor({ playlist, isOwner, onClose, closeReady 
                   const next = !isPublic;
                   setIsPublic(next);
                   setIsSheetOpen(false);
-                  await updatePlaylistVisibility(playlist.id, next);
+                  try {
+                    await updatePlaylistVisibility(playlist.id, next);
+                  } catch {
+                    setIsPublic(!next);
+                    toast({
+                      icon: <ErrorIcon />,
+                      message: `Couldn't make playlist ${next ? "public" : "private"}, please try again`,
+                    });
+                    return;
+                  }
                   revalidateProfileAction(playlist.profiles.username);
                   toast({
                     icon: next ? <World /> : <Lock />,
