@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/authContext";
+import { useActiveNavTab } from "@/lib/useActiveNavTab";
 import { signOut } from "@/lib/services/users";
 import { FullLogo } from "../ui/Logo";
 import { Add } from "../ui/icons/Add";
@@ -17,6 +18,7 @@ export default function Sidebar() {
   const { user, loading, avatarUrl, username, setSigningOut } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const activeTab = useActiveNavTab();
 
   if (loading || !user) return null;
 
@@ -38,18 +40,18 @@ export default function Sidebar() {
       {/* Nav */}
       <nav className="-ml-2 flex flex-col gap-8 mt-[5rem]">
         <Link href="/" className="group flex items-center gap-5">
-          <Home focus={pathname === "/"} className="size-8 shrink-0 text-primary" />
+          <Home focus={activeTab === "home"} className="size-8 shrink-0 text-primary" />
           <span className="text-header-radio-3 text-primary group-hover:underline">Home</span>
         </Link>
 
         <Link href="/search" className="group flex items-center gap-5">
-          <Search focus={pathname.startsWith("/search")} className="size-8 shrink-0 text-primary" />
+          <Search focus={activeTab === "search"} className="size-8 shrink-0 text-primary" />
           <span className="text-header-radio-3 text-primary group-hover:underline">Search</span>
         </Link>
 
         <Link href="/saves" className="group flex items-center gap-5">
           <Bookmark
-            active={pathname === "/saves"}
+            active={activeTab === "saved"}
             className="size-8 shrink-0 text-primary"
           />
           <span className="text-header-radio-3 text-primary group-hover:underline">Saves</span>
@@ -69,7 +71,7 @@ export default function Sidebar() {
             <Avatar
               src={avatarUrl}
               alt="Profile"
-              focus={pathname === profileHref}
+              focus={activeTab === "profile"}
             />
           </span>
           <span className="text-header-radio-3 text-primary group-hover:underline">Profile</span>

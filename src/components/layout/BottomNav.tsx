@@ -2,6 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/authContext";
+import { useActiveNavTab } from "@/lib/useActiveNavTab";
 import {
   BottomNavigation,
   type BottomNavTab,
@@ -12,16 +13,9 @@ export default function BottomNav() {
   const { user, loading, avatarUrl, username } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const activeTab: BottomNavTab = useActiveNavTab();
 
   if (loading || !user) return null;
-
-  const activeTab: BottomNavTab = pathname.startsWith("/search")
-    ? "search"
-    : pathname === "/saves"
-      ? "saved"
-      : username && pathname.startsWith(`/${username}`)
-        ? "profile"
-        : "home";
 
   function handleTabChange(tab: BottomNavTab) {
     switch (tab) {
@@ -32,7 +26,7 @@ export default function BottomNav() {
       case "saved":
         return router.push("/saves");
       case "profile":
-        if (activeTab === "profile") {
+        if (username && pathname === `/${username}`) {
           window.scrollTo({ top: 0, behavior: "smooth" });
           return;
         }
