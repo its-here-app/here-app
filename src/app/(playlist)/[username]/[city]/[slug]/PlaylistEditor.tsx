@@ -5,6 +5,7 @@ import { useShare } from "@/lib/useShare";
 import { playlistDocTitle } from "@/lib/playlistDocTitle";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/authContext";
+import { signinHref } from "@/lib/authRedirect";
 import {
   upsertSpot,
   addSpotToPlaylist,
@@ -113,7 +114,7 @@ export default function PlaylistEditor({ playlist, isOwner, onClose, closeReady 
         message: "Love this list? Save spots on Here*",
         duration: 0,
         actionLabel: "Sign up",
-        onAction: () => router.push("/signin"),
+        onAction: () => router.push(signinHref(window.location.pathname)),
       });
     }
 

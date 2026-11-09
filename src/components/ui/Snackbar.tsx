@@ -113,9 +113,7 @@ function SnackbarItem({
       style={{
         animation: `${exiting ? "snackbar-out 200ms ease" : "snackbar-in 400ms cubic-bezier(0.21,1.02,0.73,1)"} forwards`,
       }}
-      className={`dark pointer-events-auto w-full max-w-sm bg-surface-subtle rounded-[var(--radius-sm)] px-5 py-3.5 shadow-[0px_2px_4px_0px_rgba(64,64,64,0.14)] ${
-        hasTwoActions ? "flex flex-col gap-3" : "flex items-center gap-3"
-      }`}
+      className={`dark pointer-events-auto w-full max-w-sm bg-surface-subtle rounded-[var(--radius-sm)] px-5 py-3.5 shadow-[0px_2px_4px_0px_rgba(64,64,64,0.14)] flex flex-col gap-3`}
     >
       <div className="flex items-center gap-3">
         {data.icon && (

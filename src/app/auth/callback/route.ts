@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { reconcileDeletedAccount } from "@/lib/accountDeletion";
+import { AUTH_NEXT_COOKIE, safeNextPath, signinHref } from "@/lib/authRedirect";
 
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);
@@ -9,6 +10,7 @@ export async function GET(request: NextRequest) {
 
   if (code) {
     const cookieStore = await cookies();
+    const next = safeNextPath(cookieStore.get(AUTH_NEXT_COOKIE)?.value);
 
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -74,11 +76,14 @@ export async function GET(request: NextRequest) {
             console.error("Profile upsert failed:", upsertError);
           }
 
-          return NextResponse.redirect(new URL("/signin", request.url));
+          return NextResponse.redirect(
+            new URL(next ? signinHref(next) : "/signin", request.url),
+          );
         }
 
+        cookieStore.delete(AUTH_NEXT_COOKIE);
         return NextResponse.redirect(
-          new URL(restored ? "/?restored=1" : "/", request.url),
+          new URL(restored ? "/?restored=1" : (next ?? "/"), request.url),
         );
       }
     } else {
