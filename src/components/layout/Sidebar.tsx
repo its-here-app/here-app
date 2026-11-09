@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/authContext";
-import { useActiveNavTab } from "@/lib/useActiveNavTab";
+import { markNavTabPending, useActiveNavTab, type NavTab } from "@/lib/useActiveNavTab";
 import { signOut } from "@/lib/services/users";
 import { FullLogo } from "../ui/Logo";
 import { Add } from "../ui/icons/Add";
@@ -30,6 +30,12 @@ export default function Sidebar() {
 
   const profileHref = username ? `/${username}` : "/";
 
+  function markPending(e: React.MouseEvent, tab: NavTab, href: string) {
+    // Modified clicks open a new browser tab instead of navigating here.
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+    markNavTabPending(tab, href);
+  }
+
   return (
     <aside className="flex flex-col w-[var(--sidebar-width)] p-[var(--space-page-dynamic)] bg-surface-base h-screen fixed top-0 left-[max(0px,calc((100vw-var(--app-max-width))/2))] -ml-[var(--sidebar-width)] lg:ml-0 transition-[margin] duration-400">
       {/* Logo */}
@@ -39,17 +45,17 @@ export default function Sidebar() {
 
       {/* Nav */}
       <nav className="-ml-2 flex flex-col gap-8 mt-[5rem]">
-        <Link href="/" className="group flex items-center gap-5">
+        <Link href="/" className="group flex items-center gap-5" onClick={(e) => markPending(e, "home", "/")}>
           <Home focus={activeTab === "home"} className="size-8 shrink-0 text-primary" />
           <span className="text-header-radio-3 text-primary group-hover:underline">Home</span>
         </Link>
 
-        <Link href="/search" className="group flex items-center gap-5">
+        <Link href="/search" className="group flex items-center gap-5" onClick={(e) => markPending(e, "search", "/search")}>
           <Search focus={activeTab === "search"} className="size-8 shrink-0 text-primary" />
           <span className="text-header-radio-3 text-primary group-hover:underline">Search</span>
         </Link>
 
-        <Link href="/saves" className="group flex items-center gap-5">
+        <Link href="/saves" className="group flex items-center gap-5" onClick={(e) => markPending(e, "saved", "/saves")}>
           <Bookmark
             active={activeTab === "saved"}
             className="size-8 shrink-0 text-primary"
@@ -64,7 +70,9 @@ export default function Sidebar() {
             if (pathname === profileHref) {
               e.preventDefault();
               window.scrollTo({ top: 0, behavior: "smooth" });
+              return;
             }
+            markPending(e, "profile", profileHref);
           }}
         >
           <span className="size-8 shrink-0 flex items-center justify-center">

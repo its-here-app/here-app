@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/authContext";
 
@@ -10,6 +10,27 @@ const STORAGE_KEY = "nav:lastTab";
 const TABS: NavTab[] = ["home", "search", "saved", "profile"];
 
 let lastTab: NavTab | null = null;
+
+// The tab just tapped, shown as active while its page is still loading
+// (pathname only changes once navigation commits).
+let pendingTab: NavTab | null = null;
+const pendingListeners = new Set<() => void>();
+
+function setPendingTab(tab: NavTab | null) {
+  if (pendingTab === tab) return;
+  pendingTab = tab;
+  pendingListeners.forEach((fn) => fn());
+}
+
+function subscribePending(fn: () => void) {
+  pendingListeners.add(fn);
+  return () => pendingListeners.delete(fn);
+}
+
+/** Call when a nav item starts navigating to `href`, before the route loads. */
+export function markNavTabPending(tab: NavTab, href: string) {
+  if (href !== window.location.pathname) setPendingTab(tab);
+}
 
 function tabForPath(pathname: string, username: string | null): NavTab | null {
   if (pathname === "/") return "home";
@@ -33,6 +54,11 @@ export function useActiveNavTab(): NavTab {
   const pathname = usePathname();
   const { username } = useAuth();
   const directTab = tabForPath(pathname, username);
+  const pending = useSyncExternalStore(subscribePending, () => pendingTab, () => null);
+
+  useEffect(() => {
+    setPendingTab(null);
+  }, [pathname]);
 
   useEffect(() => {
     if (!directTab) return;
@@ -42,5 +68,5 @@ export function useActiveNavTab(): NavTab {
     } catch {}
   }, [directTab]);
 
-  return directTab ?? readLastTab();
+  return pending ?? directTab ?? readLastTab();
 }

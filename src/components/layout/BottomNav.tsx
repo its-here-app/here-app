@@ -1,8 +1,9 @@
 "use client";
 
+import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/authContext";
-import { useActiveNavTab } from "@/lib/useActiveNavTab";
+import { markNavTabPending, useActiveNavTab } from "@/lib/useActiveNavTab";
 import {
   BottomNavigation,
   type BottomNavTab,
@@ -15,23 +16,29 @@ export default function BottomNav() {
   const pathname = usePathname();
   const activeTab: BottomNavTab = useActiveNavTab();
 
+  const hrefs: Record<BottomNavTab, string> = {
+    home: "/",
+    search: "/search",
+    saved: "/saves",
+    profile: username ? `/${username}` : "/",
+  };
+
+  useEffect(() => {
+    if (!user) return;
+    ["/", "/search", "/saves", username ? `/${username}` : null].forEach(
+      (href) => href && router.prefetch(href),
+    );
+  }, [user, username, router]);
+
   if (loading || !user) return null;
 
   function handleTabChange(tab: BottomNavTab) {
-    switch (tab) {
-      case "home":
-        return router.push("/");
-      case "search":
-        return router.push("/search");
-      case "saved":
-        return router.push("/saves");
-      case "profile":
-        if (username && pathname === `/${username}`) {
-          window.scrollTo({ top: 0, behavior: "smooth" });
-          return;
-        }
-        return router.push(username ? `/${username}` : "/");
+    if (tab === "profile" && pathname === hrefs.profile) {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
     }
+    markNavTabPending(tab, hrefs[tab]);
+    router.push(hrefs[tab]);
   }
 
   return (
