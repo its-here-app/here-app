@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
+import {
+  isUsablePlacesStatus,
+  placesCoolingDown,
+  reportPlacesFailure,
+} from "@/lib/placesStatus";
 
 /**
  * Stable photo proxy for Google Places.
@@ -148,9 +153,10 @@ async function resolveFromGoogle(
     const details = (await detailsRes.json()) as {
       result?: { photos?: { photo_reference: string }[] };
       status?: string;
+      error_message?: string;
     };
-    if (details.status && details.status !== "OK") {
-      console.error("photo proxy: places API status", details.status);
+    if (details.status !== "OK" || !isUsablePlacesStatus(details.status)) {
+      reportPlacesFailure("photo proxy", details.status, details.error_message);
       return null;
     }
     photoRef = details.result?.photos?.[0]?.photo_reference;
@@ -254,6 +260,10 @@ export async function GET(request: NextRequest) {
   // --- 4. Slow path: resolve from Google -----------------------------------
   // Missing, past the 30-day ceiling, a forced refresh, or a non-default
   // width. Concurrent misses for the same key share one resolve.
+
+  // Google is failing for everyone right now (quota/key outage): don't spend
+  // two more round trips finding that out again.
+  if (placesCoolingDown()) return placeholderRedirect(request);
 
   const key = `${placeId}:${maxwidth}`;
   let pending = inFlight.get(key);
