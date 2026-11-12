@@ -40,6 +40,9 @@ export function SavesProvider({ children }: { children: React.ReactNode }) {
   const [savedSpots, setSavedSpots] = useState<Spot[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Google place ids whose save is in flight, so the UI can show them as saved
+  // immediately without putting a fake Spot (no real id yet) in savedSpots.
+  const [pendingSaves, setPendingSaves] = useState<ReadonlySet<string>>(new Set());
 
   useEffect(() => {
     if (!user) {
@@ -56,14 +59,17 @@ export function SavesProvider({ children }: { children: React.ReactNode }) {
 
   const isSaved = useCallback(
     (googlePlaceId: string) =>
+      pendingSaves.has(googlePlaceId) ||
       savedSpots.some((s) => s.google_place_id === googlePlaceId),
-    [savedSpots]
+    [savedSpots, pendingSaves]
   );
 
   const addSpot = useCallback(
     async (draft: DraftSpot, origin: SaveOrigin) => {
       if (!user) return;
       setError(null);
+      const placeId = draft.google_place_id;
+      setPendingSaves((prev) => new Set(prev).add(placeId));
       try {
         const newSpot = await saveSpot(
           user.id,
@@ -77,10 +83,19 @@ export function SavesProvider({ children }: { children: React.ReactNode }) {
           },
           origin
         );
-        setSavedSpots((prev) => [newSpot, ...prev]);
+        setSavedSpots((prev) => [
+          newSpot,
+          ...prev.filter((s) => s.google_place_id !== newSpot.google_place_id),
+        ]);
       } catch (e) {
         console.error("saveSpot failed:", e);
         setError(String(e));
+      } finally {
+        setPendingSaves((prev) => {
+          const next = new Set(prev);
+          next.delete(placeId);
+          return next;
+        });
       }
     },
     [user]

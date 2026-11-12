@@ -25,7 +25,6 @@ export default function BookmarkButton({ spot, source, fromUserId, playlistId, v
   const [mounted, setMounted] = useState(false);
   const [playlistSaved, setPlaylistSaved] = useState(false);
   const [loading, setLoading] = useState(!!playlistId);
-  const [savedOverride, setSavedOverride] = useState<boolean | null>(null);
   const [animating, setAnimating] = useState(false);
   const prevActiveRef = useRef(false);
 
@@ -78,9 +77,7 @@ export default function BookmarkButton({ spot, source, fromUserId, playlistId, v
 
   const saved = mounted && (playlistId
     ? playlistSaved
-    : savedOverride !== null
-      ? savedOverride
-      : isSaved(spot!.google_place_id));
+    : isSaved(spot!.google_place_id));
 
   useEffect(() => {
     if (saved && !prevActiveRef.current) setAnimating(true);
@@ -118,14 +115,12 @@ export default function BookmarkButton({ spot, source, fromUserId, playlistId, v
         (s) => s.google_place_id === spot!.google_place_id
       );
       if (!existing) return;
-      setSavedOverride(false);
       await removeSpot(existing);
       snackbar({
         icon: <Info />,
         message: "Spot removed from saves",
         actionLabel: "Undo",
         onAction: async () => {
-          setSavedOverride(null);
           await addSpot(spot!, origin);
         },
       });

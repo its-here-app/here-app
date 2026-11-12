@@ -32,6 +32,7 @@ import {
   sanitizeInstagramHandleInput,
 } from "../../../lib/isValidInstagramHandle";
 import { useDebouncedValue } from "../../../lib/useDebouncedValue";
+import { AUTH_NEXT_COOKIE, safeNextPath } from "../../../lib/authRedirect";
 import { useAvatarUpload } from "../../../lib/useAvatarUpload";
 
 type Step = "auth" | "password" | "profile";
@@ -49,6 +50,12 @@ export default function LoginPage() {
   const supabase = createClient();
   const emailRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
+  const nextRef = useRef<string | null>(null);
+
+  function destination() {
+    document.cookie = `${AUTH_NEXT_COOKIE}=; path=/; max-age=0`;
+    return nextRef.current ?? "/";
+  }
 
   // Auth step
   const [email, setEmail] = useState("");
@@ -94,6 +101,11 @@ export default function LoginPage() {
   // and that hook would need a Suspense boundary around the whole form.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    const next = safeNextPath(params.get("next"));
+    nextRef.current = next;
+    document.cookie = next
+      ? `${AUTH_NEXT_COOKIE}=${encodeURIComponent(next)}; path=/; max-age=3600; samesite=lax`
+      : `${AUTH_NEXT_COOKIE}=; path=/; max-age=0`;
     if (params.get("deleted") !== "1") return;
     setError(DELETED_ACCOUNT_MESSAGE);
     window.history.replaceState(null, "", "/signin");
@@ -128,7 +140,7 @@ export default function LoginPage() {
       .single()
       .then(({ data: profile }) => {
         if (profile?.username) {
-          router.replace("/");
+          router.replace(destination());
         } else {
           if (user.user_metadata?.full_name || user.user_metadata?.name) {
             setName(user.user_metadata.full_name ?? user.user_metadata.name);
@@ -248,7 +260,7 @@ export default function LoginPage() {
             return;
           }
 
-          router.push(reconcile === "restored" ? "/?restored=1" : "/");
+          router.push(reconcile === "restored" ? "/?restored=1" : destination());
           return;
         }
       }
@@ -347,7 +359,7 @@ export default function LoginPage() {
         });
       }
 
-      router.push("/");
+      router.push(destination());
     } catch (err: any) {
       toast({ icon: <Error />, message: err.message });
     } finally {

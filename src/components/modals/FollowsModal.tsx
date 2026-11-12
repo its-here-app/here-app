@@ -8,6 +8,8 @@ import { Tab, Tabs, TabPanels } from "../ui/Tabs";
 import { Button } from "../ui/Button";
 import { getFollowers, getFollowing, followUser } from "@/lib/services/users";
 import type { FollowUser } from "@/lib/services/users";
+import { toast } from "../ui/Toast";
+import { Error as ErrorIcon } from "../ui/icons/Error";
 
 interface FollowsModalProps {
   isOpen: boolean;
@@ -18,7 +20,7 @@ interface FollowsModalProps {
   currentUserId?: string;
   followerCount?: number;
   followingCount?: number;
-  onFollowBack?: () => void;
+  onFollowingChange?: (delta: number) => void;
 }
 
 export default function FollowsModal({
@@ -30,7 +32,7 @@ export default function FollowsModal({
   currentUserId,
   followerCount,
   followingCount,
-  onFollowBack,
+  onFollowingChange,
 }: FollowsModalProps) {
   const [tab, setTab] = useState<"followers" | "following">(initialTab);
   const [followers, setFollowers] = useState<FollowUser[] | null>(null);
@@ -57,6 +59,26 @@ export default function FollowsModal({
       getFollowing(profileId, currentUserId).then(setFollowing);
     }
   }, [isOpen, tab, profileId, currentUserId, followers, following]);
+
+  function applyFollowBack(u: FollowUser, followed: boolean) {
+    const delta = followed ? 1 : -1;
+    setFollowedBack((prev) => {
+      const next = new Set(prev);
+      if (followed) next.add(u.id);
+      else next.delete(u.id);
+      return next;
+    });
+    setLocalFollowingCount((c) => (c ?? 0) + delta);
+    onFollowingChange?.(delta);
+    setFollowing((prev) =>
+      followed
+        ? prev && [{ ...u, mutual: true }, ...prev]
+        : prev && prev.filter((f) => f.id !== u.id),
+    );
+    setFollowers((prev) =>
+      prev && prev.map((f) => (f.id === u.id ? { ...f, mutual: followed } : f)),
+    );
+  }
 
   function renderList(
     list: FollowUser[] | null,
@@ -102,22 +124,10 @@ export default function FollowsModal({
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    followUser(currentUserId!, u.id).then(() => {
-                      setFollowedBack((prev) => new Set([...prev, u.id]));
-                      setLocalFollowingCount((c) => (c ?? 0) + 1);
-                      onFollowBack?.();
-                      setFollowing((prev) =>
-                        prev
-                          ? [{ ...u, mutual: true }, ...prev]
-                          : [{ ...u, mutual: true }],
-                      );
-                      setFollowers((prev) =>
-                        prev
-                          ? prev.map((f) =>
-                              f.id === u.id ? { ...f, mutual: true } : f,
-                            )
-                          : prev,
-                      );
+                    applyFollowBack(u, true);
+                    followUser(currentUserId!, u.id).catch(() => {
+                      applyFollowBack(u, false);
+                      toast({ icon: <ErrorIcon />, message: "Couldn't follow, please try again" });
                     });
                   }}
                 >

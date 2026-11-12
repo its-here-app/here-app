@@ -5,6 +5,7 @@ import { useShare } from "@/lib/useShare";
 import { playlistDocTitle } from "@/lib/playlistDocTitle";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/authContext";
+import { signinHref } from "@/lib/authRedirect";
 import {
   upsertSpot,
   addSpotToPlaylist,
@@ -113,7 +114,7 @@ export default function PlaylistEditor({ playlist, isOwner, onClose, closeReady 
         message: "Love this list? Save spots on Here*",
         duration: 0,
         actionLabel: "Sign up",
-        onAction: () => router.push("/signin"),
+        onAction: () => router.push(signinHref(window.location.pathname)),
       });
     }
 
@@ -805,7 +806,16 @@ export default function PlaylistEditor({ playlist, isOwner, onClose, closeReady 
                   const next = !isPublic;
                   setIsPublic(next);
                   setIsSheetOpen(false);
-                  await updatePlaylistVisibility(playlist.id, next);
+                  try {
+                    await updatePlaylistVisibility(playlist.id, next);
+                  } catch {
+                    setIsPublic(!next);
+                    toast({
+                      icon: <ErrorIcon />,
+                      message: `Couldn't make playlist ${next ? "public" : "private"}, please try again`,
+                    });
+                    return;
+                  }
                   revalidateProfileAction(playlist.profiles.username);
                   toast({
                     icon: next ? <World /> : <Lock />,
