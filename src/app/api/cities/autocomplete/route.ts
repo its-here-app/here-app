@@ -6,6 +6,11 @@ import {
   type AutocompletePrediction,
 } from "@/lib/cityAutocomplete";
 import { normalizeForMatch } from "@/lib/cityResolution";
+import {
+  isUsablePlacesStatus,
+  placesCoolingDown,
+  reportPlacesFailure,
+} from "@/lib/placesStatus";
 
 /**
  * Place Autocomplete proxy for city selection.
@@ -36,12 +41,6 @@ type AutocompleteResponse = {
   status?: string;
   error_message?: string;
 };
-
-// Places reports errors (REQUEST_DENIED, OVER_QUERY_LIMIT, ...) inside an HTTP
-// 200, and Next's data cache stores any ok response. Only these two statuses
-// are real answers worth caching.
-const isUsable = (d: AutocompleteResponse) =>
-  !d.status || d.status === "OK" || d.status === "ZERO_RESULTS";
 
 function escapeLike(s: string): string {
   return s.replace(/[%_\\]/g, "\\$&");
@@ -143,6 +142,8 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  if (placesCoolingDown()) return fallbackToDb(query);
+
   try {
     const upstream =
       `${AUTOCOMPLETE_URL}` +
@@ -165,15 +166,13 @@ export async function GET(request: NextRequest) {
 
     const data = (await res.json()) as AutocompleteResponse;
 
-    if (!isUsable(data)) {
+    // Places reports errors (REQUEST_DENIED, OVER_QUERY_LIMIT, ...) inside an
+    // HTTP 200, and Next's data cache stores any ok response.
+    if (!isUsablePlacesStatus(data.status)) {
       // A bad answer may have been cached for this prefix (up to 7 days).
       // Evict it so the next request asks Google again, and answer this one
       // from the DB. No retry here: on a quota error it would just burn more.
-      console.error(
-        "cities/autocomplete: places status",
-        data.status,
-        data.error_message ?? "",
-      );
+      reportPlacesFailure("cities/autocomplete", data.status, data.error_message);
       revalidateTag(cacheTag, { expire: 0 });
       return fallbackToDb(query);
     }

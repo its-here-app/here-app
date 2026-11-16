@@ -362,10 +362,11 @@ export async function searchSpots(
   query: string,
   city?: string
 ): Promise<SearchResult[]> {
-  const q = city ? `${query}, ${city}` : query;
-  const response = await fetch(
-    `/api/spots/search?query=${encodeURIComponent(q)}`
-  );
+  // City goes separately so the route can filter its stored-spots fallback by
+  // it; the route still sends Google "query, city".
+  const params = new URLSearchParams({ query });
+  if (city) params.set("city", city);
+  const response = await fetch(`/api/spots/search?${params}`);
   if (!response.ok) throw new Error("Failed to search spots");
   const data = await response.json();
   return data.places ?? [];
